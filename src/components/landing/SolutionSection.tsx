@@ -1,25 +1,40 @@
 import { motion } from "framer-motion";
 
+const benefits = [
+  "Você deixa de depender só do Instagram",
+  "Passa a ter um ativo que trabalha por você",
+  "E começa a atrair clientes mais qualificados",
+];
+
 const SolutionSection = () => {
   return (
-    <section className="py-20 md:py-28 bg-charcoal text-primary-foreground">
+    <section className="py-20 md:py-28 bg-background">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
+          viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="max-w-2xl mx-auto text-center"
+          className="max-w-2xl mx-auto"
         >
-          <h2 className="text-3xl md:text-4xl font-display font-semibold mb-6">
-            Como eu <span className="text-gold">resolvo</span> isso
+          <h2 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-10 text-center">
+            O que muda com um site <span className="text-gold">estratégico</span>
           </h2>
-          <p className="text-primary-foreground/60 font-body text-lg leading-relaxed mb-4">
-            Crio sites com estrutura estratégica pensada para transformar visitantes em clientes.
-          </p>
-          <p className="text-primary-foreground/50 font-body text-base leading-relaxed">
-            Não é apenas design. É posicionamento, clareza e conversão.
-          </p>
+          <ul className="space-y-4">
+            {benefits.map((item, i) => (
+              <motion.li
+                key={i}
+                initial={{ opacity: 0, x: -15 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="flex items-center gap-4 text-lg font-body text-foreground"
+              >
+                <span className="w-2 h-2 rounded-full bg-gold shrink-0" />
+                {item}
+              </motion.li>
+            ))}
+          </ul>
         </motion.div>
       </div>
     </section>
