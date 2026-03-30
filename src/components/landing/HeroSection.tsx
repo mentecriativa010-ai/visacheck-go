@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import heroMockup from "@/assets/hero-mockup.png";
 
-const WHATSAPP_URL = "https://wa.me/5500000000000?text=Quero%20uma%20an%C3%A1lise%20do%20meu%20perfil";
+const WHATSAPP_URL = "https://wa.me/5562992451661?text=Quero%20uma%20an%C3%A1lise%20do%20meu%20perfil";
 
 const HeroSection = () => {
   return (
