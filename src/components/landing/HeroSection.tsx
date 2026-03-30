@@ -13,14 +13,14 @@ const HeroSection = () => {
           className="max-w-2xl mx-auto text-center"
         >
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-semibold text-primary-foreground leading-[1.1] mb-4">
-            Seu Instagram não está te trazendo{" "}
-            <span className="text-gold">clientes.</span>
+            Você está perdendo clientes{" "}
+            <span className="text-gold">todos os dias.</span>
           </h1>
           <p className="text-xl md:text-2xl font-display text-primary-foreground/80 mb-6">
-            E provavelmente o problema não é o seu conteúdo.
+            E provavelmente nem percebe.
           </p>
-          <p className="text-base md:text-lg text-primary-foreground/50 font-body font-light max-w-lg mx-auto mb-12 leading-relaxed">
-            Sem uma estrutura estratégica, seu perfil vira apenas vitrine — não uma máquina de clientes.
+          <p className="text-base md:text-lg text-primary-foreground/50 font-body font-light max-w-lg mx-auto mb-10 leading-relaxed">
+            Sem uma estrutura estratégica, seu Instagram vira só vitrine — não gera clientes.
           </p>
           <a
             href={WHATSAPP_URL}
@@ -33,6 +33,9 @@ const HeroSection = () => {
             </svg>
             Quero uma análise gratuita
           </a>
+          <p className="mt-4 text-primary-foreground/35 font-body text-sm">
+            Leva menos de 2 minutos • Sem compromisso
+          </p>
         </motion.div>
       </div>
     </section>

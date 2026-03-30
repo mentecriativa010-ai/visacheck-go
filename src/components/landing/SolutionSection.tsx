@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 
 const benefits = [
-  "Você deixa de depender só do Instagram",
-  "Passa a ter um ativo que trabalha por você",
-  "E começa a atrair clientes mais qualificados",
+  "Você passa a ter um ativo que trabalha por você",
+  "Atrai clientes mais qualificados",
+  "Deixa de depender só do Instagram",
 ];
 
 const SolutionSection = () => {
@@ -20,7 +20,7 @@ const SolutionSection = () => {
           <h2 className="text-3xl md:text-4xl font-display font-semibold text-foreground mb-10 text-center">
             O que muda com um site <span className="text-gold">estratégico</span>
           </h2>
-          <ul className="space-y-4">
+          <ul className="space-y-4 mb-8">
             {benefits.map((item, i) => (
               <motion.li
                 key={i}
@@ -35,6 +35,15 @@ const SolutionSection = () => {
               </motion.li>
             ))}
           </ul>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="text-base font-body text-muted-foreground text-center italic"
+          >
+            Isso muda completamente a forma como você fecha clientes.
+          </motion.p>
         </motion.div>
       </div>
     </section>

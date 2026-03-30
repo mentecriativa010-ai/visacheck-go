@@ -12,13 +12,10 @@ const BeliefBreakSection = () => {
           className="max-w-xl mx-auto text-center space-y-5"
         >
           <p className="text-lg md:text-xl font-body text-foreground leading-relaxed">
-            A maioria dos profissionais acha que precisa <span className="font-semibold">postar mais.</span>
-          </p>
-          <p className="text-lg md:text-xl font-body text-muted-foreground leading-relaxed">
-            Mas o problema não é alcance.
+            O problema não é falta de <span className="font-semibold">conteúdo.</span>
           </p>
           <p className="text-2xl md:text-3xl font-display font-semibold text-gold">
-            É conversão.
+            É falta de conversão.
           </p>
         </motion.div>
       </div>
