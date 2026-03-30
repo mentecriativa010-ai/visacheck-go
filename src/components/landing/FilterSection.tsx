@@ -3,8 +3,8 @@ import { X } from "lucide-react";
 
 const filters = [
   "Quer um site barato",
-  "Não valoriza posicionamento",
-  "Não está pronto para crescer",
+  "Não quer crescer",
+  "Busca só estética",
 ];
 
 const FilterSection = () => {
@@ -18,13 +18,10 @@ const FilterSection = () => {
           transition={{ duration: 0.5 }}
           className="max-w-xl mx-auto"
         >
-          <p className="text-xs font-body tracking-[0.2em] uppercase text-muted-foreground mb-4">
-            Aviso
-          </p>
           <h2 className="text-2xl md:text-3xl font-display font-semibold text-foreground mb-8">
             Esse serviço <span className="text-gold">não é</span> para quem:
           </h2>
-          <ul className="space-y-4">
+          <ul className="space-y-4 mb-8">
             {filters.map((item, i) => (
               <motion.li
                 key={i}
@@ -39,6 +36,15 @@ const FilterSection = () => {
               </motion.li>
             ))}
           </ul>
+          <motion.p
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+            className="text-lg font-display font-semibold text-gold"
+          >
+            É para quem quer atrair clientes de maior valor.
+          </motion.p>
         </motion.div>
       </div>
     </section>

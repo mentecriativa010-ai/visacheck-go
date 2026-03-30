@@ -4,7 +4,7 @@ const WHATSAPP_URL = "https://wa.me/5562992451661?text=Quero%20uma%20an%C3%A1lis
 
 const OfferSection = () => {
   return (
-    <section className="py-20 md:py-28 bg-charcoal text-primary-foreground">
+    <section className="py-20 md:py-28 bg-background">
       <div className="container mx-auto px-6">
         <motion.div
           initial={{ opacity: 0, y: 30 }}
@@ -14,14 +14,14 @@ const OfferSection = () => {
           className="max-w-2xl mx-auto text-center"
         >
           <span className="text-gold text-xs font-body tracking-[0.2em] uppercase">Oferta</span>
-          <h2 className="text-3xl md:text-4xl font-display font-semibold text-primary-foreground mt-4 mb-6">
-            Análise estratégica <span className="text-gold">gratuita</span>
+          <h2 className="text-3xl md:text-4xl font-display font-semibold text-foreground mt-4 mb-6">
+            Análise <span className="text-gold">gratuita</span> do seu perfil
           </h2>
-          <p className="text-primary-foreground/60 font-body text-lg leading-relaxed mb-3">
-            Vou analisar seu perfil e te mostrar exatamente onde você está perdendo clientes — e como corrigir isso com um site estratégico.
+          <p className="text-muted-foreground font-body text-lg leading-relaxed mb-3">
+            Vou identificar exatamente onde você está perdendo clientes e te mostrar o que precisa ser ajustado.
           </p>
-          <p className="text-primary-foreground/40 font-body text-sm mb-10">
-            Sem compromisso.
+          <p className="text-foreground font-body text-base font-medium mb-8">
+            Você sai da conversa com clareza do que fazer.
           </p>
           <a
             href={WHATSAPP_URL}
@@ -34,6 +34,9 @@ const OfferSection = () => {
             </svg>
             Quero minha análise
           </a>
+          <p className="mt-3 text-muted-foreground font-body text-sm">
+            Sem compromisso
+          </p>
         </motion.div>
       </div>
     </section>
