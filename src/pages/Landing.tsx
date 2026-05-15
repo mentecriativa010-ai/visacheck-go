@@ -553,10 +553,11 @@ function DashboardMockup() {
   );
 }
 
-function Legend({ color, label, value }: { color: string; label: string; value: string }) {
+function Legend({ color, label, value }: { color: "success" | "warning" | "destructive"; label: string; value: string }) {
+  const cls = color === "success" ? "bg-success" : color === "warning" ? "bg-warning" : "bg-destructive";
   return (
     <div className="flex items-center gap-2">
-      <span className={`h-2 w-2 rounded-full bg-${color}`} />
+      <span className={`h-2 w-2 rounded-full ${cls}`} />
       <span className="text-muted-foreground">{label}</span>
       <span className="ml-auto font-mono">{value}</span>
     </div>
