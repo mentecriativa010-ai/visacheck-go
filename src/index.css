@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,71 +6,93 @@
 
 @layer base {
   :root {
-    --background: 40 20% 98%;
-    --foreground: 220 15% 13%;
+    --background: 222 28% 7%;
+    --foreground: 210 20% 96%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 15% 13%;
+    --card: 222 25% 10%;
+    --card-foreground: 210 20% 96%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 15% 13%;
+    --popover: 222 28% 9%;
+    --popover-foreground: 210 20% 96%;
 
-    --primary: 38 65% 50%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 188 95% 55%;
+    --primary-foreground: 222 30% 8%;
 
-    --secondary: 40 10% 94%;
-    --secondary-foreground: 220 15% 13%;
+    --secondary: 222 20% 14%;
+    --secondary-foreground: 210 20% 96%;
 
-    --muted: 40 10% 94%;
-    --muted-foreground: 220 8% 50%;
+    --muted: 222 18% 14%;
+    --muted-foreground: 215 15% 65%;
 
-    --accent: 38 65% 50%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 188 95% 55%;
+    --accent-foreground: 222 30% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 60%;
+    --destructive-foreground: 210 20% 98%;
 
-    --border: 40 10% 90%;
-    --input: 40 10% 90%;
-    --ring: 38 65% 50%;
+    --warning: 38 95% 58%;
+    --warning-foreground: 222 30% 8%;
 
-    --radius: 0.5rem;
+    --success: 152 60% 48%;
+    --success-foreground: 222 30% 8%;
 
-    /* Custom tokens */
-    --gold: 38 65% 50%;
-    --gold-light: 38 55% 65%;
-    --charcoal: 220 15% 13%;
-    --charcoal-light: 220 10% 22%;
-    --warm-gray: 40 5% 55%;
-    --cream: 40 20% 98%;
-    --cream-dark: 40 15% 93%;
+    --border: 222 18% 18%;
+    --input: 222 18% 16%;
+    --ring: 188 95% 55%;
 
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'Inter', sans-serif;
+    --radius: 0.65rem;
 
-    --shadow-premium: 0 20px 60px -15px hsl(220 15% 13% / 0.1);
-    --shadow-card: 0 4px 30px -8px hsl(220 15% 13% / 0.06);
-    --shadow-gold: 0 8px 30px -8px hsl(38 65% 50% / 0.3);
+    --surface: 222 22% 11%;
+    --surface-elevated: 222 22% 13%;
+
+    --gradient-hero: radial-gradient(ellipse at top, hsl(188 95% 55% / 0.15), transparent 60%),
+                     radial-gradient(ellipse at bottom right, hsl(220 90% 50% / 0.12), transparent 60%);
+    --gradient-glass: linear-gradient(135deg, hsl(222 25% 14% / 0.7), hsl(222 25% 10% / 0.5));
+
+    --shadow-glow: 0 0 40px -8px hsl(188 95% 55% / 0.35);
+    --shadow-card: 0 8px 32px -12px hsl(0 0% 0% / 0.4);
+
+    --sidebar-background: 222 28% 6%;
+    --sidebar-foreground: 210 15% 78%;
+    --sidebar-primary: 188 95% 55%;
+    --sidebar-primary-foreground: 222 30% 8%;
+    --sidebar-accent: 222 22% 12%;
+    --sidebar-accent-foreground: 210 20% 96%;
+    --sidebar-border: 222 18% 14%;
+    --sidebar-ring: 188 95% 55%;
   }
+
+  /* Single dark theme — keep .light alias for compatibility */
+  .light { color-scheme: dark; }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
-
+  * { @apply border-border; }
+  html, body, #root { @apply min-h-screen; }
   body {
-    @apply bg-background text-foreground;
-    font-family: var(--font-body);
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings: 'cv02','cv03','cv04','cv11';
+    background-image: var(--gradient-hero);
+    background-attachment: fixed;
   }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+}
 
-  h1, h2, h3, h4 {
-    font-family: var(--font-display);
+@layer components {
+  .glass {
+    background: var(--gradient-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    @apply border border-border/60;
+  }
+  .glow-ring {
+    box-shadow: var(--shadow-glow);
   }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+@media print {
+  body { background: white !important; color: black !important; }
+  .no-print { display: none !important; }
+  .print-page { page-break-after: always; }
 }
