@@ -14,16 +14,219 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      analises: {
+        Row: {
+          coordenada_x: number
+          coordenada_y: number
+          created_at: string
+          descricao_problema: string
+          id: string
+          norma: string
+          pagina: number
+          projeto_id: string
+          severidade: Database["public"]["Enums"]["severidade"]
+          sugestao: string
+        }
+        Insert: {
+          coordenada_x?: number
+          coordenada_y?: number
+          created_at?: string
+          descricao_problema: string
+          id?: string
+          norma: string
+          pagina?: number
+          projeto_id: string
+          severidade: Database["public"]["Enums"]["severidade"]
+          sugestao: string
+        }
+        Update: {
+          coordenada_x?: number
+          coordenada_y?: number
+          created_at?: string
+          descricao_problema?: string
+          id?: string
+          norma?: string
+          pagina?: number
+          projeto_id?: string
+          severidade?: Database["public"]["Enums"]["severidade"]
+          sugestao?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analises_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          cnpj: string | null
+          crea_cau: string | null
+          created_at: string
+          email: string | null
+          email_corporativo: string | null
+          id: string
+          nome: string | null
+          nome_fantasia: string | null
+          razao_social: string | null
+          registro_profissional: string | null
+          responsavel_tecnico: string | null
+          telefone: string | null
+          tipo_usuario: Database["public"]["Enums"]["user_type"]
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          crea_cau?: string | null
+          created_at?: string
+          email?: string | null
+          email_corporativo?: string | null
+          id: string
+          nome?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          registro_profissional?: string | null
+          responsavel_tecnico?: string | null
+          telefone?: string | null
+          tipo_usuario?: Database["public"]["Enums"]["user_type"]
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          crea_cau?: string | null
+          created_at?: string
+          email?: string | null
+          email_corporativo?: string | null
+          id?: string
+          nome?: string | null
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          registro_profissional?: string | null
+          responsavel_tecnico?: string | null
+          telefone?: string | null
+          tipo_usuario?: Database["public"]["Enums"]["user_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projetos: {
+        Row: {
+          arquivo_path: string | null
+          arquivo_url: string | null
+          created_at: string
+          id: string
+          nome_projeto: string
+          score_conformidade: number
+          status: Database["public"]["Enums"]["projeto_status"]
+          tipo_arquivo: string
+          updated_at: string
+          usuario_id: string
+        }
+        Insert: {
+          arquivo_path?: string | null
+          arquivo_url?: string | null
+          created_at?: string
+          id?: string
+          nome_projeto: string
+          score_conformidade?: number
+          status?: Database["public"]["Enums"]["projeto_status"]
+          tipo_arquivo: string
+          updated_at?: string
+          usuario_id: string
+        }
+        Update: {
+          arquivo_path?: string | null
+          arquivo_url?: string | null
+          created_at?: string
+          id?: string
+          nome_projeto?: string
+          score_conformidade?: number
+          status?: Database["public"]["Enums"]["projeto_status"]
+          tipo_arquivo?: string
+          updated_at?: string
+          usuario_id?: string
+        }
+        Relationships: []
+      }
+      relatorios: {
+        Row: {
+          gerado_em: string
+          id: string
+          projeto_id: string
+          relatorio_pdf: string | null
+          status_final: Database["public"]["Enums"]["projeto_status"]
+        }
+        Insert: {
+          gerado_em?: string
+          id?: string
+          projeto_id: string
+          relatorio_pdf?: string | null
+          status_final: Database["public"]["Enums"]["projeto_status"]
+        }
+        Update: {
+          gerado_em?: string
+          id?: string
+          projeto_id?: string
+          relatorio_pdf?: string | null
+          status_final?: Database["public"]["Enums"]["projeto_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "relatorios_projeto_id_fkey"
+            columns: ["projeto_id"]
+            isOneToOne: false
+            referencedRelation: "projetos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
+      projeto_status:
+        | "pendente"
+        | "analisando"
+        | "aprovado"
+        | "parcial"
+        | "reprovado"
+      severidade: "critico" | "atencao" | "conforme"
+      user_type: "profissional" | "empresa"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +353,17 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+      projeto_status: [
+        "pendente",
+        "analisando",
+        "aprovado",
+        "parcial",
+        "reprovado",
+      ],
+      severidade: ["critico", "atencao", "conforme"],
+      user_type: ["profissional", "empresa"],
+    },
   },
 } as const
