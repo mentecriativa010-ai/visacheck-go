@@ -533,16 +533,16 @@ function DashboardMockup() {
           </div>
           <div className="divide-y divide-border/40">
             {[
-              { name: "Hospital Santa Clara · Bloco B", score: 94, status: "Aprovado", tone: "success" },
-              { name: "UBS Setor Bueno", score: 76, status: "Parcial", tone: "warning" },
-              { name: "Clínica Odontológica Vita", score: 42, status: "Reprovado", tone: "destructive" },
-              { name: "Centro Cirúrgico Goiânia", score: 88, status: "Aprovado", tone: "success" },
+              { name: "Hospital Santa Clara · Bloco B", score: 94, status: "Aprovado", cls: "bg-success/15 text-success" },
+              { name: "UBS Setor Bueno", score: 76, status: "Parcial", cls: "bg-warning/15 text-warning" },
+              { name: "Clínica Odontológica Vita", score: 42, status: "Reprovado", cls: "bg-destructive/15 text-destructive" },
+              { name: "Centro Cirúrgico Goiânia", score: 88, status: "Aprovado", cls: "bg-success/15 text-success" },
             ].map((p) => (
               <div key={p.name} className="flex items-center justify-between py-2.5">
                 <div className="text-sm">{p.name}</div>
                 <div className="flex items-center gap-4">
                   <span className="text-xs font-mono text-muted-foreground">{p.score}%</span>
-                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded bg-${p.tone}/15 text-${p.tone}`}>{p.status}</span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${p.cls}`}>{p.status}</span>
                 </div>
               </div>
             ))}
