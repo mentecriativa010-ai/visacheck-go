@@ -5,8 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, PieChart, Pie, Cell } from "recharts";
-import { FileCheck2, FileWarning, FileClock, Gauge, ArrowUpRight } from "lucide-react";
-import { format } from "date-fns";
+import { FileCheck2, FileClock, Gauge, ArrowUpRight, Activity, AlertCircle, CheckCircle2 } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
+import { ptBR } from "date-fns/locale";
 
 type Projeto = {
   id: string;
