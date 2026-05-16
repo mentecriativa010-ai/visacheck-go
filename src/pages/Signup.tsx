@@ -75,11 +75,21 @@ export default function Signup() {
           <Tabs value={tab} onValueChange={(v) => { setTab(v as any); setForm({}); }}>
             <TabsList className="grid grid-cols-2 mb-6">
               <TabsTrigger value="profissional">Profissional</TabsTrigger>
-              <TabsTrigger value="empresa">Empresa</TabsTrigger>
+              <TabsTrigger value="empresa">Escritório</TabsTrigger>
             </TabsList>
             <form onSubmit={submit} className="space-y-4">
               <TabsContent value="profissional" className="space-y-4 mt-0">
                 <Field label="Nome completo" onChange={update("nome")} value={form.nome || ""} />
+                <div className="space-y-2">
+                  <Label>Profissão</Label>
+                  <Select value={form.profissao || ""} onValueChange={(v) => setForm((f) => ({ ...f, profissao: v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="arquiteto">Arquiteto</SelectItem>
+                      <SelectItem value="engenheiro">Engenheiro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
                 <Field label="Email" type="email" onChange={update("email")} value={form.email || ""} />
                 <div className="grid grid-cols-2 gap-4">
                   <Field label="Telefone" onChange={update("telefone")} value={form.telefone || ""} />
