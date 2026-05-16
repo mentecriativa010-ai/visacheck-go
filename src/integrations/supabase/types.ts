@@ -71,6 +71,7 @@ export type Database = {
           id: string
           nome: string | null
           nome_fantasia: string | null
+          profissao: string | null
           razao_social: string | null
           registro_profissional: string | null
           responsavel_tecnico: string | null
@@ -87,6 +88,7 @@ export type Database = {
           id: string
           nome?: string | null
           nome_fantasia?: string | null
+          profissao?: string | null
           razao_social?: string | null
           registro_profissional?: string | null
           responsavel_tecnico?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           id?: string
           nome?: string | null
           nome_fantasia?: string | null
+          profissao?: string | null
           razao_social?: string | null
           registro_profissional?: string | null
           responsavel_tecnico?: string | null
