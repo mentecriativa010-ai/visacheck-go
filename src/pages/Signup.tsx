@@ -16,6 +16,7 @@ const cnpjRe = /^\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}$/;
 
 const profSchema = z.object({
   nome: z.string().trim().min(2).max(120),
+  profissao: z.enum(["arquiteto", "engenheiro"], { errorMap: () => ({ message: "Selecione sua profissão" }) }),
   email: z.string().trim().email().max(255),
   telefone: z.string().trim().min(8).max(20),
   crea_cau: z.string().trim().regex(creaRe, "Formato CREA/CAU inválido"),
