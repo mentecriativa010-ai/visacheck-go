@@ -92,7 +92,13 @@
 }
 
 @media print {
-  body { background: white !important; color: black !important; }
+  @page { size: A4; margin: 18mm 16mm; }
+  html, body { background: white !important; color: #0a0a0a !important; background-image: none !important; }
+  body { font-size: 11pt; }
   .no-print { display: none !important; }
-  .print-page { page-break-after: always; }
+  .print-page { page-break-after: always; break-after: page; }
+  .glass { background: white !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; border-color: rgba(0,0,0,0.15) !important; box-shadow: none !important; }
+  h1, h2, h3 { color: #0a0a0a !important; }
+  .text-muted-foreground { color: #555 !important; }
+  .bg-surface, .bg-card, [class*="bg-surface"], [class*="bg-card"] { background: #fafafa !important; }
 }
