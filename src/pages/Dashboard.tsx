@@ -56,9 +56,15 @@ export default function Dashboard() {
       <header className="flex items-end justify-between mb-8">
         <div>
           <h1 className="text-3xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-1">Visão geral dos seus projetos sanitários.</p>
+          <p className="text-sm text-muted-foreground mt-1">Visão geral operacional do engine regulatório.</p>
         </div>
-        <Link to="/app/projects" className="text-sm text-primary hover:underline flex items-center gap-1">Novo projeto <ArrowUpRight className="h-4 w-4" /></Link>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider text-muted-foreground px-3 py-1.5 rounded-md border border-border/60 bg-surface/40">
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
+            Engine online · 142 normas ativas
+          </div>
+          <Link to="/app/projects" className="text-sm text-primary hover:underline flex items-center gap-1">Novo projeto <ArrowUpRight className="h-4 w-4" /></Link>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
