@@ -112,30 +112,71 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card className="glass p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-medium">Histórico recente</h3>
-          <Link to="/app/projects" className="text-xs text-primary hover:underline">Ver todos</Link>
-        </div>
-        {recent.length === 0 ? (
-          <div className="text-sm text-muted-foreground py-10 text-center">Nenhum projeto ainda. <Link to="/app/projects" className="text-primary">Envie o primeiro</Link>.</div>
-        ) : (
-          <div className="divide-y divide-border/50">
-            {recent.map((p) => (
-              <Link key={p.id} to={`/app/projects/${p.id}`} className="flex items-center justify-between py-3 hover:bg-surface/50 px-2 -mx-2 rounded-md transition-colors">
-                <div>
-                  <div className="font-medium text-sm">{p.nome_projeto}</div>
-                  <div className="text-xs text-muted-foreground font-mono">{format(new Date(p.created_at), "dd/MM/yyyy HH:mm")}</div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-mono text-sm">{p.score_conformidade}%</span>
-                  <Badge className={statusColor[p.status]}>{statusLabel[p.status]}</Badge>
-                </div>
-              </Link>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="glass p-6 lg:col-span-2">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-medium">Atividade recente</h3>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">Timeline operacional</div>
+            </div>
+            <Link to="/app/projects" className="text-xs text-primary hover:underline">Ver todos</Link>
+          </div>
+          {recent.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-10 text-center">Nenhum projeto ainda. <Link to="/app/projects" className="text-primary">Envie o primeiro</Link>.</div>
+          ) : (
+            <div className="relative">
+              <div className="absolute left-2 top-2 bottom-2 w-px bg-border/60" />
+              {recent.map((p) => {
+                const Icon = p.status === "aprovado" ? CheckCircle2 : p.status === "reprovado" ? AlertCircle : Activity;
+                const dotColor = p.status === "aprovado" ? "hsl(var(--success))" : p.status === "parcial" ? "hsl(var(--warning))" : p.status === "reprovado" ? "hsl(var(--destructive))" : "hsl(var(--primary))";
+                return (
+                  <Link key={p.id} to={`/app/projects/${p.id}`} className="relative flex items-center gap-3 py-3 pl-10 pr-3 -mx-3 rounded-md hover:bg-surface/40 transition-colors group">
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4 rounded-full grid place-items-center ring-4 ring-background" style={{ background: `${dotColor.replace("hsl", "hsla").replace(")", " / 0.18)")}` }}>
+                      <Icon className="h-2.5 w-2.5" style={{ color: dotColor }} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate group-hover:text-primary transition-colors">{p.nome_projeto}</div>
+                      <div className="text-[11px] text-muted-foreground font-mono">
+                        {formatDistanceToNow(new Date(p.created_at), { addSuffix: true, locale: ptBR })} · análise sanitária concluída
+                      </div>
+                    </div>
+                    <span className="font-mono text-sm tabular-nums">{p.score_conformidade}%</span>
+                    <Badge className={statusColor[p.status]}>{statusLabel[p.status]}</Badge>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+
+        <Card className="glass p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-medium">Status do engine</h3>
+              <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mt-0.5">Em tempo real</div>
+            </div>
+            <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
+          </div>
+          <div className="space-y-2.5 text-xs">
+            {[
+              { k: "Regulatory Engine", v: "Online", tone: "text-success" },
+              { k: "Catálogo normativo", v: "142 regras", tone: "text-primary" },
+              { k: "Modelo de visão", v: "v1.0 ativo", tone: "text-success" },
+              { k: "Parser CAD (DWG/DXF)", v: "Em preparação", tone: "text-warning" },
+              { k: "OCR de plantas", v: "Em preparação", tone: "text-warning" },
+            ].map((s) => (
+              <div key={s.k} className="flex items-center justify-between border-b border-border/30 pb-2 last:border-0">
+                <span className="text-muted-foreground">{s.k}</span>
+                <span className={`font-mono ${s.tone}`}>{s.v}</span>
+              </div>
             ))}
           </div>
-        )}
-      </Card>
+          <div className="mt-4 pt-4 border-t border-border/40">
+            <div className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Processados · últimas 24h</div>
+            <div className="text-3xl font-mono font-semibold">{projetos.filter(p => Date.now() - new Date(p.created_at).getTime() < 86400000).length}</div>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }
