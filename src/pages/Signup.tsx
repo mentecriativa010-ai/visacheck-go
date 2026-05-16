@@ -47,7 +47,7 @@ export default function Signup() {
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     setLoading(true);
     const email = tab === "profissional" ? form.email : form.email_corporativo;
-    const meta = { ...form, tipo_usuario: tab };
+    const meta = { ...form, tipo_usuario: tab, profissao: tab === "empresa" ? "escritorio" : form.profissao };
     delete (meta as any).password;
     const { error } = await supabase.auth.signUp({
       email,
