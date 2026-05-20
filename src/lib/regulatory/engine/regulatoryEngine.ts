@@ -59,7 +59,7 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
         status: r.status,
         severidade_efetiva: r.severidade_efetiva,
         valor_observado: r.valor_observado ?? null,
-        detalhes: r.detalhes as unknown as import("@/integrations/supabase/client").Database["public"]["Tables"]["validacoes"]["Insert"]["detalhes"],
+        detalhes: r.detalhes as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["validacoes"]["Insert"]["detalhes"],
       })),
     );
   }
@@ -79,7 +79,7 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
     risco_sanitario: result.parecer.risco_sanitario,
     impacto_regulatorio: result.parecer.impacto_regulatorio,
     resumo_executivo: result.parecer.resumo_executivo,
-    checklist: result.parecer.checklist as unknown as import("@/integrations/supabase/client").Database["public"]["Tables"]["pareceres"]["Insert"]["checklist"],
+    checklist: result.parecer.checklist as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["pareceres"]["Insert"]["checklist"],
   });
 
   await supabase
