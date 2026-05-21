@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ function formatCNPJ(value: string) {
 }
 
 export default function Login() {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<"profissional" | "empresa">("profissional");
   const [conselho, setConselho] = useState("");
   const [cnpj, setCnpj] = useState("");
@@ -35,15 +36,27 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
 
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash.includes("error=access_denied") || hash.includes("otp_expired")) {
+      setError("Email ainda não confirmado. Verifique sua caixa de entrada.");
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
+    const conselhoNorm = conselho.trim().toUpperCase();
+    const cnpjNorm = cnpj.trim();
+
     const { data: emailData, error: lookupError } = await supabase.rpc(
       "get_email_by_credentials" as never,
       {
-        _crea_cau: tab === "profissional" ? conselho.trim() : "",
-        _cnpj: tab === "empresa" ? cnpj.trim() : "",
+        _crea_cau: tab === "profissional" ? conselhoNorm : "",
+        _cnpj: tab === "empresa" ? cnpjNorm : "",
       } as never,
     );
     if (lookupError || !emailData) {
@@ -60,7 +73,15 @@ export default function Login() {
       password,
     });
     setLoading(false);
-    if (signInError) setError("Senha incorreta.");
+    if (signInError) {
+      if (signInError.message.toLowerCase().includes("not confirmed")) {
+        setError("Email ainda não confirmado. Verifique sua caixa de entrada.");
+      } else {
+        setError("Senha incorreta.");
+      }
+      return;
+    }
+    navigate("/dashboard");
   };
 
   const handleReset = async (e: React.FormEvent) => {
