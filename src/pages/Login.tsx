@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ function formatCNPJ(value: string) {
 }
 
 export default function Login() {
+  const [tab, setTab] = useState<"profissional" | "empresa">("profissional");
   const [conselho, setConselho] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [password, setPassword] = useState("");
@@ -39,11 +41,18 @@ export default function Login() {
     setError("");
     const { data: emailData, error: lookupError } = await supabase.rpc(
       "get_email_by_credentials" as never,
-      { _crea_cau: conselho.trim(), _cnpj: cnpj.trim() } as never,
+      {
+        _crea_cau: tab === "profissional" ? conselho.trim() : "",
+        _cnpj: tab === "empresa" ? cnpj.trim() : "",
+      } as never,
     );
     if (lookupError || !emailData) {
       setLoading(false);
-      setError("Conselho ou CNPJ não encontrado.");
+      setError(
+        tab === "profissional"
+          ? "Conselho não encontrado."
+          : "CNPJ não encontrado.",
+      );
       return;
     }
     const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -90,32 +99,55 @@ export default function Login() {
             Acesse sua conta
           </h1>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="conselho">Número do Conselho</Label>
-              <Input
-                id="conselho"
-                type="text"
-                placeholder="CREA-GO 12345 ou CAU-GO 12345"
-                value={conselho}
-                onChange={(e) => setConselho(e.target.value)}
-                required
-              />
-            </div>
+          <div className="grid grid-cols-2 gap-1 p-1 mb-6 bg-muted rounded-md">
+            {(["profissional", "empresa"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setTab(t);
+                  setError("");
+                }}
+                className={
+                  "text-xs font-semibold uppercase tracking-wider py-2 rounded-sm transition-colors " +
+                  (tab === t
+                    ? "bg-background text-primary shadow-sm"
+                    : "text-muted-foreground hover:text-foreground")
+                }
+              >
+                {t === "profissional" ? "Profissional" : "Empresa"}
+              </button>
+            ))}
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cnpj">CNPJ da Empresa</Label>
-              <Input
-                id="cnpj"
-                type="text"
-                inputMode="numeric"
-                placeholder="00.000.000/0001-00"
-                value={cnpj}
-                onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
-                maxLength={18}
-                required
-              />
-            </div>
+          <form onSubmit={handleLogin} className="space-y-4">
+            {tab === "profissional" ? (
+              <div className="space-y-2">
+                <Label htmlFor="conselho">Número do Conselho</Label>
+                <Input
+                  id="conselho"
+                  type="text"
+                  placeholder="CREA-GO 12345 ou CAU-GO 12345"
+                  value={conselho}
+                  onChange={(e) => setConselho(e.target.value)}
+                  required
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="cnpj">CNPJ da Empresa</Label>
+                <Input
+                  id="cnpj"
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="00.000.000/0001-00"
+                  value={cnpj}
+                  onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                  maxLength={18}
+                  required
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
@@ -159,6 +191,16 @@ export default function Login() {
             </Button>
           </form>
         </div>
+
+        <p className="text-center text-sm text-muted-foreground mt-6">
+          Não tem conta?{" "}
+          <Link
+            to="/signup"
+            className="text-primary font-medium hover:underline underline-offset-4"
+          >
+            Cadastre-se
+          </Link>
+        </p>
       </div>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
