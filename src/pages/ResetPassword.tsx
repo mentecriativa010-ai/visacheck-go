@@ -54,7 +54,7 @@ export default function ResetPassword() {
         <div className="flex items-center justify-center gap-3 mb-10">
           <ShieldCheck className="w-8 h-8 text-primary" />
           <span className="text-2xl font-semibold tracking-tight text-foreground">
-            SanitaryAI
+            VISAcheck GO
           </span>
         </div>
 
