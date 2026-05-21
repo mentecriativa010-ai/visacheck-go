@@ -46,14 +46,14 @@ export default function ResetPassword() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       <div className="absolute inset-1 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-gold/5 blur-3xl" />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="w-full max-w-md px-6 z-10">
         <div className="flex items-center justify-center gap-3 mb-10">
-          <ShieldCheck className="w-8 h-8 text-gold" />
-          <span className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <ShieldCheck className="w-8 h-8 text-primary" />
+          <span className="text-2xl font-semibold tracking-tight text-foreground">
             SanitaryAI
           </span>
         </div>
@@ -62,14 +62,14 @@ export default function ResetPassword() {
           {success ? (
             <div className="flex flex-col items-center gap-4 py-4">
               <CheckCircle2 className="w-12 h-12 text-green-500" />
-              <h2 className="text-xl font-display font-semibold text-center">
+              <h2 className="text-xl font-semibold text-center">
                 Senha redefinida
               </h2>
               <p className="text-center text-sm text-muted-foreground">
                 Sua senha foi atualizada com sucesso.
               </p>
               <Button
-                variant="gold"
+                variant="default"
                 className="gap-2 mt-2"
                 onClick={() => navigate("/login")}
               >
@@ -119,7 +119,7 @@ export default function ResetPassword() {
                 <Button
                   type="submit"
                   className="w-full gap-2"
-                  variant="gold"
+                  variant="default"
                   disabled={loading}
                 >
                   {loading ? "Redefinindo..." : "Redefinir senha"}
