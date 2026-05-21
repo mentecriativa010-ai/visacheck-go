@@ -51,20 +51,20 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       <div className="absolute inset-1 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-gold/5 blur-3xl" />
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
       <div className="w-full max-w-md px-6 z-10">
         <div className="flex items-center justify-center gap-3 mb-10">
-          <ShieldCheck className="w-8 h-8 text-gold" />
-          <span className="font-display text-2xl font-semibold tracking-tight text-foreground">
+          <ShieldCheck className="w-8 h-8 text-primary" />
+          <span className="text-2xl font-semibold tracking-tight text-foreground">
             SanitaryAI
           </span>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-8 shadow-xl">
-          <h1 className="text-xl font-semibold text-center mb-6 font-display">
+          <h1 className="text-xl font-semibold text-center mb-6">
             Acesse sua conta
           </h1>
 
@@ -106,7 +106,7 @@ export default function Login() {
                   setResetSent(false);
                   setError("");
                 }}
-                className="text-sm text-muted-foreground hover:text-gold transition-colors underline-offset-4 hover:underline"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors underline-offset-4 hover:underline"
               >
                 Esqueceu sua senha?
               </button>
@@ -119,7 +119,7 @@ export default function Login() {
             <Button
               type="submit"
               className="w-full gap-2"
-              variant="gold"
+              variant="default"
               disabled={loading}
             >
               {loading ? "Entrando..." : "Entrar"}
@@ -132,7 +132,7 @@ export default function Login() {
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="font-display">Redefinir senha</DialogTitle>
+            <DialogTitle >Redefinir senha</DialogTitle>
             <DialogDescription>
               Insira seu email e enviaremos um link para redefinir sua senha.
             </DialogDescription>
@@ -162,7 +162,7 @@ export default function Login() {
                 <p className="text-sm text-destructive">{error}</p>
               )}
               <DialogFooter>
-                <Button type="submit" variant="gold" disabled={resetLoading}>
+                <Button type="submit" variant="default" disabled={resetLoading}>
                   {resetLoading ? "Enviando..." : "Enviar link de redefinição"}
                 </Button>
               </DialogFooter>
