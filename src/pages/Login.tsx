@@ -99,7 +99,7 @@ export default function Login() {
             Acesse sua conta
           </h1>
 
-          <div className="grid grid-cols-2 gap-1 p-1 mb-6 bg-muted rounded-md">
+          <div className="grid grid-cols-2 gap-2 mb-6">
             {(["profissional", "empresa"] as const).map((t) => (
               <button
                 key={t}
@@ -109,10 +109,10 @@ export default function Login() {
                   setError("");
                 }}
                 className={
-                  "text-xs font-semibold uppercase tracking-wider py-2 rounded-sm transition-colors " +
+                  "text-xs font-semibold uppercase tracking-wider py-2.5 rounded-md border transition-colors duration-200 " +
                   (tab === t
-                    ? "bg-background text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground")
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background text-primary border-border hover:border-primary/40")
                 }
               >
                 {t === "profissional" ? "Profissional" : "Empresa"}
