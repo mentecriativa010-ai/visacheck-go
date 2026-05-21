@@ -64,7 +64,7 @@ export default function Login() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-8 shadow-xl">
-          <h1 className="text-xl font-semibold text-center mb-6 font-display">
+          <h1 className="text-xl font-semibold text-center mb-6">
             Acesse sua conta
           </h1>
 
