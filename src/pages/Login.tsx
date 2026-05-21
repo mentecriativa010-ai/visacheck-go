@@ -13,8 +13,18 @@ import {
 } from "@/components/ui/dialog";
 import { ShieldCheck, Mail, ArrowRight, CheckCircle2 } from "lucide-react";
 
+function formatCNPJ(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 14);
+  return digits
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d)/, "$1-$2");
+}
+
 export default function Login() {
-  const [email, setEmail] = useState("");
+  const [conselho, setConselho] = useState("");
+  const [cnpj, setCnpj] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -27,9 +37,21 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data: emailData, error: lookupError } = await supabase.rpc(
+      "get_email_by_credentials" as never,
+      { _crea_cau: conselho.trim(), _cnpj: cnpj.trim() } as never,
+    );
+    if (lookupError || !emailData) {
+      setLoading(false);
+      setError("Conselho ou CNPJ não encontrado.");
+      return;
+    }
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: emailData as string,
+      password,
+    });
     setLoading(false);
-    if (error) setError(error.message);
+    if (signInError) setError("Senha incorreta.");
   };
 
   const handleReset = async (e: React.FormEvent) => {
@@ -59,7 +81,7 @@ export default function Login() {
         <div className="flex items-center justify-center gap-3 mb-10">
           <ShieldCheck className="w-8 h-8 text-primary" />
           <span className="text-2xl font-semibold tracking-tight text-foreground">
-            SanitaryAI
+            VISAcheck GO
           </span>
         </div>
 
@@ -70,19 +92,29 @@ export default function Login() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Label htmlFor="conselho">Número do Conselho</Label>
+              <Input
+                id="conselho"
+                type="text"
+                placeholder="CREA-GO 12345 ou CAU-GO 12345"
+                value={conselho}
+                onChange={(e) => setConselho(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cnpj">CNPJ da Empresa</Label>
+              <Input
+                id="cnpj"
+                type="text"
+                inputMode="numeric"
+                placeholder="00.000.000/0001-00"
+                value={cnpj}
+                onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                maxLength={18}
+                required
+              />
             </div>
 
             <div className="space-y-2">
@@ -102,7 +134,7 @@ export default function Login() {
                 type="button"
                 onClick={() => {
                   setForgotOpen(true);
-                  setResetEmail(email);
+                  setResetEmail("");
                   setResetSent(false);
                   setError("");
                 }}
@@ -149,14 +181,18 @@ export default function Login() {
             <form onSubmit={handleReset} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="reset-email">Email</Label>
-                <Input
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
                   id="reset-email"
                   type="email"
                   value={resetEmail}
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="seu@email.com"
+                  className="pl-10"
                   required
-                />
+                  />
+                </div>
               </div>
               {error && (
                 <p className="text-sm text-destructive">{error}</p>
