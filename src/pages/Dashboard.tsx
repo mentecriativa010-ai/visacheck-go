@@ -533,7 +533,8 @@ export default function Dashboard() {
                         {projetosRecentes.map((proj) => (
                           <tr
                             key={proj.id}
-                            className="hover:bg-slate-50/50 transition-colors duration-150"
+                            className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer"
+                            onClick={() => navigate(`/projetos/${proj.id}`)}
                           >
                             <td className="px-6 py-4">
                               <span className="font-semibold text-sm text-[#1E293B] block">
@@ -646,7 +647,8 @@ export default function Dashboard() {
                         {projetosFiltrados.map((proj) => (
                           <tr
                             key={proj.id}
-                            className="hover:bg-slate-50/50 transition-colors duration-150"
+                            className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer"
+                            onClick={() => navigate(`/projetos/${proj.id}`)}
                           >
                             <td className="px-6 py-4">
                               <span className="font-semibold text-sm text-[#1E293B] block">
