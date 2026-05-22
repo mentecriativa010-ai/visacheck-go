@@ -192,9 +192,8 @@ export default function Signup() {
 
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input
+              <PasswordInput
                 id="password"
-                type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -204,9 +203,8 @@ export default function Signup() {
 
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirmar senha</Label>
-              <Input
+              <PasswordInput
                 id="confirm"
-                type="password"
                 placeholder="••••••••"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
