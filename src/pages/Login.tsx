@@ -35,6 +35,11 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
+  const [fallbackEmail, setFallbackEmail] = useState("");
+  const [fallbackPassword, setFallbackPassword] = useState("");
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [fallbackError, setFallbackError] = useState("");
 
   useEffect(() => {
     const hash = window.location.hash;
@@ -99,6 +104,25 @@ export default function Login() {
       setError("");
     }
   };
+
+  const handleFallbackLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFallbackLoading(true);
+    setFallbackError("");
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: fallbackEmail.trim(),
+      password: fallbackPassword,
+    });
+    setFallbackLoading(false);
+    if (signInError) {
+      setFallbackError("Email ou senha incorretos.");
+      return;
+    }
+    setFallbackOpen(false);
+    navigate("/dashboard");
+  };
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
@@ -198,7 +222,21 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
+              <div className="space-y-1">
+                <p className="text-sm text-destructive text-center">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFallbackOpen(true);
+                    setFallbackEmail("");
+                    setFallbackPassword("");
+                    setFallbackError("");
+                  }}
+                  className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+                >
+                  Problemas para acessar? Clique aqui
+                </button>
+              </div>
             )}
 
             <Button
@@ -267,6 +305,54 @@ export default function Login() {
               </DialogFooter>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acesso por email</DialogTitle>
+            <DialogDescription>
+              Login temporário por email e senha para usuários antigos cujo perfil ainda não foi atualizado.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleFallbackLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fb-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="fb-email"
+                  type="email"
+                  value={fallbackEmail}
+                  onChange={(e) => setFallbackEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fb-password">Senha</Label>
+              <Input
+                id="fb-password"
+                type="password"
+                placeholder="••••••••"
+                value={fallbackPassword}
+                onChange={(e) => setFallbackPassword(e.target.value)}
+                required
+              />
+            </div>
+            {fallbackError && (
+              <p className="text-sm text-destructive">{fallbackError}</p>
+            )}
+            <DialogFooter>
+              <Button type="submit" variant="default" disabled={fallbackLoading} className="gap-2">
+                {fallbackLoading ? "Entrando..." : "Entrar"}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>
