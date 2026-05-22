@@ -35,6 +35,11 @@ export default function Login() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetSent, setResetSent] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
+  const [fallbackOpen, setFallbackOpen] = useState(false);
+  const [fallbackEmail, setFallbackEmail] = useState("");
+  const [fallbackPassword, setFallbackPassword] = useState("");
+  const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [fallbackError, setFallbackError] = useState("");
 
   useEffect(() => {
     const hash = window.location.hash;
