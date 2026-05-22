@@ -1,6 +1,6 @@
 ## Motor Regulatório Computável — Camada Estrutural
 
-Construir a fundação de dados + lógica que transforma o SanitaryAI de viewer para motor regulatório. Sem alterações visuais.
+Construir a fundação de dados + lógica que transforma o VISAcheck GO de viewer para motor regulatório. Sem alterações visuais.
 
 ### 1. Banco de dados (migração Supabase)
 

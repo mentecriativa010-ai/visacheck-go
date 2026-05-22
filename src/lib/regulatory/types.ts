@@ -1,5 +1,5 @@
 /**
- * Tipos do Motor Regulatório SanitaryAI.
+ * Tipos do Motor Regulatório VISAcheck GO.
  * Fonte única de verdade para entidades, regras, validações, scores e parecer.
  */
 
