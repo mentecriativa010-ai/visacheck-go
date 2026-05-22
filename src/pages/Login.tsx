@@ -105,6 +105,25 @@ export default function Login() {
     }
   };
 
+  const handleFallbackLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFallbackLoading(true);
+    setFallbackError("");
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: fallbackEmail.trim(),
+      password: fallbackPassword,
+    });
+    setFallbackLoading(false);
+    if (signInError) {
+      setFallbackError("Email ou senha incorretos.");
+      return;
+    }
+    setFallbackOpen(false);
+    navigate("/dashboard");
+  };
+
+
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden">
       <div className="absolute inset-1 pointer-events-none">
