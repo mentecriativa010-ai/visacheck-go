@@ -307,6 +307,54 @@ export default function Login() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acesso por email</DialogTitle>
+            <DialogDescription>
+              Login temporário por email e senha para usuários antigos cujo perfil ainda não foi atualizado.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleFallbackLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="fb-email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  id="fb-email"
+                  type="email"
+                  value={fallbackEmail}
+                  onChange={(e) => setFallbackEmail(e.target.value)}
+                  placeholder="seu@email.com"
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="fb-password">Senha</Label>
+              <Input
+                id="fb-password"
+                type="password"
+                placeholder="••••••••"
+                value={fallbackPassword}
+                onChange={(e) => setFallbackPassword(e.target.value)}
+                required
+              />
+            </div>
+            {fallbackError && (
+              <p className="text-sm text-destructive">{fallbackError}</p>
+            )}
+            <DialogFooter>
+              <Button type="submit" variant="default" disabled={fallbackLoading} className="gap-2">
+                {fallbackLoading ? "Entrando..." : "Entrar"}
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
