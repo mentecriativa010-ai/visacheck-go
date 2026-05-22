@@ -222,7 +222,21 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-sm text-destructive text-center">{error}</p>
+              <div className="space-y-1">
+                <p className="text-sm text-destructive text-center">{error}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFallbackOpen(true);
+                    setFallbackEmail("");
+                    setFallbackPassword("");
+                    setFallbackError("");
+                  }}
+                  className="block w-full text-center text-xs text-muted-foreground hover:text-primary transition-colors underline underline-offset-4"
+                >
+                  Problemas para acessar? Clique aqui
+                </button>
+              </div>
             )}
 
             <Button
