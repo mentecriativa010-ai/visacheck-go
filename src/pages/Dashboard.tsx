@@ -1,0 +1,920 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  ShieldCheck,
+  Home,
+  Folder,
+  BookOpen,
+  LogOut,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Search,
+  Loader2,
+  AlertCircle,
+  FileText,
+  HelpCircle,
+  Info
+} from "lucide-react";
+
+interface Projeto {
+  id: string;
+  nome_projeto: string;
+  tipo_arquivo: string; // Utilizado como Tipo de Estabelecimento
+  status: "pendente" | "analisando" | "aprovado" | "parcial" | "reprovado";
+  created_at: string;
+  score_conformidade: number;
+}
+
+interface Regra {
+  id: string;
+  codigo: string;
+  nome: string;
+  norma: string;
+  categoria: string;
+  severidade: "informativo" | "atencao" | "critico" | "bloqueante";
+  descricao: string;
+  sugestao_corretiva: string;
+}
+
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<"dashboard" | "projetos" | "normas">("dashboard");
+  
+  // Estados do usuário e dados
+  const [userName, setUserName] = useState("Usuário");
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [projetos, setProjetos] = useState<Projeto[]>([]);
+  const [loadingProjetos, setLoadingProjetos] = useState(true);
+  const [regras, setRegras] = useState<Regra[]>([]);
+  const [loadingRegras, setLoadingRegras] = useState(false);
+  
+  // Estado do modal de novo projeto
+  const [novoProjetoOpen, setNovoProjetoOpen] = useState(false);
+  const [nomeProjeto, setNomeProjeto] = useState("");
+  const [tipoEstabelecimento, setTipoEstabelecimento] = useState("Hospital");
+  const [arquivoName, setArquivoName] = useState("");
+  const [criandoProjeto, setCriandoProjeto] = useState(false);
+  const [erroCriar, setErroCriar] = useState("");
+
+  // Filtros para projetos e normas
+  const [filtroNomeProjeto, setFiltroNomeProjeto] = useState("");
+  const [filtroStatusProjeto, setFiltroStatusProjeto] = useState<string>("todos");
+  const [filtroNorma, setFiltroNorma] = useState<string>("todas");
+  const [filtroBuscaRegra, setFiltroBuscaRegra] = useState("");
+
+  useEffect(() => {
+    fetchUserDataAndProjects();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "normas" && regras.length === 0) {
+      fetchRegras();
+    }
+  }, [activeTab]);
+
+  const fetchUserDataAndProjects = async () => {
+    try {
+      setLoadingUser(true);
+      setLoadingProjetos(true);
+
+      // Obter usuário logado
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        navigate("/login");
+        return;
+      }
+
+      // Buscar perfil
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("nome, razao_social")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profileError && profile) {
+        setUserName(profile.nome || profile.razao_social || user.email?.split("@")[0] || "Usuário");
+      } else {
+        setUserName(user.email?.split("@")[0] || "Usuário");
+      }
+      setLoadingUser(false);
+
+      // Buscar projetos
+      const { data: projetosData, error: projetosError } = await supabase
+        .from("projetos")
+        .select("id, nome_projeto, tipo_arquivo, status, created_at, score_conformidade")
+        .eq("usuario_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (!projetosError && projetosData) {
+        setProjetos(projetosData as Projeto[]);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar dados do dashboard:", err);
+    } finally {
+      setLoadingProjetos(false);
+      setLoadingUser(false);
+    }
+  };
+
+  const fetchRegras = async () => {
+    try {
+      setLoadingRegras(true);
+      const { data, error } = await supabase
+        .from("regras_regulatorias")
+        .select("id, codigo, nome, norma, categoria, severidade, descricao, sugestao_corretiva")
+        .eq("ativa", true);
+
+      if (!error && data) {
+        setRegras(data as Regra[]);
+      }
+    } catch (err) {
+      console.error("Erro ao buscar regras:", err);
+    } finally {
+      setLoadingRegras(false);
+    }
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nomeProjeto.trim()) {
+      setErroCriar("Por favor, preencha o nome do projeto.");
+      return;
+    }
+
+    try {
+      setCriandoProjeto(true);
+      setErroCriar("");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        navigate("/login");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("projetos")
+        .insert({
+          nome_projeto: nomeProjeto.trim(),
+          tipo_arquivo: tipoEstabelecimento, // Usamos como Tipo de Estabelecimento
+          usuario_id: user.id,
+          status: "pendente",
+          score_conformidade: 100,
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      // Sucesso
+      setNovoProjetoOpen(false);
+      setNomeProjeto("");
+      setTipoEstabelecimento("Hospital");
+      setArquivoName("");
+      fetchUserDataAndProjects(); // Recarregar projetos
+    } catch (err: any) {
+      console.error("Erro ao criar projeto:", err);
+      setErroCriar(err.message || "Ocorreu um erro ao criar o projeto.");
+    } finally {
+      setCriandoProjeto(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate("/login");
+  };
+
+  // Contadores para os Cards de Resumo
+  const totalProjetos = projetos.length;
+  const aprovadosCount = projetos.filter(p => p.status === "aprovado").length;
+  const analisandoCount = projetos.filter(p => p.status === "analisando").length;
+  const pendentesCount = projetos.filter(p => p.status === "pendente").length;
+
+  // Filtragem de Projetos
+  const projetosFiltrados = projetos.filter((proj) => {
+    const bateNome = proj.nome_projeto.toLowerCase().includes(filtroNomeProjeto.toLowerCase());
+    const bateStatus = filtroStatusProjeto === "todos" || proj.status === filtroStatusProjeto;
+    return bateNome && bateStatus;
+  });
+
+  // Projetos Recentes (limite de 5 no Dashboard)
+  const projetosRecentes = projetos.slice(0, 5);
+
+  // Filtragem de Regras
+  const regrasFiltradas = regras.filter((regra) => {
+    const bateNorma = filtroNorma === "todas" || regra.norma.toLowerCase() === filtroNorma.toLowerCase();
+    const busca = filtroBuscaRegra.toLowerCase();
+    const bateBusca = 
+      regra.nome.toLowerCase().includes(busca) || 
+      regra.codigo.toLowerCase().includes(busca) || 
+      regra.descricao.toLowerCase().includes(busca);
+    return bateNorma && bateBusca;
+  });
+
+  // Lista única de Normas para filtro
+  const normasDisponiveis = Array.from(new Set(regras.map((r) => r.norma)));
+
+  const getStatusBadge = (status: Projeto["status"]) => {
+    switch (status) {
+      case "aprovado":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+            Aprovado
+          </span>
+        );
+      case "analisando":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />
+            Em análise
+          </span>
+        );
+      case "pendente":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />
+            Pendente
+          </span>
+        );
+      case "reprovado":
+      case "parcial":
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />
+            Reprovado
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200">
+            Pendente
+          </span>
+        );
+    }
+  };
+
+  const getSeveridadeBadge = (severidade: Regra["severidade"]) => {
+    switch (severidade) {
+      case "bloqueante":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-[#DC2626] border border-red-200">
+            Bloqueante
+          </span>
+        );
+      case "critico":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200">
+            Crítico
+          </span>
+        );
+      case "atencao":
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
+            Atenção
+          </span>
+        );
+      case "informativo":
+      default:
+        return (
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">
+            Informativo
+          </span>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex bg-background text-foreground">
+      {/* SIDEBAR FIXA */}
+      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
+        {/* Logo */}
+        <div className="p-6 border-b border-border flex items-center gap-3">
+          <ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">
+            VISAcheck GO
+          </span>
+        </div>
+
+        {/* Menu de Navegação */}
+        <nav className="flex-1 px-4 py-6 space-y-1.5">
+          <button
+            onClick={() => setActiveTab("dashboard")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "dashboard"
+                ? "bg-primary/5 text-primary"
+                : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"
+            }`}
+          >
+            <Home className="w-4 h-4" />
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab("projetos")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "projetos"
+                ? "bg-primary/5 text-primary"
+                : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"
+            }`}
+          >
+            <Folder className="w-4 h-4" />
+            Meus Projetos
+          </button>
+          <button
+            onClick={() => setActiveTab("normas")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${
+              activeTab === "normas"
+                ? "bg-primary/5 text-primary"
+                : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            Base de Normas
+          </button>
+        </nav>
+
+        {/* Rodapé da Sidebar */}
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 transition-all duration-200"
+          >
+            <LogOut className="w-4 h-4" />
+            Sair
+          </button>
+        </div>
+      </aside>
+
+      {/* CONTEÚDO PRINCIPAL */}
+      <main className="flex-1 pl-64 min-h-screen flex flex-col">
+        {/* Topo / Header */}
+        <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+          <div>
+            <h1 className="text-xl font-semibold text-[#1E293B] flex items-center gap-2">
+              {loadingUser ? (
+                <span className="h-6 w-32 bg-slate-100 animate-pulse rounded block" />
+              ) : (
+                `Olá, ${userName}`
+              )}
+            </h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.
+            </p>
+          </div>
+
+          {/* Botão flutuante no canto superior direito do conteúdo */}
+          <Button
+            onClick={() => setNovoProjetoOpen(true)}
+            className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Novo Projeto
+          </Button>
+        </header>
+
+        {/* Área de Conteúdo */}
+        <div className="flex-1 p-8 space-y-8 max-w-7xl w-full mx-auto">
+          {/* CARDS DE RESUMO (Exibidos em todas as abas para fornecer contexto) */}
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {/* Card Total */}
+            <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Total de Projetos
+                </span>
+                <p className="text-2xl font-bold text-[#1E293B]">
+                  {loadingProjetos ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  ) : (
+                    totalProjetos
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-slate-50 text-[#1E3A5F] rounded-lg">
+                <Folder className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card Aprovados */}
+            <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Aprovados
+                </span>
+                <p className="text-2xl font-bold text-[#1E293B]">
+                  {loadingProjetos ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  ) : (
+                    aprovadosCount
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 text-[#16A34A] rounded-lg">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card Em Análise */}
+            <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Em Análise
+                </span>
+                <p className="text-2xl font-bold text-[#1E293B]">
+                  {loadingProjetos ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  ) : (
+                    analisandoCount
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-blue-50 text-primary rounded-lg">
+                <Search className="w-5 h-5" />
+              </div>
+            </div>
+
+            {/* Card Pendentes */}
+            <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
+              <div className="space-y-1">
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                  Pendentes
+                </span>
+                <p className="text-2xl font-bold text-[#1E293B]">
+                  {loadingProjetos ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  ) : (
+                    pendentesCount
+                  )}
+                </p>
+              </div>
+              <div className="p-3 bg-gray-50 text-slate-600 rounded-lg">
+                <Clock className="w-5 h-5" />
+              </div>
+            </div>
+          </section>
+
+          {/* ABA 1: DASHBOARD (RESUMO + RECENTES) */}
+          {activeTab === "dashboard" && (
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-lg font-bold text-[#1E293B]">
+                  Projetos Recentes
+                </h2>
+                {projetos.length > 5 && (
+                  <button
+                    onClick={() => setActiveTab("projetos")}
+                    className="text-xs font-semibold text-primary hover:underline"
+                  >
+                    Ver todos os projetos ({projetos.length})
+                  </button>
+                )}
+              </div>
+
+              {loadingProjetos ? (
+                <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Carregando projetos...</p>
+                  </div>
+                </div>
+              ) : projetos.length === 0 ? (
+                <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
+                  <div className="max-w-md mx-auto space-y-4">
+                    <div className="w-12 h-12 bg-slate-50 text-muted-foreground rounded-full flex items-center justify-center mx-auto">
+                      <Folder className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Nenhum projeto ainda. Clique em + Novo Projeto para começar.
+                    </p>
+                    <Button
+                      onClick={() => setNovoProjetoOpen(true)}
+                      className="bg-primary hover:bg-primary-hover text-white gap-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Começar agora
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border bg-slate-50/50">
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Nome
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Tipo de Estabelecimento
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Status
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Data
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {projetosRecentes.map((proj) => (
+                          <tr
+                            key={proj.id}
+                            className="hover:bg-slate-50/50 transition-colors duration-150"
+                          >
+                            <td className="px-6 py-4">
+                              <span className="font-semibold text-sm text-[#1E293B] block">
+                                {proj.nome_projeto}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-600">
+                              {proj.tipo_arquivo || "Não informado"}
+                            </td>
+                            <td className="px-6 py-4">
+                              {getStatusBadge(proj.status)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {new Date(proj.created_at).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ABA 2: MEUS PROJETOS (TODOS + FILTRO + BUSCA) */}
+          {activeTab === "projetos" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <h2 className="text-lg font-bold text-[#1E293B]">
+                  Lista Geral de Projetos
+                </h2>
+                
+                {/* Filtros e Busca */}
+                <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-64 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Pesquisar pelo nome..."
+                      value={filtroNomeProjeto}
+                      onChange={(e) => setFiltroNomeProjeto(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <select
+                    value={filtroStatusProjeto}
+                    onChange={(e) => setFiltroStatusProjeto(e.target.value)}
+                    className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="todos">Todos os Status</option>
+                    <option value="aprovado">Aprovado</option>
+                    <option value="analisando">Em análise</option>
+                    <option value="pendente">Pendente</option>
+                    <option value="reprovado">Reprovado</option>
+                  </select>
+                </div>
+              </div>
+
+              {loadingProjetos ? (
+                <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : projetosFiltrados.length === 0 ? (
+                <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <Info className="w-10 h-10 text-muted-foreground mx-auto" />
+                    <h3 className="text-base font-semibold">Nenhum projeto encontrado</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Não encontramos projetos com os filtros aplicados.
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setFiltroNomeProjeto("");
+                        setFiltroStatusProjeto("todos");
+                      }}
+                    >
+                      Limpar Filtros
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border bg-slate-50/50">
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Nome do Projeto
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Estabelecimento
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Pontuação
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Status
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
+                            Criado em
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {projetosFiltrados.map((proj) => (
+                          <tr
+                            key={proj.id}
+                            className="hover:bg-slate-50/50 transition-colors duration-150"
+                          >
+                            <td className="px-6 py-4">
+                              <span className="font-semibold text-sm text-[#1E293B] block">
+                                {proj.nome_projeto}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-slate-600">
+                              {proj.tipo_arquivo || "Não informado"}
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-semibold ${
+                                  proj.score_conformidade >= 80 ? "text-green-600" :
+                                  proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"
+                                }`}>
+                                  {proj.score_conformidade ?? 100}%
+                                </span>
+                                <div className="w-16 bg-slate-100 rounded-full h-1.5">
+                                  <div
+                                    className={`h-1.5 rounded-full ${
+                                      proj.score_conformidade >= 80 ? "bg-green-600" :
+                                      proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"
+                                    }`}
+                                    style={{ width: `${proj.score_conformidade ?? 100}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              {getStatusBadge(proj.status)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">
+                              {new Date(proj.created_at).toLocaleDateString("pt-BR", {
+                                day: "2-digit",
+                                month: "2-digit",
+                                year: "numeric",
+                              })}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ABA 3: BASE DE NORMAS (REGRAS DO SISTEMA) */}
+          {activeTab === "normas" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div>
+                  <h2 className="text-lg font-bold text-[#1E293B]">
+                    Base de Regras e Normas
+                  </h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Consulte as diretrizes e regras computáveis utilizadas na auditoria do VISAcheck GO.
+                  </p>
+                </div>
+
+                <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+                  <div className="relative flex-1 sm:w-64 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por código ou norma..."
+                      value={filtroBuscaRegra}
+                      onChange={(e) => setFiltroBuscaRegra(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  <select
+                    value={filtroNorma}
+                    onChange={(e) => setFiltroNorma(e.target.value)}
+                    className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="todas">Todas as Normas</option>
+                    {normasDisponiveis.map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {loadingRegras ? (
+                <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">Carregando normas...</p>
+                  </div>
+                </div>
+              ) : regrasFiltradas.length === 0 ? (
+                <div className="bg-white border border-border rounded-xl p-12 text-center">
+                  <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <h3 className="text-base font-semibold">Nenhuma regra encontrada</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Tente ajustar os parâmetros de pesquisa ou filtros.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {regrasFiltradas.map((r) => (
+                    <div
+                      key={r.id}
+                      className="bg-white border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-start gap-2">
+                          <div className="space-y-1">
+                            <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">
+                              {r.norma}
+                            </span>
+                            <span className="text-xs text-muted-foreground block font-mono">
+                              {r.codigo}
+                            </span>
+                          </div>
+                          {getSeveridadeBadge(r.severidade)}
+                        </div>
+
+                        <h3 className="text-sm font-bold text-[#1E293B]">
+                          {r.nome}
+                        </h3>
+
+                        <p className="text-xs text-slate-600 line-clamp-3">
+                          {r.descricao}
+                        </p>
+                      </div>
+
+                      {r.sugestao_corretiva && (
+                        <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50/50 p-3 rounded-lg border">
+                          <span className="text-[10px] font-semibold text-primary block mb-1">
+                            Ação corretiva sugerida:
+                          </span>
+                          <p className="text-[11px] text-[#1E293B] italic">
+                            {r.sugestao_corretiva}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* MODAL / DIALOG PARA NOVO PROJETO */}
+      <Dialog open={novoProjetoOpen} onOpenChange={setNovoProjetoOpen}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-primary flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Novo Diagnóstico Regulatório
+            </DialogTitle>
+            <DialogDescription>
+              Insira os dados do projeto para iniciar a análise automatizada.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateProject} className="space-y-5">
+            {/* Nome do Projeto */}
+            <div className="space-y-2">
+              <Label htmlFor="proj-name">Nome do Projeto</Label>
+              <Input
+                id="proj-name"
+                value={nomeProjeto}
+                onChange={(e) => setNomeProjeto(e.target.value)}
+                placeholder="Ex: Clínicas Reunidas - Bloco A"
+                required
+              />
+            </div>
+
+            {/* Tipo de Estabelecimento */}
+            <div className="space-y-2">
+              <Label htmlFor="establishment-type">Tipo de Estabelecimento</Label>
+              <select
+                id="establishment-type"
+                value={tipoEstabelecimento}
+                onChange={(e) => setTipoEstabelecimento(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="Hospital">Hospital Geral</option>
+                <option value="Clínica Médica">Clínica Médica / Ambulatório</option>
+                <option value="Consultório">Consultório Individual</option>
+                <option value="CME">CME (Central de Materiais)</option>
+                <option value="Laboratório">Laboratório de Análises</option>
+                <option value="Outro">Outro Estabelecimento de Saúde</option>
+              </select>
+            </div>
+
+            {/* Seleção do Arquivo (Simulado/Visual) */}
+            <div className="space-y-2">
+              <Label htmlFor="proj-file">Anexar Prancha Arquitetônica (PDF / DWG)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="proj-file-dummy"
+                  type="text"
+                  placeholder="Selecione um arquivo..."
+                  value={arquivoName}
+                  readOnly
+                  className="bg-slate-50 cursor-pointer flex-1"
+                  onClick={() => document.getElementById("real-file-input")?.click()}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("real-file-input")?.click()}
+                >
+                  Procurar
+                </Button>
+              </div>
+              <input
+                id="real-file-input"
+                type="file"
+                accept=".pdf,.dwg,.dxf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setArquivoName(file.name);
+                  }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Arquivos suportados: PDF ou DWG até 50MB. O arquivo será analisado pelo motor regulatório.
+              </p>
+            </div>
+
+            {erroCriar && (
+              <div className="bg-red-50 text-[#DC2626] border border-red-100 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span className="text-xs">{erroCriar}</span>
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setNovoProjetoOpen(false)}
+                disabled={criandoProjeto}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary-hover text-white gap-2"
+                disabled={criandoProjeto}
+              >
+                {criandoProjeto ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  <>
+                    Iniciar Análise
+                    <Plus className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
