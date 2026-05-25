@@ -82,9 +82,19 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
     checklist: result.parecer.checklist as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["pareceres"]["Insert"]["checklist"],
   });
 
+  let pStatus: "aprovado" | "parcial" | "reprovado" = "aprovado";
+  if (result.parecer.status_final === "reprovado" || result.parecer.status_final === "revisao_necessaria") {
+    pStatus = "reprovado";
+  } else if (result.parecer.status_final === "parcialmente_conforme") {
+    pStatus = "parcial";
+  }
+
   await supabase
     .from("projetos")
-    .update({ score_conformidade: result.score.score_geral })
+    .update({ 
+      score_conformidade: result.score.score_geral,
+      status: pStatus
+    })
     .eq("id", projetoId);
 
   return result;

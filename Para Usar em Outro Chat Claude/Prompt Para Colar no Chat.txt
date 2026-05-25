@@ -1,0 +1,6 @@
+Projeto: VISAcheck GO
+Repositório: github.com/mentecriativa010-ai/visacheckgo
+Lovable: conta principal (mentecriativa010) + conta Cursos
+Stack: [descreva aqui — React? Supabase? etc.]
+Status atual: [onde você parou]
+Próximos passos: [o que falta fazer]

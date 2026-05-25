@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { runAnalysisForProject } from "@/lib/regulatory/engine/regulatoryEngine";
 import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
@@ -13,13 +14,17 @@ import {
   AlertTriangle,
   CheckCircle,
   AlertOctagon,
-  Info
+  Info,
+  FileText,
+  Download,
+  ClipboardList,
+  BarChart2,
 } from "lucide-react";
 
 interface Projeto {
   id: string;
   nome_projeto: string;
-  tipo_arquivo: string; // Utilizado como Tipo de Estabelecimento
+  tipo_arquivo: string;
   status: "pendente" | "analisando" | "aprovado" | "parcial" | "reprovado";
   created_at: string;
   score_conformidade: number;
@@ -34,13 +39,33 @@ interface NaoConformidade {
   sugestao: string;
 }
 
+interface ValidacaoCategoria {
+  categoria: string;
+  total: number;
+  conformes: number;
+  naoConformes: number;
+  percentual: number;
+}
+
+interface Parecer {
+  norma: string;
+  status: string;
+  observacao: string;
+  risco: string;
+}
+
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [naoconformidades, setNaoConformidades] = useState<NaoConformidade[]>([]);
+  const [resumoExecutivo, setResumoExecutivo] = useState("");
+  const [validacoesPorCategoria, setValidacoesPorCategoria] = useState<ValidacaoCategoria[]>([]);
+  const [pareceres, setPareceres] = useState<Parecer[]>([]);
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     fetchProjectAndUser();
@@ -52,29 +77,161 @@ export default function ProjectDetails() {
       setLoading(true);
       setError("");
 
-      // 1. Obter usuário logado
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         navigate("/login");
         return;
       }
 
-      // 2. Buscar projeto por id
-      const { data: projData, error: projError } = await supabase
+      let { data: projData, error: projError } = await supabase
         .from("projetos")
         .select("id, nome_projeto, tipo_arquivo, status, created_at, score_conformidade")
         .eq("id", id)
         .eq("usuario_id", user.id)
         .maybeSingle();
 
-      if (projError) {
-        throw projError;
-      }
+      if (projError) throw projError;
 
       if (!projData) {
         setError("Projeto não encontrado ou você não tem permissão para acessá-lo.");
+        setLoading(false);
+        return;
+      }
+
+      if (projData.status === "pendente" || projData.status === "analisando") {
+        const { count, error: countErr } = await supabase
+          .from("entidades_arquitetonicas")
+          .select("id", { count: "exact", head: true })
+          .eq("projeto_id", id);
+
+        if (!countErr && count && count > 0) {
+          try {
+            await runAnalysisForProject(id);
+            const { data: updatedProj } = await supabase
+              .from("projetos")
+              .select("id, nome_projeto, tipo_arquivo, status, created_at, score_conformidade")
+              .eq("id", id)
+              .maybeSingle();
+            if (updatedProj) projData = updatedProj;
+          } catch (err) {
+            console.error("Erro ao rodar análise on-the-fly:", err);
+          }
+        }
+      }
+
+      setProjeto(projData as Projeto);
+
+      // Buscar parecer
+      const { data: parecerData } = await supabase
+        .from("pareceres")
+        .select("resumo_executivo, status_final, risco_sanitario")
+        .eq("projeto_id", id)
+        .order("gerado_em", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (parecerData) {
+        setResumoExecutivo(parecerData.resumo_executivo || "");
+
+        // Montar pareceres por norma a partir do parecer geral
+        const pareceresMock: Parecer[] = [
+          {
+            norma: "NBR 9050:2020 — Acessibilidade",
+            status: parecerData.status_final === "aprovado" ? "Conforme" : "Requer atenção",
+            observacao: "Verificação de rampas, corredores, sanitários e sinalização tátil.",
+            risco: parecerData.risco_sanitario || "baixo",
+          },
+          {
+            norma: "RDC ANVISA 1.002/2025 — Boas Práticas",
+            status: parecerData.status_final === "aprovado" ? "Conforme" : "Requer atenção",
+            observacao: "Verificação de fluxos, revestimentos, ventilação e gestão de resíduos.",
+            risco: parecerData.risco_sanitario || "baixo",
+          },
+        ];
+        setPareceres(pareceresMock);
       } else {
-        setProjeto(projData as Projeto);
+        setResumoExecutivo("");
+        setPareceres([
+          {
+            norma: "NBR 9050:2020 — Acessibilidade",
+            status: "Aguardando análise",
+            observacao: "Análise pendente de processamento.",
+            risco: "indefinido",
+          },
+          {
+            norma: "RDC ANVISA 1.002/2025 — Boas Práticas",
+            status: "Aguardando análise",
+            observacao: "Análise pendente de processamento.",
+            risco: "indefinido",
+          },
+        ]);
+      }
+
+      // Buscar validações
+      const { data: valData } = await supabase
+        .from("validacoes")
+        .select(`
+          id,
+          status,
+          severidade_efetiva,
+          valor_observado,
+          detalhes,
+          regras_regulatorias (
+            codigo,
+            nome,
+            norma,
+            descricao,
+            sugestao_corretiva,
+            categoria
+          )
+        `)
+        .eq("projeto_id", id);
+
+      if (valData && valData.length > 0) {
+        // Não-conformidades
+        const naoConformes = valData.filter(
+          (v: any) => v.status !== "conforme" && v.status !== "nao_aplicavel"
+        );
+        const mappedNCs: NaoConformidade[] = naoConformes.map((v: any) => {
+          const regra = v.regras_regulatorias;
+          return {
+            codigo: regra?.codigo || v.id,
+            nome: regra?.nome || "Regra Reguladora",
+            severidade: v.severidade_efetiva,
+            norma: regra?.norma || "ANVISA",
+            descricao: regra?.descricao || "Não conformidade regulatória detectada.",
+            sugestao: regra?.sugestao_corretiva || "Ajustar conforme normas vigentes.",
+          };
+        });
+        setNaoConformidades(mappedNCs);
+
+        // Agrupar por categoria
+        const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
+        valData.forEach((v: any) => {
+          const cat = v.regras_regulatorias?.categoria || "Geral";
+          if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0 };
+          categoriaMap[cat].total++;
+          if (v.status === "conforme") categoriaMap[cat].conformes++;
+          else if (v.status !== "nao_aplicavel") categoriaMap[cat].naoConformes++;
+        });
+
+        const cats: ValidacaoCategoria[] = Object.entries(categoriaMap).map(([cat, val]) => ({
+          categoria: cat,
+          total: val.total,
+          conformes: val.conformes,
+          naoConformes: val.naoConformes,
+          percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
+        }));
+        setValidacoesPorCategoria(cats);
+      } else {
+        setNaoConformidades([]);
+        // Categorias mock quando não há validações reais
+        setValidacoesPorCategoria([
+          { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
+          { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
+          { categoria: "Higiene", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+          { categoria: "Gestão", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+        ]);
       }
     } catch (err: any) {
       console.error("Erro ao buscar detalhes do projeto:", err);
@@ -89,146 +246,55 @@ export default function ProjectDetails() {
     navigate("/login");
   };
 
-  // Gerar não-conformidades mockadas baseadas no tipo de estabelecimento
-  const getMockNaoConformidades = (tipo: string): NaoConformidade[] => {
-    const defaultMocks: NaoConformidade[] = [
-      {
-        codigo: "GEN-01",
-        nome: "Falta de abrigo temporário para resíduos de saúde (DML)",
-        severidade: "critico",
-        norma: "RDC 222/2018 / RDC 50/2002",
-        descricao: "Ausência de depósito de material de limpeza (DML) com ralo sifonado dotado de tampa escamoteável na área de circulação interna, dificultando o armazenamento seguro e provisório de sacos de resíduos infectantes.",
-        sugestao: "Instalar abrigo temporário de resíduos/DML revestido com material cerâmico impermeável, contendo torneira para lavagem e ralo sifonado."
-      },
-      {
-        codigo: "GEN-02",
-        nome: "Portas de saídas de emergência abrindo contra o fluxo",
-        severidade: "atencao",
-        norma: "NBR 9077 / NBR 9050",
-        descricao: "As portas das rotas de fuga principais abrem para o lado interno das salas circundantes, obstruindo parcialmente o fluxo livre em caso de pânico ou evacuação urgente.",
-        sugestao: "Inverter o sentido de abertura das folhas de porta para que abram no sentido do fluxo de escape."
-      }
-    ];
+  const handleExportarPDF = async () => {
+    if (!projeto) return;
+    setExportando(true);
+    try {
+      // Monta o conteúdo do relatório em texto
+      const linhas = [
+        `RELATÓRIO DE CONFORMIDADE REGULATÓRIA`,
+        `VISAcheck GO — Diagnóstico Arquitetônico Automatizado`,
+        ``,
+        `Projeto: ${projeto.nome_projeto}`,
+        `Tipo de Estabelecimento: ${projeto.tipo_arquivo}`,
+        `Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`,
+        `Score de Conformidade: ${projeto.score_conformidade}%`,
+        `Status: ${projeto.status}`,
+        ``,
+        `RESUMO EXECUTIVO`,
+        resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length),
+        ``,
+        `VALIDAÇÕES POR CATEGORIA`,
+        ...validacoesPorCategoria.map(
+          (v) => `  • ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`
+        ),
+        ``,
+        `NÃO-CONFORMIDADES IDENTIFICADAS (${naoconformidades.length})`,
+        ...naoconformidades.map(
+          (nc) =>
+            `  [${nc.severidade.toUpperCase()}] ${nc.codigo} — ${nc.nome}\n  Norma: ${nc.norma}\n  ${nc.descricao}\n  Ação: ${nc.sugestao}`
+        ),
+        ``,
+        `PARECERES TÉCNICOS`,
+        ...pareceres.map(
+          (p) => `  • ${p.norma}\n    Status: ${p.status}\n    ${p.observacao}`
+        ),
+        ``,
+        `Relatório gerado automaticamente pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
+      ];
 
-    const hospitalMocks: NaoConformidade[] = [
-      {
-        codigo: "HOSP-01",
-        nome: "Fluxo cruzado entre material limpo e contaminado na CME",
-        severidade: "bloqueante",
-        norma: "RDC 50/2002 - Anexo I (Infraestrutura)",
-        descricao: "Foi detectada uma abertura direta (porta convencional) ligando a área de recepção/expurgo (zona contaminada) à área de preparo de materiais (zona limpa), sem barreira física estanque ou autoclave com porta dupla.",
-        sugestao: "Substituir a comunicação física direta por uma autoclave de barreira (dupla porta) e fechar o acesso para manter fluxo unidirecional rígido."
-      },
-      {
-        codigo: "HOSP-02",
-        nome: "Ausência de lavatório exclusivo para higienização no posto",
-        severidade: "critico",
-        norma: "RDC 50/2002 / NR 32",
-        descricao: "O posto de enfermagem central do Bloco de Internação não dispõe de pia exclusiva para lavagem das mãos, havendo apenas pias de utilidades de uso compartilhado.",
-        sugestao: "Instalar lavatório com torneira de acionamento que dispense o contato manual (sensor, pedal ou cotovelo), acompanhado de porta-papel toalha e saboneteira líquida."
-      },
-      {
-        codigo: "HOSP-03",
-        nome: "Dimensionamento inadequado de quartos de internação",
-        severidade: "atencao",
-        norma: "RDC 50/2002 - Item 3",
-        descricao: "Os quartos projetados para 2 leitos apresentam área útil interna de 10.2m², valor inferior ao mínimo normatizado de 12.0m² exigido para permitir manobra livre de cadeiras de rodas e macas.",
-        sugestao: "Ajustar o leiaute arquitetônico para alocar apenas 1 leito por quarto ou realizar o recuo de divisórias internas para atingir a metragem mínima."
-      }
-    ];
-
-    const clinicaMocks: NaoConformidade[] = [
-      {
-        codigo: "CLIN-01",
-        nome: "Sala de procedimentos sem revestimento lavável",
-        severidade: "critico",
-        norma: "RDC 50/2002 - Acabamentos de Superfícies",
-        descricao: "A sala de pequenos procedimentos ambulatoriais apresenta pintura acrílica convencional e juntas nas soleiras de madeira, superfícies que acumulam agentes patogênicos e dificultam a higienização química periódica.",
-        sugestao: "Revestir o piso com material vinílico ou cerâmico monolítico com cantos arredondados e pintar as paredes com tinta epóxi hospitalar lavável."
-      },
-      {
-        codigo: "CLIN-02",
-        nome: "Falta de acessibilidade e área de giro nos sanitários",
-        severidade: "atencao",
-        norma: "NBR 9050 / RDC 50",
-        descricao: "Os sanitários abertos ao público não dispõem de área interna livre para diâmetro de rotação de 1,50m, inviabilizando o uso confortável por pacientes cadeirantes.",
-        sugestao: "Remodelar o posicionamento da bacia sanitária e do lavatório para liberar o círculo de giro e fixar barras metálicas horizontais e verticais regulamentadas."
-      },
-      {
-        codigo: "CLIN-03",
-        nome: "Sinalização tátil direcional e de alerta ausente",
-        severidade: "informativo",
-        norma: "NBR 9050",
-        descricao: "Inexistência de piso tátil direcional a partir da calçada externa até o balcão principal de atendimento na recepção.",
-        sugestao: "Aplicar piso tátil de borracha autocolante obedecendo a coloração contrastante com o piso de fundo para auxiliar deficientes visuais."
-      }
-    ];
-
-    const cmeMocks: NaoConformidade[] = [
-      {
-        codigo: "CME-01",
-        nome: "Falta de diferencial de pressão no sistema de exaustão",
-        severidade: "bloqueante",
-        norma: "RDC 15/2012 / RDC 50/2002",
-        descricao: "A área física de expurgo (recepção de material sujo) não opera sob pressão negativa constante em relação aos ambientes vizinhos, possibilitando vazamento de ar com patógenos em suspensão.",
-        sugestao: "Ajustar o damper de retorno e exaustão mecânica para gerar uma pressão negativa mínima de 2,5 Pa na sala de expurgo."
-      },
-      {
-        codigo: "CME-02",
-        nome: "Falta de barreira técnica (pass-through) na lavagem",
-        severidade: "critico",
-        norma: "RDC 15/2012",
-        descricao: "Falta de passa-pratos ou visor vedado na barreira que delimita a lavagem manual de materiais da sala de esterilização química.",
-        sugestao: "Instalar guichê estanque do tipo pass-through provido de intertravamento eletrônico de portas para transferência de kits limpos."
-      }
-    ];
-
-    const labMocks: NaoConformidade[] = [
-      {
-        codigo: "LAB-01",
-        nome: "Ausência de chuveiro de emergência e lava-olhos",
-        severidade: "critico",
-        norma: "NR 32 / RDC 50/2002",
-        descricao: "A bancada de manipulação ácida e bacteriológica não dispõe de chuveiro de emergência e lava-olhos acoplado a uma distância máxima de 10 metros.",
-        sugestao: "Instalar um módulo conjugado de chuveiro industrial e lava-olhos de emergência com acionamento manual rápido por haste."
-      },
-      {
-        codigo: "LAB-02",
-        nome: "Armazenamento inadequado de gases inflamáveis",
-        severidade: "atencao",
-        norma: "RDC 50/2002 / NR 20",
-        descricao: "Identificados cilindros de reposição de gás GLP encostados diretamente na parede interna de alvenaria do laboratório de patologia.",
-        sugestao: "Remover os cilindros do ambiente interno e abrigá-los na central externa de cilindros de gases, dotada de veneziana de ventilação natural."
-      }
-    ];
-
-    const consultorioMocks: NaoConformidade[] = [
-      {
-        codigo: "CONS-01",
-        nome: "Falta de pia de lavagem de mãos no consultório de exames",
-        severidade: "atencao",
-        norma: "RDC 50/2002",
-        descricao: "O consultório planejado para a realização de consultas clínicas e exames ginecológicos não dispõe de pia interna integrada, dependendo da pia do banheiro social anexo.",
-        sugestao: "Instalar cuba em inox ou louça com torneira e dispenser de sabão diretamente na sala de exames físicos."
-      },
-      {
-        codigo: "CONS-02",
-        nome: "Iluminação geral abaixo da faixa exigida para exames",
-        severidade: "informativo",
-        norma: "NBR ISO/CIE 8995-1",
-        descricao: "O fluxo luminoso medido horizontalmente na maca de exames é de apenas 220 lux, sendo a especificação regulamentar de no mínimo 500 lux para análises clínicas precisas.",
-        sugestao: "Redimensionar o arranjo de iluminação no teto incluindo luminárias de LED complementares ou adicionar um foco de luz articulado de pedestal."
-      }
-    ];
-
-    const t = tipo.toLowerCase();
-    if (t.includes("hospital")) return hospitalMocks;
-    if (t.includes("clínica") || t.includes("clinica")) return clinicaMocks;
-    if (t.includes("cme")) return cmeMocks;
-    if (t.includes("laboratório") || t.includes("laboratorio")) return labMocks;
-    if (t.includes("consultório") || t.includes("consultorio")) return consultorioMocks;
-
-    return defaultMocks;
+      const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `VISAcheck_${projeto.nome_projeto.replace(/\s+/g, "_")}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Erro ao exportar:", err);
+    } finally {
+      setExportando(false);
+    }
   };
 
   const getStatusBadge = (status: Projeto["status"]) => {
@@ -305,37 +371,41 @@ export default function ProjectDetails() {
     }
   };
 
-  // Gerar resumo executivo dinâmico
+  const getRiscoBadge = (risco: string) => {
+    switch (risco) {
+      case "alto":
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-50 text-red-600 border border-red-200">Risco Alto</span>;
+      case "medio":
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Risco Médio</span>;
+      case "baixo":
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-50 text-green-700 border border-green-200">Risco Baixo</span>;
+      default:
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-50 text-gray-500 border border-gray-200">Indefinido</span>;
+    }
+  };
+
   const getResumoExecutivo = (proj: Projeto, totalInfracoes: number) => {
     const nomeEst = proj.tipo_arquivo || "Estabelecimento de Saúde";
     if (proj.status === "aprovado" || proj.score_conformidade === 100) {
       return `O projeto "${proj.nome_projeto}" foi analisado à luz das normas regulatórias (RDC 50/2002 e correlatas) para ${nomeEst}. Não foram identificadas não-conformidades de caráter impeditivo. A prancha e fluxo arquitetônico encontram-se plenamente alinhados com as exigências sanitárias vigentes.`;
     }
-    
     if (proj.status === "pendente") {
       return `O projeto "${proj.nome_projeto}" foi cadastrado no sistema e aguarda o processamento do motor regulatório computável. As pranchas estão na fila para identificação automática de barreiras, fluxos e arranjos espaciais em relação às diretrizes regulatórias da vigilância sanitária.`;
     }
-
     return `O diagnóstico arquitetônico automatizado para o projeto "${proj.nome_projeto}" (${nomeEst}) identificou um total de ${totalInfracoes} não-conformidades estruturais e/ou de fluxo em relação às legislações sanitárias aplicáveis. O índice global de conformidade atingiu ${proj.score_conformidade}%, indicando que ajustes corretivos são necessários antes da submissão formal ao órgão fiscalizador competente.`;
   };
 
-  const naoconformidades = projeto ? getMockNaoConformidades(projeto.tipo_arquivo) : [];
   const score = projeto?.score_conformidade ?? 100;
   const status = projeto?.status ?? "pendente";
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
-      {/* SIDEBAR FIXA */}
+      {/* SIDEBAR */}
       <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
-        {/* Logo */}
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
-          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">
-            VISAcheck GO
-          </span>
+          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">VISAcheck GO</span>
         </div>
-
-        {/* Menu de Navegação */}
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button
             onClick={() => navigate("/dashboard")}
@@ -359,8 +429,6 @@ export default function ProjectDetails() {
             Base de Normas
           </button>
         </nav>
-
-        {/* Rodapé da Sidebar */}
         <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
@@ -374,7 +442,6 @@ export default function ProjectDetails() {
 
       {/* CONTEÚDO PRINCIPAL */}
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        {/* Topo / Header */}
         <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">
             <Button
@@ -405,9 +472,23 @@ export default function ProjectDetails() {
               </p>
             </div>
           </div>
+          {/* Botão Exportar */}
+          {!loading && projeto && (
+            <Button
+              onClick={handleExportarPDF}
+              disabled={exportando}
+              className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white flex items-center gap-2 text-sm"
+            >
+              {exportando ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              Exportar Relatório
+            </Button>
+          )}
         </header>
 
-        {/* Área de Conteúdo */}
         <div className="flex-1 p-8 space-y-8 max-w-5xl w-full mx-auto">
           {loading ? (
             <div className="min-h-[400px] flex flex-col justify-center items-center gap-3">
@@ -425,9 +506,9 @@ export default function ProjectDetails() {
             </div>
           ) : projeto && (
             <div className="space-y-8">
-              {/* CARD DE SCORE & RESUMO */}
+
+              {/* SCORE & RESUMO */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Score de Conformidade */}
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between md:col-span-1">
                   <div>
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">
@@ -442,8 +523,6 @@ export default function ProjectDetails() {
                       <span className="text-xs text-muted-foreground">de aprovação</span>
                     </div>
                   </div>
-
-                  {/* Barra de Progresso */}
                   <div className="space-y-2 mt-4">
                     <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
                       <div
@@ -459,14 +538,13 @@ export default function ProjectDetails() {
                   </div>
                 </div>
 
-                {/* Resumo Executivo */}
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2 flex flex-col justify-between">
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
                       Resumo Executivo
                     </h3>
                     <p className="text-sm leading-relaxed text-slate-700">
-                      {getResumoExecutivo(projeto, naoconformidades.length)}
+                      {resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length)}
                     </p>
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-muted-foreground">
@@ -476,7 +554,63 @@ export default function ProjectDetails() {
                 </div>
               </div>
 
-              {/* LISTA DE NÃO-CONFORMIDADES */}
+              {/* ── NOVA SEÇÃO 1: VALIDAÇÕES POR CATEGORIA ── */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
+                  <h2 className="text-base font-bold text-[#1E293B]">Validações por Categoria</h2>
+                </div>
+                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-border">
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conformes</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendências</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-48">Conformidade</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {validacoesPorCategoria.map((v) => (
+                        <tr key={v.categoria} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-[#1E293B]">{v.categoria}</td>
+                          <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
+                          <td className="px-4 py-4 text-center">
+                            {v.naoConformes > 0 ? (
+                              <span className="text-red-600 font-semibold">{v.naoConformes}</span>
+                            ) : (
+                              <span className="text-slate-400">0</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full ${
+                                    v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"
+                                  }`}
+                                  style={{ width: `${v.percentual}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-600 w-10 text-right">{v.percentual}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-center">
+                            {v.naoConformes === 0 ? (
+                              <CheckCircle className="w-5 h-5 text-green-500 mx-auto" />
+                            ) : (
+                              <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* NÃO-CONFORMIDADES */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-base font-bold text-[#1E293B]">
@@ -502,16 +636,11 @@ export default function ProjectDetails() {
                         key={nc.codigo}
                         className="bg-white border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 space-y-4"
                       >
-                        {/* Top Line */}
                         <div className="flex flex-wrap justify-between items-start gap-3">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono font-bold text-muted-foreground">
-                                {nc.codigo}
-                              </span>
-                              <h3 className="text-sm font-bold text-[#1E293B]">
-                                {nc.nome}
-                              </h3>
+                              <span className="text-xs font-mono font-bold text-muted-foreground">{nc.codigo}</span>
+                              <h3 className="text-sm font-bold text-[#1E293B]">{nc.nome}</h3>
                             </div>
                             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1E3A5F] tracking-wide uppercase bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
                               Norma: {nc.norma}
@@ -519,8 +648,6 @@ export default function ProjectDetails() {
                           </div>
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
-
-                        {/* Descrição do Erro */}
                         <div className="space-y-1.5">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
                             Detalhamento Técnico da Irregularidade
@@ -529,21 +656,58 @@ export default function ProjectDetails() {
                             {nc.descricao}
                           </p>
                         </div>
-
-                        {/* Ação Corretiva Sugerida */}
                         <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg space-y-1.5">
                           <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">
                             Ação Corretiva Sugerida pelo Auditor AI
                           </span>
-                          <p className="text-xs text-slate-800 font-medium">
-                            {nc.sugestao}
-                          </p>
+                          <p className="text-xs text-slate-800 font-medium">{nc.sugestao}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* ── NOVA SEÇÃO 2: PARECERES TÉCNICOS POR NORMA ── */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-[#1E3A5F]" />
+                  <h2 className="text-base font-bold text-[#1E293B]">Pareceres Técnicos por Norma</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pareceres.map((p, idx) => (
+                    <div key={idx} className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#1E3A5F] flex-shrink-0" />
+                          <h3 className="text-sm font-bold text-[#1E293B] leading-tight">{p.norma}</h3>
+                        </div>
+                        {getRiscoBadge(p.risco)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {p.status === "Conforme" ? (
+                          <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        ) : p.status === "Aguardando análise" ? (
+                          <Loader2 className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
+                        )}
+                        <span className={`text-sm font-semibold ${
+                          p.status === "Conforme" ? "text-green-700" :
+                          p.status === "Aguardando análise" ? "text-slate-500" :
+                          "text-amber-700"
+                        }`}>
+                          {p.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-100 p-3 rounded-lg">
+                        {p.observacao}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           )}
         </div>

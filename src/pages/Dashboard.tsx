@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { runAnalysisForProject } from "@/lib/regulatory/engine/regulatoryEngine";
+import { getMockEntitiesForType } from "@/lib/regulatory/engine/mockEntities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -164,7 +166,7 @@ export default function Dashboard() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: newProj, error } = await supabase
         .from("projetos")
         .insert({
           nome_projeto: nomeProjeto.trim(),
@@ -172,10 +174,41 @@ export default function Dashboard() {
           usuario_id: user.id,
           status: "pendente",
           score_conformidade: 100,
-        });
+        })
+        .select("id")
+        .single();
 
-      if (error) {
-        throw error;
+      if (error || !newProj) {
+        throw error || new Error("Falha ao criar o projeto.");
+      }
+
+      // Atualiza para 'analisando' no banco
+      await supabase
+        .from("projetos")
+        .update({ status: "analisando" })
+        .eq("id", newProj.id);
+
+      // Gera e insere entidades arquitetônicas simuladas com base no tipo
+      const entitiesToInsert = getMockEntitiesForType(tipoEstabelecimento, newProj.id);
+      if (entitiesToInsert.length > 0) {
+        const { error: entError } = await supabase
+          .from("entidades_arquitetonicas")
+          .insert(entitiesToInsert);
+        if (entError) {
+          console.error("Erro ao inserir entidades arquitetônicas:", entError);
+        }
+      }
+
+      // Executa a análise regulatória computável
+      try {
+        await runAnalysisForProject(newProj.id);
+      } catch (analysisErr) {
+        console.error("Erro ao rodar análise regulatória:", analysisErr);
+        // Fallback: reverte para pendente se falhar
+        await supabase
+          .from("projetos")
+          .update({ status: "pendente" })
+          .eq("id", newProj.id);
       }
 
       // Sucesso
