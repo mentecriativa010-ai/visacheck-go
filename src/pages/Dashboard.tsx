@@ -28,7 +28,8 @@ import {
   AlertCircle,
   FileText,
   HelpCircle,
-  Info
+  Info,
+  Trash2,
 } from "lucide-react";
 
 interface Projeto {
@@ -51,7 +52,6 @@ interface Regra {
   sugestao_corretiva: string;
 }
 
-// Retorna o status visual com base no score e status real do projeto
 function getStatusEfetivo(proj: Projeto): Projeto["status"] {
   if (proj.score_conformidade === 100 || proj.status === "aprovado") return "aprovado";
   if (proj.score_conformidade >= 50) return "parcial";
@@ -83,6 +83,11 @@ export default function Dashboard() {
   const [filtroNorma, setFiltroNorma] = useState<string>("todas");
   const [filtroBuscaRegra, setFiltroBuscaRegra] = useState("");
 
+  // MUDANÇA 3: Estado para seleção e deleção
+  const [projetosSelecionados, setProjetosSelecionados] = useState<string[]>([]);
+  const [deletandoProjetos, setDeletandoProjetos] = useState(false);
+  const [confirmarDelete, setConfirmarDelete] = useState(false);
+
   useEffect(() => {
     fetchUserDataAndProjects();
   }, []);
@@ -91,6 +96,8 @@ export default function Dashboard() {
     if (activeTab === "normas" && regras.length === 0) {
       fetchRegras();
     }
+    // Limpa seleção ao trocar de aba
+    setProjetosSelecionados([]);
   }, [activeTab]);
 
   const fetchUserDataAndProjects = async () => {
@@ -143,6 +150,42 @@ export default function Dashboard() {
       console.error("Erro ao buscar regras:", err);
     } finally {
       setLoadingRegras(false);
+    }
+  };
+
+  // MUDANÇA 3: Função de deleção
+  const handleDeletarSelecionados = async () => {
+    if (!projetosSelecionados.length) return;
+    try {
+      setDeletandoProjetos(true);
+      await supabase.from("validacoes").delete().in("projeto_id", projetosSelecionados);
+      await supabase.from("pareceres").delete().in("projeto_id", projetosSelecionados);
+      await supabase.from("entidades_arquitetonicas").delete().in("projeto_id", projetosSelecionados);
+      await supabase.from("projetos").delete().in("id", projetosSelecionados);
+      setProjetosSelecionados([]);
+      setConfirmarDelete(false);
+      fetchUserDataAndProjects();
+    } catch (err) {
+      console.error("Erro ao deletar projetos:", err);
+    } finally {
+      setDeletandoProjetos(false);
+    }
+  };
+
+  const toggleSelecionado = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProjetosSelecionados(prev =>
+      prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]
+    );
+  };
+
+  const toggleTodos = (lista: Projeto[]) => {
+    const ids = lista.map(p => p.id);
+    const todosSelecionados = ids.every(id => projetosSelecionados.includes(id));
+    if (todosSelecionados) {
+      setProjetosSelecionados(prev => prev.filter(id => !ids.includes(id)));
+    } else {
+      setProjetosSelecionados(prev => [...new Set([...prev, ...ids])]);
     }
   };
 
@@ -205,7 +248,6 @@ export default function Dashboard() {
   };
 
   const totalProjetos = projetos.length;
-  // Conta como aprovado se score = 100 independente do status salvo
   const aprovadosCount = projetos.filter(p => p.score_conformidade === 100 || p.status === "aprovado").length;
   const analisandoCount = projetos.filter(p => p.status === "analisando").length;
   const pendentesCount = projetos.filter(p => p.status === "pendente" && p.score_conformidade !== 100).length;
@@ -231,6 +273,7 @@ export default function Dashboard() {
 
   const normasDisponiveis = Array.from(new Set(regras.map((r) => r.norma)));
 
+  // MUDANÇA 1: Badge APROVADO quando score = 100%
   const getStatusBadge = (proj: Projeto) => {
     const status = getStatusEfetivo(proj);
     switch (status) {
@@ -238,7 +281,7 @@ export default function Dashboard() {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200">
             <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-            Concluído ✓
+            APROVADO ✓
           </span>
         );
       case "analisando":
@@ -335,7 +378,7 @@ export default function Dashboard() {
             </div>
             <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
               <div className="space-y-1">
-                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Concluídos</span>
+                <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Aprovados</span>
                 <p className="text-2xl font-bold text-[#1E293B]">{loadingProjetos ? <Loader2 className="w-6 h-6 animate-spin text-primary" /> : aprovadosCount}</p>
               </div>
               <div className="p-3 bg-green-50 text-[#16A34A] rounded-lg"><CheckCircle2 className="w-5 h-5" /></div>
@@ -388,27 +431,59 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-border bg-slate-50/50">
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Tipo de Estabelecimento</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Data</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {projetosRecentes.map((proj) => (
-                        <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
-                          <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
-                          <td className="px-6 py-4">{getStatusBadge(proj)}</td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                <div className="space-y-3">
+                  {/* MUDANÇA 3: Botão excluir quando há selecionados */}
+                  {projetosSelecionados.length > 0 && (
+                    <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+                      <span className="text-sm text-red-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
+                      <Button
+                        onClick={() => setConfirmarDelete(true)}
+                        disabled={deletandoProjetos}
+                        className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Excluir selecionados
+                      </Button>
+                    </div>
+                  )}
+                  <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border bg-slate-50/50">
+                          <th className="px-4 py-4 w-10">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                              checked={projetosRecentes.length > 0 && projetosRecentes.every(p => projetosSelecionados.includes(p.id))}
+                              onChange={() => toggleTodos(projetosRecentes)}
+                            />
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Tipo de Estabelecimento</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Data</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {projetosRecentes.map((proj) => (
+                          <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                                checked={projetosSelecionados.includes(proj.id)}
+                                onChange={(e) => toggleSelecionado(proj.id, e as any)}
+                              />
+                            </td>
+                            <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
+                            <td className="px-6 py-4">{getStatusBadge(proj)}</td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -426,7 +501,7 @@ export default function Dashboard() {
                   </div>
                   <select value={filtroStatusProjeto} onChange={(e) => setFiltroStatusProjeto(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todos">Todos os Status</option>
-                    <option value="aprovado">Concluído</option>
+                    <option value="aprovado">Aprovado</option>
                     <option value="analisando">Em análise</option>
                     <option value="parcial">Parcial</option>
                     <option value="pendente">Pendente</option>
@@ -448,38 +523,70 @@ export default function Dashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-border bg-slate-50/50">
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome do Projeto</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Estabelecimento</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Pontuação</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
-                        <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Criado em</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {projetosFiltrados.map((proj) => (
-                        <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
-                          <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <span className={`text-sm font-semibold ${proj.score_conformidade >= 80 ? "text-green-600" : proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"}`}>
-                                {proj.score_conformidade ?? 100}%
-                              </span>
-                              <div className="w-16 bg-slate-100 rounded-full h-1.5">
-                                <div className={`h-1.5 rounded-full ${proj.score_conformidade >= 80 ? "bg-green-600" : proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${proj.score_conformidade ?? 100}%` }} />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">{getStatusBadge(proj)}</td>
-                          <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                <div className="space-y-3">
+                  {/* MUDANÇA 3: Botão excluir na aba Meus Projetos */}
+                  {projetosSelecionados.length > 0 && (
+                    <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+                      <span className="text-sm text-red-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
+                      <Button
+                        onClick={() => setConfirmarDelete(true)}
+                        disabled={deletandoProjetos}
+                        className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Excluir selecionados
+                      </Button>
+                    </div>
+                  )}
+                  <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-border bg-slate-50/50">
+                          <th className="px-4 py-4 w-10">
+                            <input
+                              type="checkbox"
+                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                              checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))}
+                              onChange={() => toggleTodos(projetosFiltrados)}
+                            />
+                          </th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome do Projeto</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Estabelecimento</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Pontuação</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Criado em</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {projetosFiltrados.map((proj) => (
+                          <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                                checked={projetosSelecionados.includes(proj.id)}
+                                onChange={(e) => toggleSelecionado(proj.id, e as any)}
+                              />
+                            </td>
+                            <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-sm font-semibold ${proj.score_conformidade >= 80 ? "text-green-600" : proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"}`}>
+                                  {proj.score_conformidade ?? 100}%
+                                </span>
+                                <div className="w-16 bg-slate-100 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full ${proj.score_conformidade >= 80 ? "bg-green-600" : proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${proj.score_conformidade ?? 100}%` }} />
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">{getStatusBadge(proj)}</td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
             </div>
@@ -597,6 +704,42 @@ export default function Dashboard() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* MODAL CONFIRMAR DELEÇÃO */}
+      {confirmarDelete && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-[#1E293B]">Excluir projetos</h2>
+                <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600">
+              Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados, análises e laudos serão removidos permanentemente.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmarDelete(false)}
+                disabled={deletandoProjetos}
+                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeletarSelecionados}
+                disabled={deletandoProjetos}
+                className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {deletandoProjetos ? <><Loader2 className="w-4 h-4 animate-spin" />Excluindo...</> : <><Trash2 className="w-4 h-4" />Confirmar exclusão</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -155,16 +155,12 @@ export default function ProjectDetails() {
     if (!id) return;
     try {
       setRodarNovaAnalise(true);
-      // Limpa validações e pareceres anteriores
       await supabase.from("validacoes").delete().eq("projeto_id", id);
       await supabase.from("pareceres").delete().eq("projeto_id", id);
-      // Atualiza status para analisando
       await supabase.from("projetos").update({ status: "analisando", score_conformidade: 100 }).eq("id", id);
-      // Roda nova análise
       await runAnalysisForProject(id);
       setNovaAnaliseOpen(false);
       setArquivoNovaAnalise("");
-      // Recarrega os dados
       await fetchProjectAndUser();
     } catch (err: any) {
       console.error("Erro ao rodar nova análise:", err);
@@ -186,7 +182,7 @@ export default function ProjectDetails() {
         `Tipo de Estabelecimento: ${projeto.tipo_arquivo}`,
         `Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`,
         `Score de Conformidade: ${projeto.score_conformidade}%`,
-        `Status: ${projeto.score_conformidade === 100 ? "Concluído" : projeto.status}`,
+        `Status: ${projeto.score_conformidade === 100 ? "APROVADO" : projeto.status}`,
         ``, `RESUMO EXECUTIVO`,
         resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length),
         ``, `VALIDAÇÕES POR CATEGORIA`,
@@ -208,7 +204,7 @@ export default function ProjectDetails() {
     finally { setExportando(false); }
   };
 
-  // Status visual baseado no score
+  // MUDANÇA 1: Status APROVADO quando score = 100%
   const getStatusEfetivo = (proj: Projeto) => {
     if (proj.score_conformidade === 100 || proj.status === "aprovado") return "aprovado";
     return proj.status;
@@ -218,7 +214,7 @@ export default function ProjectDetails() {
     const status = getStatusEfetivo(proj);
     switch (status) {
       case "aprovado":
-        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />Concluído ✓</span>;
+        return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
       case "analisando":
         return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "reprovado":
@@ -295,7 +291,7 @@ export default function ProjectDetails() {
           </div>
           {!loading && projeto && (
             <div className="flex items-center gap-3">
-              {/* Botão Nova Análise — aparece apenas quando há não-conformidades */}
+              {/* MUDANÇA 2: Botão Nova Análise — aparece quando há não-conformidades */}
               {temNaoConformidades && (
                 <Button
                   onClick={() => setNovaAnaliseOpen(true)}
@@ -415,7 +411,6 @@ export default function ProjectDetails() {
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    {/* Banner orientando a usar Nova Análise */}
                     <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
                       <RefreshCw className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div>
