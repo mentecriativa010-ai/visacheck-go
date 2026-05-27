@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { runAnalysisForProject } from "@/lib/regulatory/engine/regulatoryEngine";
-import { getMockEntitiesForType } from "@/lib/regulatory/engine/mockEntities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,7 +33,7 @@ import {
 interface Projeto {
   id: string;
   nome_projeto: string;
-  tipo_arquivo: string;
+  tipo_estabelecimento: string;
   status: "pendente" | "analisando" | "aprovado" | "parcial" | "reprovado";
   created_at: string;
   score_conformidade: number;
@@ -44,12 +42,10 @@ interface Projeto {
 interface Regra {
   id: string;
   codigo: string;
-  nome: string;
-  norma: string;
-  categoria: string;
-  severidade: "informativo" | "atencao" | "critico" | "bloqueante";
   descricao: string;
-  sugestao_corretiva: string;
+  norma_origem: string;
+  categoria: string;
+  subcategoria: string;
 }
 
 function getStatusEfetivo(proj: Projeto): Projeto["status"] {
@@ -73,7 +69,8 @@ export default function Dashboard() {
 
   const [novoProjetoOpen, setNovoProjetoOpen] = useState(false);
   const [nomeProjeto, setNomeProjeto] = useState("");
-  const [tipoEstabelecimento, setTipoEstabelecimento] = useState("Hospital");
+  const [tipoEstabelecimento, setTipoEstabelecimento] = useState("Hospital Geral");
+  const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null);
   const [arquivoName, setArquivoName] = useState("");
   const [criandoProjeto, setCriandoProjeto] = useState(false);
   const [erroCriar, setErroCriar] = useState("");
@@ -83,7 +80,6 @@ export default function Dashboard() {
   const [filtroNorma, setFiltroNorma] = useState<string>("todas");
   const [filtroBuscaRegra, setFiltroBuscaRegra] = useState("");
 
-  // MUDANÇA 3: Estado para seleção e deleção
   const [projetosSelecionados, setProjetosSelecionados] = useState<string[]>([]);
   const [deletandoProjetos, setDeletandoProjetos] = useState(false);
   const [confirmarDelete, setConfirmarDelete] = useState(false);
@@ -96,7 +92,6 @@ export default function Dashboard() {
     if (activeTab === "normas" && regras.length === 0) {
       fetchRegras();
     }
-    // Limpa seleção ao trocar de aba
     setProjetosSelecionados([]);
   }, [activeTab]);
 
@@ -108,23 +103,25 @@ export default function Dashboard() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) { navigate("/login"); return; }
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("nome, razao_social")
+      // Busca perfil na tabela correta: perfis (não profiles)
+      const { data: profile } = await supabase
+        .from("perfis")
+        .select("nome")
         .eq("id", user.id)
         .maybeSingle();
 
-      if (!profileError && profile) {
-        setUserName(profile.nome || profile.razao_social || user.email?.split("@")[0] || "Usuário");
+      if (profile?.nome) {
+        setUserName(profile.nome);
       } else {
         setUserName(user.email?.split("@")[0] || "Usuário");
       }
       setLoadingUser(false);
 
+      // Busca projetos com user_id (não usuario_id)
       const { data: projetosData, error: projetosError } = await supabase
         .from("projetos")
-        .select("id, nome_projeto, tipo_arquivo, status, created_at, score_conformidade")
-        .eq("usuario_id", user.id)
+        .select("id, nome_projeto, tipo_estabelecimento, status, created_at, score_conformidade")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (!projetosError && projetosData) {
@@ -143,8 +140,7 @@ export default function Dashboard() {
       setLoadingRegras(true);
       const { data, error } = await supabase
         .from("regras_regulatorias")
-        .select("id, codigo, nome, norma, categoria, severidade, descricao, sugestao_corretiva")
-        .eq("ativa", true);
+        .select("id, codigo, descricao, norma_origem, categoria, subcategoria");
       if (!error && data) setRegras(data as Regra[]);
     } catch (err) {
       console.error("Erro ao buscar regras:", err);
@@ -153,14 +149,12 @@ export default function Dashboard() {
     }
   };
 
-  // MUDANÇA 3: Função de deleção
   const handleDeletarSelecionados = async () => {
     if (!projetosSelecionados.length) return;
     try {
       setDeletandoProjetos(true);
       await supabase.from("validacoes").delete().in("projeto_id", projetosSelecionados);
       await supabase.from("pareceres").delete().in("projeto_id", projetosSelecionados);
-      await supabase.from("entidades_arquitetonicas").delete().in("projeto_id", projetosSelecionados);
       await supabase.from("projetos").delete().in("id", projetosSelecionados);
       setProjetosSelecionados([]);
       setConfirmarDelete(false);
@@ -200,40 +194,50 @@ export default function Dashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { navigate("/login"); return; }
 
+      let pdfPath = null;
+      let pdfNome = null;
+
+      // Upload do PDF se selecionado
+      if (arquivoSelecionado) {
+        const fileExt = arquivoSelecionado.name.split('.').pop();
+        const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from("projetos-pdf")
+          .upload(filePath, arquivoSelecionado);
+        if (uploadError) {
+          console.error("Erro no upload:", uploadError);
+        } else {
+          pdfPath = filePath;
+          pdfNome = arquivoSelecionado.name;
+        }
+      }
+
+      // Insere projeto com colunas corretas
       const { data: newProj, error } = await supabase
         .from("projetos")
         .insert({
           nome_projeto: nomeProjeto.trim(),
-          tipo_arquivo: tipoEstabelecimento,
-          usuario_id: user.id,
+          tipo_estabelecimento: tipoEstabelecimento,
+          user_id: user.id,
           status: "pendente",
-          score_conformidade: 100,
+          score_conformidade: 0,
+          pdf_path: pdfPath,
+          pdf_nome: pdfNome,
         })
         .select("id")
         .single();
 
       if (error || !newProj) throw error || new Error("Falha ao criar o projeto.");
 
-      await supabase.from("projetos").update({ status: "analisando" }).eq("id", newProj.id);
-
-      const entitiesToInsert = getMockEntitiesForType(tipoEstabelecimento, newProj.id);
-      if (entitiesToInsert.length > 0) {
-        const { error: entError } = await supabase.from("entidades_arquitetonicas").insert(entitiesToInsert);
-        if (entError) console.error("Erro ao inserir entidades arquitetônicas:", entError);
-      }
-
-      try {
-        await runAnalysisForProject(newProj.id);
-      } catch (analysisErr) {
-        console.error("Erro ao rodar análise regulatória:", analysisErr);
-        await supabase.from("projetos").update({ status: "pendente" }).eq("id", newProj.id);
-      }
-
       setNovoProjetoOpen(false);
       setNomeProjeto("");
-      setTipoEstabelecimento("Hospital");
+      setTipoEstabelecimento("Hospital Geral");
       setArquivoName("");
+      setArquivoSelecionado(null);
       fetchUserDataAndProjects();
+
+      // Navega para o projeto criado
+      navigate(`/projetos/${newProj.id}`);
     } catch (err: any) {
       console.error("Erro ao criar projeto:", err);
       setErroCriar(err.message || "Ocorreu um erro ao criar o projeto.");
@@ -262,18 +266,17 @@ export default function Dashboard() {
   const projetosRecentes = projetos.slice(0, 5);
 
   const regrasFiltradas = regras.filter((regra) => {
-    const bateNorma = filtroNorma === "todas" || regra.norma.toLowerCase() === filtroNorma.toLowerCase();
+    const bateNorma = filtroNorma === "todas" || regra.norma_origem === filtroNorma;
     const busca = filtroBuscaRegra.toLowerCase();
     const bateBusca =
-      regra.nome.toLowerCase().includes(busca) ||
+      regra.descricao.toLowerCase().includes(busca) ||
       regra.codigo.toLowerCase().includes(busca) ||
-      regra.descricao.toLowerCase().includes(busca);
+      regra.categoria.toLowerCase().includes(busca);
     return bateNorma && bateBusca;
   });
 
-  const normasDisponiveis = Array.from(new Set(regras.map((r) => r.norma)));
+  const normasDisponiveis = Array.from(new Set(regras.map((r) => r.norma_origem)));
 
-  // MUDANÇA 1: Badge APROVADO quando score = 100%
   const getStatusBadge = (proj: Projeto) => {
     const status = getStatusEfetivo(proj);
     switch (status) {
@@ -312,19 +315,6 @@ export default function Dashboard() {
             Pendente
           </span>
         );
-    }
-  };
-
-  const getSeveridadeBadge = (severidade: Regra["severidade"]) => {
-    switch (severidade) {
-      case "bloqueante":
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-[#DC2626] border border-red-200">Bloqueante</span>;
-      case "critico":
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200">Crítico</span>;
-      case "atencao":
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Atenção</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">Informativo</span>;
     }
   };
 
@@ -367,7 +357,6 @@ export default function Dashboard() {
         </header>
 
         <div className="flex-1 p-8 space-y-8 max-w-7xl w-full mx-auto">
-          {/* CARDS DE RESUMO */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
               <div className="space-y-1">
@@ -399,23 +388,19 @@ export default function Dashboard() {
             </div>
           </section>
 
-          {/* ABA DASHBOARD */}
           {activeTab === "dashboard" && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h2 className="text-lg font-bold text-[#1E293B]">Projetos Recentes</h2>
                 {projetos.length > 5 && (
                   <button onClick={() => setActiveTab("projetos")} className="text-xs font-semibold text-primary hover:underline">
-                    Ver todos os projetos ({projetos.length})
+                    Ver todos ({projetos.length})
                   </button>
                 )}
               </div>
               {loadingProjetos ? (
                 <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Carregando projetos...</p>
-                  </div>
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : projetos.length === 0 ? (
                 <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
@@ -432,17 +417,11 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* MUDANÇA 3: Botão excluir quando há selecionados */}
                   {projetosSelecionados.length > 0 && (
                     <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
                       <span className="text-sm text-red-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
-                      <Button
-                        onClick={() => setConfirmarDelete(true)}
-                        disabled={deletandoProjetos}
-                        className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Excluir selecionados
+                      <Button onClick={() => setConfirmarDelete(true)} disabled={deletandoProjetos} className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs">
+                        <Trash2 className="w-3.5 h-3.5" />Excluir selecionados
                       </Button>
                     </div>
                   )}
@@ -451,12 +430,9 @@ export default function Dashboard() {
                       <thead>
                         <tr className="border-b border-border bg-slate-50/50">
                           <th className="px-4 py-4 w-10">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
                               checked={projetosRecentes.length > 0 && projetosRecentes.every(p => projetosSelecionados.includes(p.id))}
-                              onChange={() => toggleTodos(projetosRecentes)}
-                            />
+                              onChange={() => toggleTodos(projetosRecentes)} />
                           </th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Tipo de Estabelecimento</th>
@@ -468,17 +444,14 @@ export default function Dashboard() {
                         {projetosRecentes.map((proj) => (
                           <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
                             <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
                                 checked={projetosSelecionados.includes(proj.id)}
-                                onChange={(e) => toggleSelecionado(proj.id, e as any)}
-                              />
+                                onChange={(e) => toggleSelecionado(proj.id, e as any)} />
                             </td>
                             <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">{getStatusBadge(proj)}</td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -489,7 +462,6 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ABA MEUS PROJETOS */}
           {activeTab === "projetos" && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
@@ -510,31 +482,20 @@ export default function Dashboard() {
                 </div>
               </div>
               {loadingProjetos ? (
-                <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
+                <div className="bg-white border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
               ) : projetosFiltrados.length === 0 ? (
                 <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
-                  <div className="max-w-md mx-auto space-y-3">
-                    <Info className="w-10 h-10 text-muted-foreground mx-auto" />
-                    <h3 className="text-base font-semibold">Nenhum projeto encontrado</h3>
-                    <p className="text-sm text-muted-foreground">Não encontramos projetos com os filtros aplicados.</p>
-                    <Button variant="outline" onClick={() => { setFiltroNomeProjeto(""); setFiltroStatusProjeto("todos"); }}>Limpar Filtros</Button>
-                  </div>
+                  <Info className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                  <h3 className="text-base font-semibold">Nenhum projeto encontrado</h3>
+                  <Button variant="outline" onClick={() => { setFiltroNomeProjeto(""); setFiltroStatusProjeto("todos"); }} className="mt-3">Limpar Filtros</Button>
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {/* MUDANÇA 3: Botão excluir na aba Meus Projetos */}
                   {projetosSelecionados.length > 0 && (
                     <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
                       <span className="text-sm text-red-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
-                      <Button
-                        onClick={() => setConfirmarDelete(true)}
-                        disabled={deletandoProjetos}
-                        className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Excluir selecionados
+                      <Button onClick={() => setConfirmarDelete(true)} disabled={deletandoProjetos} className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs">
+                        <Trash2 className="w-3.5 h-3.5" />Excluir selecionados
                       </Button>
                     </div>
                   )}
@@ -543,12 +504,9 @@ export default function Dashboard() {
                       <thead>
                         <tr className="border-b border-border bg-slate-50/50">
                           <th className="px-4 py-4 w-10">
-                            <input
-                              type="checkbox"
-                              className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                            <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
                               checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))}
-                              onChange={() => toggleTodos(projetosFiltrados)}
-                            />
+                              onChange={() => toggleTodos(projetosFiltrados)} />
                           </th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome do Projeto</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Estabelecimento</th>
@@ -561,27 +519,24 @@ export default function Dashboard() {
                         {projetosFiltrados.map((proj) => (
                           <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
                             <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
+                              <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-primary cursor-pointer"
                                 checked={projetosSelecionados.includes(proj.id)}
-                                onChange={(e) => toggleSelecionado(proj.id, e as any)}
-                              />
+                                onChange={(e) => toggleSelecionado(proj.id, e as any)} />
                             </td>
                             <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_arquivo || "Não informado"}</td>
+                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 <span className={`text-sm font-semibold ${proj.score_conformidade >= 80 ? "text-green-600" : proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"}`}>
-                                  {proj.score_conformidade ?? 100}%
+                                  {proj.score_conformidade ?? 0}%
                                 </span>
                                 <div className="w-16 bg-slate-100 rounded-full h-1.5">
-                                  <div className={`h-1.5 rounded-full ${proj.score_conformidade >= 80 ? "bg-green-600" : proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${proj.score_conformidade ?? 100}%` }} />
+                                  <div className={`h-1.5 rounded-full ${proj.score_conformidade >= 80 ? "bg-green-600" : proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${proj.score_conformidade ?? 0}%` }} />
                                 </div>
                               </div>
                             </td>
                             <td className="px-6 py-4">{getStatusBadge(proj)}</td>
-                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</td>
+                            <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR")}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -592,18 +547,17 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* ABA BASE DE NORMAS */}
           {activeTab === "normas" && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                 <div>
                   <h2 className="text-lg font-bold text-[#1E293B]">Base de Regras e Normas</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Consulte as diretrizes e regras computáveis utilizadas na auditoria do VISAcheck GO.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Consulte as diretrizes regulatórias utilizadas na análise.</p>
                 </div>
                 <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                   <div className="relative flex-1 sm:w-64 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input placeholder="Buscar por código ou norma..." value={filtroBuscaRegra} onChange={(e) => setFiltroBuscaRegra(e.target.value)} className="pl-9" />
+                    <Input placeholder="Buscar regra..." value={filtroBuscaRegra} onChange={(e) => setFiltroBuscaRegra(e.target.value)} className="pl-9" />
                   </div>
                   <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todas">Todas as Normas</option>
@@ -612,38 +566,28 @@ export default function Dashboard() {
                 </div>
               </div>
               {loadingRegras ? (
-                <div className="bg-white border border-border rounded-xl p-12 flex justify-center items-center">
-                  <div className="flex flex-col items-center gap-3">
-                    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                    <p className="text-sm text-muted-foreground">Carregando normas...</p>
-                  </div>
+                <div className="bg-white border border-border rounded-xl p-12 flex justify-center">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
               ) : regrasFiltradas.length === 0 ? (
                 <div className="bg-white border border-border rounded-xl p-12 text-center">
                   <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <h3 className="text-base font-semibold">Nenhuma regra encontrada</h3>
-                  <p className="text-sm text-muted-foreground">Tente ajustar os parâmetros de pesquisa ou filtros.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {regrasFiltradas.map((r) => (
-                    <div key={r.id} className="bg-white border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 flex flex-col justify-between">
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="space-y-1">
-                            <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">{r.norma}</span>
-                            <span className="text-xs text-muted-foreground block font-mono">{r.codigo}</span>
-                          </div>
-                          {getSeveridadeBadge(r.severidade)}
+                    <div key={r.id} className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <div className="space-y-1">
+                          <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">{r.norma_origem}</span>
+                          <span className="text-xs text-muted-foreground block font-mono">{r.codigo}</span>
                         </div>
-                        <h3 className="text-sm font-bold text-[#1E293B]">{r.nome}</h3>
-                        <p className="text-xs text-slate-600 line-clamp-3">{r.descricao}</p>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">{r.categoria}</span>
                       </div>
-                      {r.sugestao_corretiva && (
-                        <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50/50 p-3 rounded-lg border">
-                          <span className="text-[10px] font-semibold text-primary block mb-1">Ação corretiva sugerida:</span>
-                          <p className="text-[11px] text-[#1E293B] italic">{r.sugestao_corretiva}</p>
-                        </div>
+                      <p className="text-xs text-slate-600 line-clamp-3">{r.descricao}</p>
+                      {r.subcategoria && (
+                        <p className="text-[10px] text-muted-foreground mt-2">{r.subcategoria}</p>
                       )}
                     </div>
                   ))}
@@ -672,21 +616,42 @@ export default function Dashboard() {
             <div className="space-y-2">
               <Label htmlFor="establishment-type">Tipo de Estabelecimento</Label>
               <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
-                <option value="Hospital">Hospital Geral</option>
+                <option value="Hospital Geral">Hospital Geral</option>
                 <option value="Clínica Médica">Clínica Médica / Ambulatório</option>
                 <option value="Consultório">Consultório Individual</option>
                 <option value="CME">CME (Central de Materiais)</option>
                 <option value="Laboratório">Laboratório de Análises</option>
+                <option value="Distribuidora">Distribuidora de Produtos de Saúde</option>
                 <option value="Outro">Outro Estabelecimento de Saúde</option>
               </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="proj-file">Anexar Prancha Arquitetônica (PDF / DWG)</Label>
               <div className="flex gap-2">
-                <Input id="proj-file-dummy" type="text" placeholder="Selecione um arquivo..." value={arquivoName} readOnly className="bg-slate-50 cursor-pointer flex-1" onClick={() => document.getElementById("real-file-input")?.click()} />
+                <Input
+                  id="proj-file-dummy"
+                  type="text"
+                  placeholder="Selecione um arquivo..."
+                  value={arquivoName}
+                  readOnly
+                  className="bg-slate-50 cursor-pointer flex-1"
+                  onClick={() => document.getElementById("real-file-input")?.click()}
+                />
                 <Button type="button" variant="outline" onClick={() => document.getElementById("real-file-input")?.click()}>Procurar</Button>
               </div>
-              <input id="real-file-input" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) setArquivoName(file.name); }} />
+              <input
+                id="real-file-input"
+                type="file"
+                accept=".pdf,.dwg,.dxf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setArquivoSelecionado(file);
+                    setArquivoName(file.name);
+                  }
+                }}
+              />
               <p className="text-[10px] text-muted-foreground">Arquivos suportados: PDF ou DWG até 50MB.</p>
             </div>
             {erroCriar && (
@@ -698,7 +663,7 @@ export default function Dashboard() {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setNovoProjetoOpen(false)} disabled={criandoProjeto}>Cancelar</Button>
               <Button type="submit" className="bg-primary hover:bg-primary-hover text-white gap-2" disabled={criandoProjeto}>
-                {criandoProjeto ? (<><Loader2 className="w-4 h-4 animate-spin" />Analisando...</>) : (<>Iniciar Análise<Plus className="w-4 h-4" /></>)}
+                {criandoProjeto ? (<><Loader2 className="w-4 h-4 animate-spin" />Criando...</>) : (<>Iniciar Análise<Plus className="w-4 h-4" /></>)}
               </Button>
             </DialogFooter>
           </form>
@@ -719,22 +684,12 @@ export default function Dashboard() {
               </div>
             </div>
             <p className="text-sm text-slate-600">
-              Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados, análises e laudos serão removidos permanentemente.
+              Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>?
             </p>
             <div className="flex gap-3">
-              <button
-                onClick={() => setConfirmarDelete(false)}
-                disabled={deletandoProjetos}
-                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleDeletarSelecionados}
-                disabled={deletandoProjetos}
-                className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {deletandoProjetos ? <><Loader2 className="w-4 h-4 animate-spin" />Excluindo...</> : <><Trash2 className="w-4 h-4" />Confirmar exclusão</>}
+              <button onClick={() => setConfirmarDelete(false)} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 transition-colors disabled:opacity-50">Cancelar</button>
+              <button onClick={handleDeletarSelecionados} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                {deletandoProjetos ? <><Loader2 className="w-4 h-4 animate-spin" />Excluindo...</> : <><Trash2 className="w-4 h-4" />Confirmar</>}
               </button>
             </div>
           </div>
