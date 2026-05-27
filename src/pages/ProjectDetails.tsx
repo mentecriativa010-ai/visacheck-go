@@ -57,6 +57,8 @@ export default function ProjectDetails() {
   const [arquivoNovaAnalise, setArquivoNovaAnalise] = useState("");
   const [arquivoNovaAnaliseFile, setArquivoNovaAnaliseFile] = useState<File | null>(null);
   const [rodarNovaAnalise, setRodarNovaAnalise] = useState(false);
+  // FIX 1: rastrear se há validações reais no banco
+  const [temValidacoesReais, setTemValidacoesReais] = useState(false);
 
   useEffect(() => { fetchProjectAndUser(); }, [id]);
 
@@ -69,7 +71,6 @@ export default function ProjectDetails() {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) { navigate("/login"); return; }
 
-      // Busca projeto com user_id (não usuario_id)
       const { data: projData, error: projError } = await supabase
         .from("projetos")
         .select("id, nome_projeto, tipo_estabelecimento, status, created_at, score_conformidade")
@@ -86,7 +87,6 @@ export default function ProjectDetails() {
 
       setProjeto(projData as Projeto);
 
-      // Busca parecer com colunas corretas
       const { data: parecerData } = await supabase
         .from("pareceres")
         .select("parecer, nivel_risco")
@@ -98,18 +98,8 @@ export default function ProjectDetails() {
       if (parecerData) {
         setResumoExecutivo(parecerData.parecer || "");
         setPareceres([
-          {
-            norma: "NBR 9050:2020 — Acessibilidade",
-            status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção",
-            observacao: "Verificação de rampas, corredores, sanitários e sinalização tátil.",
-            risco: parecerData.nivel_risco || "baixo"
-          },
-          {
-            norma: "RDC ANVISA 1.002/2025 — Boas Práticas",
-            status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção",
-            observacao: "Verificação de fluxos, revestimentos, ventilação e gestão de resíduos.",
-            risco: parecerData.nivel_risco || "baixo"
-          },
+          { norma: "NBR 9050:2020 — Acessibilidade", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de rampas, corredores, sanitários e sinalização tátil.", risco: parecerData.nivel_risco || "baixo" },
+          { norma: "RDC ANVISA 1.002/2025 — Boas Práticas", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de fluxos, revestimentos, ventilação e gestão de resíduos.", risco: parecerData.nivel_risco || "baixo" },
         ]);
       } else {
         setResumoExecutivo("");
@@ -119,13 +109,14 @@ export default function ProjectDetails() {
         ]);
       }
 
-      // Busca validações com colunas corretas
       const { data: valData } = await supabase
         .from("validacoes")
         .select(`id, status, observacao, regras_regulatorias (codigo, descricao, norma_origem, artigo_referencia, categoria)`)
         .eq("projeto_id", id);
 
       if (valData && valData.length > 0) {
+        // FIX 1: marcar que há validações reais
+        setTemValidacoesReais(true);
         const naoConformes = valData.filter((v: any) => v.status === "reprovado");
         setNaoConformidades(naoConformes.map((v: any) => {
           const regra = v.regras_regulatorias;
@@ -138,7 +129,6 @@ export default function ProjectDetails() {
             sugestao: regra?.artigo_referencia || "Consulte a norma vigente."
           };
         }));
-
         const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
         valData.forEach((v: any) => {
           const cat = v.regras_regulatorias?.categoria || "Geral";
@@ -148,13 +138,12 @@ export default function ProjectDetails() {
           else if (v.status === "reprovado") categoriaMap[cat].naoConformes++;
         });
         setValidacoesPorCategoria(Object.entries(categoriaMap).map(([cat, val]) => ({
-          categoria: cat,
-          total: val.total,
-          conformes: val.conformes,
-          naoConformes: val.naoConformes,
+          categoria: cat, total: val.total, conformes: val.conformes, naoConformes: val.naoConformes,
           percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
         })));
       } else {
+        // FIX 1: sem validações reais — dados de demonstração
+        setTemValidacoesReais(false);
         setNaoConformidades([]);
         setValidacoesPorCategoria([
           { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
@@ -175,8 +164,6 @@ export default function ProjectDetails() {
     if (!id) return;
     try {
       setRodarNovaAnalise(true);
-
-      // Upload do novo arquivo se selecionado
       if (arquivoNovaAnaliseFile) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -186,12 +173,9 @@ export default function ProjectDetails() {
           await supabase.from("projetos").update({ pdf_path: filePath, pdf_nome: arquivoNovaAnaliseFile.name }).eq("id", id);
         }
       }
-
-      // Limpa análise anterior e reseta status
       await supabase.from("validacoes").delete().eq("projeto_id", id);
       await supabase.from("pareceres").delete().eq("projeto_id", id);
       await supabase.from("projetos").update({ status: "pendente", score_conformidade: 0 }).eq("id", id);
-
       setNovaAnaliseOpen(false);
       setArquivoNovaAnalise("");
       setArquivoNovaAnaliseFile(null);
@@ -215,8 +199,8 @@ export default function ProjectDetails() {
         ``, `Projeto: ${projeto.nome_projeto}`,
         `Tipo de Estabelecimento: ${projeto.tipo_estabelecimento}`,
         `Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`,
-        `Score de Conformidade: ${projeto.score_conformidade}%`,
-        `Status: ${projeto.score_conformidade === 100 ? "APROVADO" : projeto.status}`,
+        `Score de Conformidade: ${scoreCalculado}%`,
+        `Status: ${scoreCalculado === 100 ? "APROVADO" : projeto.status}`,
         ``, `RESUMO EXECUTIVO`,
         resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length),
         ``, `VALIDAÇÕES POR CATEGORIA`,
@@ -237,8 +221,17 @@ export default function ProjectDetails() {
     } finally { setExportando(false); }
   };
 
+  // FIX 2: score calculado a partir das validações exibidas, não do banco
+  const scoreCalculado = temValidacoesReais && validacoesPorCategoria.length > 0
+    ? Math.round(validacoesPorCategoria.reduce((sum, v) => sum + v.percentual, 0) / validacoesPorCategoria.length)
+    : projeto?.status === "aprovado" ? 100
+    : projeto?.score_conformidade ?? 0;
+
+  // FIX 2: status efetivo baseado no score calculado
   const getStatusEfetivo = (proj: Projeto) => {
-    if (proj.score_conformidade === 100 || proj.status === "aprovado") return "aprovado";
+    if (scoreCalculado === 100 || proj.status === "aprovado") return "aprovado";
+    if (scoreCalculado >= 50) return "parcial";
+    if (scoreCalculado > 0) return "reprovado";
     return proj.status;
   };
 
@@ -273,16 +266,22 @@ export default function ProjectDetails() {
 
   const getResumoExecutivo = (proj: Projeto, totalInfracoes: number) => {
     const nomeEst = proj.tipo_estabelecimento || "Estabelecimento de Saúde";
-    if (proj.score_conformidade === 100 || proj.status === "aprovado")
+    if (scoreCalculado === 100 || proj.status === "aprovado")
       return `O projeto "${proj.nome_projeto}" foi analisado à luz das normas regulatórias vigentes para ${nomeEst}. Não foram identificadas não-conformidades impeditivas.`;
-    if (proj.status === "pendente")
-      return `O projeto "${proj.nome_projeto}" foi cadastrado e aguarda o upload do PDF para análise regulatória.`;
-    return `O diagnóstico para "${proj.nome_projeto}" (${nomeEst}) identificou ${totalInfracoes} não-conformidades. Score global: ${proj.score_conformidade}%.`;
+    if (proj.status === "pendente" && !temValidacoesReais)
+      return `O projeto "${proj.nome_projeto}" foi cadastrado e aguarda a análise regulatória.`;
+    return `O diagnóstico para "${proj.nome_projeto}" (${nomeEst}) identificou ${totalInfracoes} não-conformidades. Score global: ${scoreCalculado}%.`;
   };
 
-  const score = projeto?.score_conformidade ?? 0;
   const statusEfetivo = projeto ? getStatusEfetivo(projeto) : "pendente";
   const temNaoConformidades = naoconformidades.length > 0;
+
+  // FIX 3: mensagem do score correta
+  const getMensagemScore = () => {
+    if (statusEfetivo === "aprovado") return "Análise concluída com êxito";
+    if (!temValidacoesReais && projeto?.status === "pendente") return "Aguardando análise do projeto";
+    return "Ajustes sanitários pendentes";
+  };
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
@@ -354,17 +353,17 @@ export default function ProjectDetails() {
                   <div>
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                     <div className="flex items-baseline gap-1.5 mb-2">
-                      <span className={`text-4xl font-extrabold tracking-tight ${score >= 80 ? "text-[#16A34A]" : score >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{score}%</span>
+                      {/* FIX 2: usa scoreCalculado */}
+                      <span className={`text-4xl font-extrabold tracking-tight ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{scoreCalculado}%</span>
                       <span className="text-xs text-muted-foreground">de aprovação</span>
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
                     <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
-                      <div className={`h-full rounded-full transition-all duration-500 ${score >= 80 ? "bg-[#16A34A]" : score >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${score}%` }} />
+                      <div className={`h-full rounded-full transition-all duration-500 ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
-                    <span className="text-[10px] text-muted-foreground block text-right font-medium">
-                      {statusEfetivo === "aprovado" ? "Análise concluída com êxito" : "Upload do PDF necessário para análise"}
-                    </span>
+                    {/* FIX 3: mensagem correta */}
+                    <span className="text-[10px] text-muted-foreground block text-right font-medium">{getMensagemScore()}</span>
                   </div>
                 </div>
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2 flex flex-col justify-between">
@@ -427,9 +426,11 @@ export default function ProjectDetails() {
                 {naoconformidades.length === 0 ? (
                   <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
-                    <h3 className="text-base font-semibold">Nenhuma irregularidade identificada</h3>
+                    <h3 className="text-base font-semibold">
+                      {scoreCalculado === 100 ? "Parabéns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {projeto.status === "pendente" ? "Faça upload do PDF do projeto para iniciar a análise." : "O projeto atende às especificações sanitárias analisadas."}
+                      {scoreCalculado === 100 ? "O projeto atende a todas as especificações sanitárias analisadas." : "Aguardando análise regulatória do projeto."}
                     </p>
                   </div>
                 ) : (
