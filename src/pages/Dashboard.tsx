@@ -298,7 +298,7 @@ export default function Dashboard() {
             <h1 className="text-xl font-semibold text-[#1E293B]">{loadingUser ? <span className="h-6 w-32 bg-slate-100 animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
           </div>
-          <Button onClick={() => setNovoProjetoOpen(true)} className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm">
+          <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm">
             <Plus className="w-4 h-4" />Novo Projeto
           </Button>
         </header>
@@ -335,7 +335,7 @@ export default function Dashboard() {
                     <div className="w-12 h-12 bg-slate-50 text-muted-foreground rounded-full flex items-center justify-center mx-auto"><Folder className="w-6 h-6" /></div>
                     <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
                     <p className="text-sm text-muted-foreground">Clique em + Novo Projeto para começar.</p>
-                    <Button onClick={() => setNovoProjetoOpen(true)} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-4 h-4" />Começar agora</Button>
+                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-="w-4 h-4" />Começar agora</Button>
                   </div>
                 </div>
               ) : (
