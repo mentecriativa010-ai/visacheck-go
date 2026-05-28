@@ -14,162 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      ambientes: {
+      normas_regulatorias: {
         Row: {
+          ativa: boolean | null
           codigo: string
-          created_at: string
+          created_at: string | null
+          data_publicacao: string | null
+          data_vigencia: string | null
           descricao: string | null
-          grupo: string | null
           id: string
           nome: string
+          orgao_emissor: string | null
+          url_oficial: string | null
         }
         Insert: {
+          ativa?: boolean | null
           codigo: string
-          created_at?: string
+          created_at?: string | null
+          data_publicacao?: string | null
+          data_vigencia?: string | null
           descricao?: string | null
-          grupo?: string | null
           id?: string
           nome: string
+          orgao_emissor?: string | null
+          url_oficial?: string | null
         }
         Update: {
+          ativa?: boolean | null
           codigo?: string
-          created_at?: string
+          created_at?: string | null
+          data_publicacao?: string | null
+          data_vigencia?: string | null
           descricao?: string | null
-          grupo?: string | null
           id?: string
           nome?: string
+          orgao_emissor?: string | null
+          url_oficial?: string | null
         }
         Relationships: []
       }
-      analises: {
-        Row: {
-          coordenada_x: number
-          coordenada_y: number
-          created_at: string
-          descricao_problema: string
-          id: string
-          norma: string
-          pagina: number
-          projeto_id: string
-          severidade: Database["public"]["Enums"]["severidade"]
-          sugestao: string
-        }
-        Insert: {
-          coordenada_x?: number
-          coordenada_y?: number
-          created_at?: string
-          descricao_problema: string
-          id?: string
-          norma: string
-          pagina?: number
-          projeto_id: string
-          severidade: Database["public"]["Enums"]["severidade"]
-          sugestao: string
-        }
-        Update: {
-          coordenada_x?: number
-          coordenada_y?: number
-          created_at?: string
-          descricao_problema?: string
-          id?: string
-          norma?: string
-          pagina?: number
-          projeto_id?: string
-          severidade?: Database["public"]["Enums"]["severidade"]
-          sugestao?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "analises_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      entidades_arquitetonicas: {
-        Row: {
-          altura: number | null
-          ambiente: string | null
-          coord_x: number
-          coord_y: number
-          created_at: string
-          id: string
-          largura: number | null
-          metadados: Json
-          pagina: number
-          projeto_id: string
-          tipo: string
-        }
-        Insert: {
-          altura?: number | null
-          ambiente?: string | null
-          coord_x?: number
-          coord_y?: number
-          created_at?: string
-          id?: string
-          largura?: number | null
-          metadados?: Json
-          pagina?: number
-          projeto_id: string
-          tipo: string
-        }
-        Update: {
-          altura?: number | null
-          ambiente?: string | null
-          coord_x?: number
-          coord_y?: number
-          created_at?: string
-          id?: string
-          largura?: number | null
-          metadados?: Json
-          pagina?: number
-          projeto_id?: string
-          tipo?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "entidades_arquitetonicas_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       pareceres: {
         Row: {
-          checklist: Json
-          gerado_em: string
+          created_at: string | null
           id: string
-          impacto_regulatorio: string | null
-          projeto_id: string
-          resumo_executivo: string | null
-          risco_sanitario: string | null
-          status_final: Database["public"]["Enums"]["parecer_status"]
+          nivel_risco: string | null
+          norma_id: string | null
+          parecer: string | null
+          projeto_id: string | null
         }
         Insert: {
-          checklist?: Json
-          gerado_em?: string
+          created_at?: string | null
           id?: string
-          impacto_regulatorio?: string | null
-          projeto_id: string
-          resumo_executivo?: string | null
-          risco_sanitario?: string | null
-          status_final: Database["public"]["Enums"]["parecer_status"]
+          nivel_risco?: string | null
+          norma_id?: string | null
+          parecer?: string | null
+          projeto_id?: string | null
         }
         Update: {
-          checklist?: Json
-          gerado_em?: string
+          created_at?: string | null
           id?: string
-          impacto_regulatorio?: string | null
-          projeto_id?: string
-          resumo_executivo?: string | null
-          risco_sanitario?: string | null
-          status_final?: Database["public"]["Enums"]["parecer_status"]
+          nivel_risco?: string | null
+          norma_id?: string | null
+          parecer?: string | null
+          projeto_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "pareceres_norma_id_fkey"
+            columns: ["norma_id"]
+            isOneToOne: false
+            referencedRelation: "normas_regulatorias"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "pareceres_projeto_id_fkey"
             columns: ["projeto_id"]
@@ -179,286 +95,193 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      perfis: {
         Row: {
           cnpj: string | null
           crea_cau: string | null
-          created_at: string
-          email: string | null
-          email_corporativo: string | null
+          created_at: string | null
           id: string
           nome: string | null
-          nome_fantasia: string | null
-          profissao: string | null
-          razao_social: string | null
-          registro_profissional: string | null
-          responsavel_tecnico: string | null
-          telefone: string | null
-          tipo_usuario: Database["public"]["Enums"]["user_type"]
-          updated_at: string
+          tipo: string | null
         }
         Insert: {
           cnpj?: string | null
           crea_cau?: string | null
-          created_at?: string
-          email?: string | null
-          email_corporativo?: string | null
+          created_at?: string | null
           id: string
           nome?: string | null
-          nome_fantasia?: string | null
-          profissao?: string | null
-          razao_social?: string | null
-          registro_profissional?: string | null
-          responsavel_tecnico?: string | null
-          telefone?: string | null
-          tipo_usuario?: Database["public"]["Enums"]["user_type"]
-          updated_at?: string
+          tipo?: string | null
         }
         Update: {
           cnpj?: string | null
           crea_cau?: string | null
-          created_at?: string
-          email?: string | null
-          email_corporativo?: string | null
+          created_at?: string | null
           id?: string
           nome?: string | null
-          nome_fantasia?: string | null
-          profissao?: string | null
-          razao_social?: string | null
-          registro_profissional?: string | null
-          responsavel_tecnico?: string | null
-          telefone?: string | null
-          tipo_usuario?: Database["public"]["Enums"]["user_type"]
-          updated_at?: string
+          tipo?: string | null
         }
         Relationships: []
       }
       projetos: {
         Row: {
-          arquivo_path: string | null
+          arquivo_nome: string | null
           arquivo_url: string | null
-          created_at: string
+          created_at: string | null
           id: string
           nome_projeto: string
-          score_conformidade: number
-          status: Database["public"]["Enums"]["projeto_status"]
-          tipo_arquivo: string
-          updated_at: string
-          usuario_id: string
+          observacoes: string | null
+          pdf_nome: string | null
+          pdf_path: string | null
+          resultado: Json | null
+          score: number | null
+          score_conformidade: number | null
+          status: string | null
+          status_analise: string | null
+          tipo_arquivo: string | null
+          tipo_estabelecimento: string
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
-          arquivo_path?: string | null
+          arquivo_nome?: string | null
           arquivo_url?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           nome_projeto: string
-          score_conformidade?: number
-          status?: Database["public"]["Enums"]["projeto_status"]
-          tipo_arquivo: string
-          updated_at?: string
-          usuario_id: string
+          observacoes?: string | null
+          pdf_nome?: string | null
+          pdf_path?: string | null
+          resultado?: Json | null
+          score?: number | null
+          score_conformidade?: number | null
+          status?: string | null
+          status_analise?: string | null
+          tipo_arquivo?: string | null
+          tipo_estabelecimento: string
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
-          arquivo_path?: string | null
+          arquivo_nome?: string | null
           arquivo_url?: string | null
-          created_at?: string
+          created_at?: string | null
           id?: string
           nome_projeto?: string
-          score_conformidade?: number
-          status?: Database["public"]["Enums"]["projeto_status"]
-          tipo_arquivo?: string
-          updated_at?: string
-          usuario_id?: string
+          observacoes?: string | null
+          pdf_nome?: string | null
+          pdf_path?: string | null
+          resultado?: Json | null
+          score?: number | null
+          score_conformidade?: number | null
+          status?: string | null
+          status_analise?: string | null
+          tipo_arquivo?: string | null
+          tipo_estabelecimento?: string
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
       regras_regulatorias: {
         Row: {
-          ambiente_aplicavel: string[]
-          ativa: boolean
-          categoria: Database["public"]["Enums"]["regra_categoria"]
+          artigo_referencia: string | null
+          categoria: string | null
           codigo: string
-          created_at: string
+          codigo_regra: string | null
+          created_at: string | null
           descricao: string
           id: string
-          nome: string
-          norma: string
-          parametros: Json
-          severidade: Database["public"]["Enums"]["regra_severidade"]
-          sugestao_corretiva: string
-          tipo_validacao: Database["public"]["Enums"]["regra_tipo_validacao"]
-          updated_at: string
+          norma_id: string | null
+          norma_origem: string | null
+          obrigatorio: boolean
+          subcategoria: string | null
+          tipo_estabelecimento: string | null
+          unidade: string | null
+          valor_maximo: number | null
+          valor_minimo: number | null
         }
         Insert: {
-          ambiente_aplicavel?: string[]
-          ativa?: boolean
-          categoria: Database["public"]["Enums"]["regra_categoria"]
+          artigo_referencia?: string | null
+          categoria?: string | null
           codigo: string
-          created_at?: string
+          codigo_regra?: string | null
+          created_at?: string | null
           descricao: string
           id?: string
-          nome: string
-          norma: string
-          parametros?: Json
-          severidade: Database["public"]["Enums"]["regra_severidade"]
-          sugestao_corretiva: string
-          tipo_validacao: Database["public"]["Enums"]["regra_tipo_validacao"]
-          updated_at?: string
+          norma_id?: string | null
+          norma_origem?: string | null
+          obrigatorio?: boolean
+          subcategoria?: string | null
+          tipo_estabelecimento?: string | null
+          unidade?: string | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
         }
         Update: {
-          ambiente_aplicavel?: string[]
-          ativa?: boolean
-          categoria?: Database["public"]["Enums"]["regra_categoria"]
+          artigo_referencia?: string | null
+          categoria?: string | null
           codigo?: string
-          created_at?: string
+          codigo_regra?: string | null
+          created_at?: string | null
           descricao?: string
           id?: string
-          nome?: string
-          norma?: string
-          parametros?: Json
-          severidade?: Database["public"]["Enums"]["regra_severidade"]
-          sugestao_corretiva?: string
-          tipo_validacao?: Database["public"]["Enums"]["regra_tipo_validacao"]
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      relatorios: {
-        Row: {
-          gerado_em: string
-          id: string
-          projeto_id: string
-          relatorio_pdf: string | null
-          status_final: Database["public"]["Enums"]["projeto_status"]
-        }
-        Insert: {
-          gerado_em?: string
-          id?: string
-          projeto_id: string
-          relatorio_pdf?: string | null
-          status_final: Database["public"]["Enums"]["projeto_status"]
-        }
-        Update: {
-          gerado_em?: string
-          id?: string
-          projeto_id?: string
-          relatorio_pdf?: string | null
-          status_final?: Database["public"]["Enums"]["projeto_status"]
+          norma_id?: string | null
+          norma_origem?: string | null
+          obrigatorio?: boolean
+          subcategoria?: string | null
+          tipo_estabelecimento?: string | null
+          unidade?: string | null
+          valor_maximo?: number | null
+          valor_minimo?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "relatorios_projeto_id_fkey"
-            columns: ["projeto_id"]
+            foreignKeyName: "regras_regulatorias_norma_id_fkey"
+            columns: ["norma_id"]
             isOneToOne: false
-            referencedRelation: "projetos"
+            referencedRelation: "normas_regulatorias"
             referencedColumns: ["id"]
           },
         ]
-      }
-      scores: {
-        Row: {
-          calculado_em: string
-          id: string
-          projeto_id: string
-          score_acessibilidade: number
-          score_fluxo: number
-          score_geral: number
-          score_por_ambiente: Json
-          score_por_norma: Json
-        }
-        Insert: {
-          calculado_em?: string
-          id?: string
-          projeto_id: string
-          score_acessibilidade?: number
-          score_fluxo?: number
-          score_geral?: number
-          score_por_ambiente?: Json
-          score_por_norma?: Json
-        }
-        Update: {
-          calculado_em?: string
-          id?: string
-          projeto_id?: string
-          score_acessibilidade?: number
-          score_fluxo?: number
-          score_geral?: number
-          score_por_ambiente?: Json
-          score_por_norma?: Json
-        }
-        Relationships: [
-          {
-            foreignKeyName: "scores_projeto_id_fkey"
-            columns: ["projeto_id"]
-            isOneToOne: false
-            referencedRelation: "projetos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_roles: {
-        Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
       }
       validacoes: {
         Row: {
-          created_at: string
-          detalhes: Json
-          entidade_id: string | null
+          created_at: string | null
           id: string
-          projeto_id: string
-          regra_id: string
-          severidade_efetiva: Database["public"]["Enums"]["regra_severidade"]
-          status: Database["public"]["Enums"]["validacao_status"]
+          observacao: string | null
+          projeto_id: string | null
+          regra_id: string | null
+          severidade_efetiva: string | null
+          status: string
+          valor_encontrado: string | null
+          valor_esperado: string | null
           valor_observado: number | null
         }
         Insert: {
-          created_at?: string
-          detalhes?: Json
-          entidade_id?: string | null
+          created_at?: string | null
           id?: string
-          projeto_id: string
-          regra_id: string
-          severidade_efetiva: Database["public"]["Enums"]["regra_severidade"]
-          status: Database["public"]["Enums"]["validacao_status"]
+          observacao?: string | null
+          projeto_id?: string | null
+          regra_id?: string | null
+          severidade_efetiva?: string | null
+          status: string
+          valor_encontrado?: string | null
+          valor_esperado?: string | null
           valor_observado?: number | null
         }
         Update: {
-          created_at?: string
-          detalhes?: Json
-          entidade_id?: string | null
+          created_at?: string | null
           id?: string
-          projeto_id?: string
-          regra_id?: string
-          severidade_efetiva?: Database["public"]["Enums"]["regra_severidade"]
-          status?: Database["public"]["Enums"]["validacao_status"]
+          observacao?: string | null
+          projeto_id?: string | null
+          regra_id?: string | null
+          severidade_efetiva?: string | null
+          status?: string
+          valor_encontrado?: string | null
+          valor_esperado?: string | null
           valor_observado?: number | null
         }
         Relationships: [
-          {
-            foreignKeyName: "validacoes_entidade_id_fkey"
-            columns: ["entidade_id"]
-            isOneToOne: false
-            referencedRelation: "entidades_arquitetonicas"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "validacoes_projeto_id_fkey"
             columns: ["projeto_id"]
@@ -484,48 +307,9 @@ export type Database = {
         Args: { _cnpj: string; _crea_cau: string }
         Returns: string
       }
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
     }
     Enums: {
-      app_role: "admin" | "user"
-      parecer_status:
-        | "aprovado"
-        | "parcialmente_conforme"
-        | "revisao_necessaria"
-        | "reprovado"
-      projeto_status:
-        | "pendente"
-        | "analisando"
-        | "aprovado"
-        | "parcial"
-        | "reprovado"
-      regra_categoria:
-        | "acessibilidade"
-        | "fluxo_sanitario"
-        | "dimensional"
-        | "ventilacao"
-        | "funcional"
-        | "estrutural"
-        | "biosseguranca"
-        | "operacao"
-        | "esterilizacao"
-      regra_severidade: "informativo" | "atencao" | "critico" | "bloqueante"
-      regra_tipo_validacao:
-        | "dimensional"
-        | "presencial"
-        | "fluxo"
-        | "barreira"
-        | "ventilacao"
-        | "area_minima"
-      severidade: "critico" | "atencao" | "conforme"
-      user_type: "profissional" | "empresa"
-      validacao_status: "conforme" | "parcial" | "inconforme" | "nao_aplicavel"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -652,44 +436,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      app_role: ["admin", "user"],
-      parecer_status: [
-        "aprovado",
-        "parcialmente_conforme",
-        "revisao_necessaria",
-        "reprovado",
-      ],
-      projeto_status: [
-        "pendente",
-        "analisando",
-        "aprovado",
-        "parcial",
-        "reprovado",
-      ],
-      regra_categoria: [
-        "acessibilidade",
-        "fluxo_sanitario",
-        "dimensional",
-        "ventilacao",
-        "funcional",
-        "estrutural",
-        "biosseguranca",
-        "operacao",
-        "esterilizacao",
-      ],
-      regra_severidade: ["informativo", "atencao", "critico", "bloqueante"],
-      regra_tipo_validacao: [
-        "dimensional",
-        "presencial",
-        "fluxo",
-        "barreira",
-        "ventilacao",
-        "area_minima",
-      ],
-      severidade: ["critico", "atencao", "conforme"],
-      user_type: ["profissional", "empresa"],
-      validacao_status: ["conforme", "parcial", "inconforme", "nao_aplicavel"],
-    },
+    Enums: {},
   },
 } as const
