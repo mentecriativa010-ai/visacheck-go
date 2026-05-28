@@ -19,13 +19,6 @@ interface Regra {
   subcategoria: string;
 }
 
-interface RespostaRegra {
-  regraId: string;
-  codigo: string;
-  descricao: string;
-  categoria: string;
-  norma: string;
-  status: "conforme" | "nao_conforme" | "nao_aplicavel";
 }
 
 const TIPOS_ESTABELECIMENTO = [

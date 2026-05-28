@@ -256,7 +256,7 @@ export default function Dashboard() {
   };
 
   // Barra de ações quando há selecionados
-  const BarraAcoes = ({ lista }: { lista: Projeto[] }) => (
+  const BarraAcoes = () => (
     projetosSelecionados.length > 0 ? (
       <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 gap-3 flex-wrap">
         <span className="text-sm text-slate-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
@@ -340,7 +340,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <BarraAcoes lista={projetosRecentes} />
+                  <BarraAcoes />
                   <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -399,7 +399,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <BarraAcoes lista={projetosFiltrados} />
+                  <BarraAcoes />
                   <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
