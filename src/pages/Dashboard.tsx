@@ -335,7 +335,7 @@ export default function Dashboard() {
                     <div className="w-12 h-12 bg-slate-50 text-muted-foreground rounded-full flex items-center justify-center mx-auto"><Folder className="w-6 h-6" /></div>
                     <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
                     <p className="text-sm text-muted-foreground">Clique em + Novo Projeto para começar.</p>
-                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-="w-4 h-4" />Começar agora</Button>
+                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-4 h-4" />Começar agora</Button>
                   </div>
                 </div>
               ) : (
