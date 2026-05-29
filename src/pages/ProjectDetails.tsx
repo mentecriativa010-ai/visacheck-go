@@ -279,7 +279,7 @@ export default function ProjectDetails() {
   // FIX 3: mensagem do score correta
   const getMensagemScore = () => {
     if (statusEfetivo === "aprovado") return "Análise concluída com êxito";
-    if (!temValidacoesReais && projeto?.status === "pendente") return "Aguardando análise do projeto";
+    if (!projeto?.status === "pendente") return "Aguardando análise do projeto";
     return "Ajustes sanitários pendentes";
   };
 
@@ -533,3 +533,4 @@ export default function ProjectDetails() {
     </div>
   );
 }
+
