@@ -222,7 +222,7 @@ export default function ProjectDetails() {
   };
 
   // FIX 2: score calculado a partir das validações exibidas, não do banco
-  const scoreCalculado = temValidacoesReais && validacoesPorCategoria.length > 0
+  const scoreCalculado = validacoesPorCategoria.length > 0
     ? Math.round(validacoesPorCategoria.reduce((sum, v) => sum + v.percentual, 0) / validacoesPorCategoria.length)
     : projeto?.status === "aprovado" ? 100
     : projeto?.score_conformidade ?? 0;
