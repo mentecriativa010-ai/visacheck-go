@@ -1,6 +1,6 @@
 import type { Database } from "@/integrations/supabase/types";
 
-type EntidadeInsert = Database["public"]["Tables"]["entidades_arquitetonicas"]["Insert"];
+type EntidadeInsert = any;
 
 export function getMockEntitiesForType(tipo: string, projetoId: string): EntidadeInsert[] {
   const t = tipo.toLowerCase();

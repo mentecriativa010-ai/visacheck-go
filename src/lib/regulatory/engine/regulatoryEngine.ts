@@ -32,7 +32,7 @@ export function analyze(
 }
 
 async function carregarEntidades(projetoId: string): Promise<EntidadeArquitetonica[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("entidades_arquitetonicas")
     .select("*")
     .eq("projeto_id", projetoId);
@@ -51,7 +51,7 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
   await supabase.from("validacoes").delete().eq("projeto_id", projetoId);
 
   if (result.resultados.length > 0) {
-    await supabase.from("validacoes").insert(
+    await (supabase as any).from("validacoes").insert(
       result.resultados.map((r) => ({
         projeto_id: projetoId,
         regra_id: r.regra_id,
@@ -59,12 +59,12 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
         status: r.status,
         severidade_efetiva: r.severidade_efetiva,
         valor_observado: r.valor_observado ?? null,
-        detalhes: r.detalhes as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["validacoes"]["Insert"]["detalhes"],
+        detalhes: r.detalhes,
       })),
     );
   }
 
-  await supabase.from("scores").insert({
+  await (supabase as any).from("scores").insert({
     projeto_id: projetoId,
     score_geral: result.score.score_geral,
     score_por_norma: result.score.score_por_norma,
@@ -73,13 +73,13 @@ export async function runAnalysisForProject(projetoId: string): Promise<Analysis
     score_fluxo: result.score.score_fluxo,
   });
 
-  await supabase.from("pareceres").insert({
+  await (supabase as any).from("pareceres").insert({
     projeto_id: projetoId,
     status_final: result.parecer.status_final,
     risco_sanitario: result.parecer.risco_sanitario,
     impacto_regulatorio: result.parecer.impacto_regulatorio,
     resumo_executivo: result.parecer.resumo_executivo,
-    checklist: result.parecer.checklist as unknown as import("@/integrations/supabase/types").Database["public"]["Tables"]["pareceres"]["Insert"]["checklist"],
+    checklist: result.parecer.checklist,
   });
 
   let pStatus: "aprovado" | "parcial" | "reprovado" = "aprovado";

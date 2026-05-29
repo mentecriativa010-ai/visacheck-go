@@ -14,11 +14,9 @@ interface Regra {
   id: string;
   codigo: string;
   descricao: string;
-  norma_origem: string;
-  categoria: string;
-  subcategoria: string;
-}
-
+  norma_origem: string | null;
+  categoria: string | null;
+  subcategoria: string | null;
 }
 
 const TIPOS_ESTABELECIMENTO = [
@@ -71,7 +69,7 @@ export default function Analise() {
         data.forEach((r: Regra) => { init[r.id] = "nao_aplicavel"; });
         setRespostas(init);
         // Define primeira categoria ativa
-        if (data.length > 0) setCategoriaAtiva(data[0].categoria);
+        if (data.length > 0) setCategoriaAtiva(data[0].categoria ?? "");
       }
     } finally {
       setLoadingRegras(false);
@@ -291,7 +289,7 @@ export default function Analise() {
                     const respondidas = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel").length;
                     const todas = regrasCat.length;
                     return (
-                      <button key={cat} onClick={() => setCategoriaAtiva(cat)} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
+                      <button key={cat} onClick={() => setCategoriaAtiva(cat ?? "")} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
                         <span className="block truncate">{cat}</span>
                         <span className={`text-[10px] ${categoriaAtiva === cat ? "text-blue-200" : "text-muted-foreground"}`}>{respondidas}/{todas}</span>
                       </button>
