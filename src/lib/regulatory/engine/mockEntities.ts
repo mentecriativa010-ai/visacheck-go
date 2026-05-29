@@ -1,4 +1,4 @@
-import type { Database } from "@/integrations/supabase/types";
+
 
 type EntidadeInsert = any;
 

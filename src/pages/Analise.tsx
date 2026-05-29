@@ -334,11 +334,11 @@ export default function Analise() {
 
                   {/* NAVEGAÇÃO ENTRE CATEGORIAS */}
                   <div className="flex justify-between pt-2">
-                    <Button variant="outline" onClick={() => { const i = categorias.indexOf(categoriaAtiva); if (i > 0) setCategoriaAtiva(categorias[i - 1]); }} disabled={categorias.indexOf(categoriaAtiva) === 0} className="gap-2">
+                    <Button variant="outline" onClick={() => { const i = categorias.indexOf(categoriaAtiva); if (i > 0) setCategoriaAtiva(categorias[i - 1] ?? ""); }} disabled={categorias.indexOf(categoriaAtiva) === 0} className="gap-2">
                       <ChevronLeft className="w-4 h-4" />Anterior
                     </Button>
                     {categorias.indexOf(categoriaAtiva) < categorias.length - 1 ? (
-                      <Button onClick={() => { const i = categorias.indexOf(categoriaAtiva); setCategoriaAtiva(categorias[i + 1]); }} className="bg-[#1E3A5F] text-white gap-2">
+                      <Button onClick={() => { const i = categorias.indexOf(categoriaAtiva); setCategoriaAtiva(categorias[i + 1] ?? ""); }} className="bg-[#1E3A5F] text-white gap-2">
                         Próxima categoria<ChevronRight className="w-4 h-4" />
                       </Button>
                     ) : (
