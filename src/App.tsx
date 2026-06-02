@@ -1,9 +1,10 @@
-import { Routes, Route } from "react-router-dom";
+﻿import { Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import ProjectDetails from "./pages/ProjectDetails";
+import Analise from "./pages/Analise";
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/projetos/:id" element={<ProjectDetails />} />
+        <Route path="/analise" element={<Analise />} />
         <Route path="*" element={<Login />} />
       </Routes>
     </div>
