@@ -53,8 +53,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"dashboard" | "projetos" | "normas">("dashboard");
   
-  // Estados do usuÃ¡rio e dados
-  const [userName, setUserName] = useState("UsuÃ¡rio");
+  // Estados do usuÃƒÂ¡rio e dados
+  const [userName, setUserName] = useState("UsuÃƒÂ¡rio");
   const [loadingUser, setLoadingUser] = useState(true);
   const [projetos, setProjetos] = useState<Projeto[]>([]);
   const [loadingProjetos, setLoadingProjetos] = useState(true);
@@ -90,7 +90,7 @@ export default function Dashboard() {
       setLoadingUser(true);
       setLoadingProjetos(true);
 
-      // Obter usuÃ¡rio logado
+      // Obter usuÃƒÂ¡rio logado
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         navigate("/login");
@@ -105,9 +105,9 @@ export default function Dashboard() {
         .maybeSingle();
 
       if (!profileError && profile) {
-        setUserName(profile.nome || profile.razao_social || user.email?.split("@")[0] || "UsuÃ¡rio");
+        setUserName(profile.nome || profile.razao_social || user.email?.split("@")[0] || "UsuÃƒÂ¡rio");
       } else {
-        setUserName(user.email?.split("@")[0] || "UsuÃ¡rio");
+        setUserName(user.email?.split("@")[0] || "UsuÃƒÂ¡rio");
       }
       setLoadingUser(false);
 
@@ -168,7 +168,7 @@ export default function Dashboard() {
         .from("projetos")
         .insert({
           nome_projeto: nomeProjeto.trim(),
-          tipo_arquivo: tipoEstabelecimento, // Usamos como Tipo de Estabelecimento
+          tipo_arquivo: tipoEstabelecimento,`n          tipo_estabelecimento: tipoEstabelecimento,
           user_id: user.id,
           status: "pendente",
           score_conformidade: 100,
@@ -224,7 +224,7 @@ export default function Dashboard() {
     return bateNorma && bateBusca;
   });
 
-  // Lista Ãºnica de Normas para filtro
+  // Lista ÃƒÂºnica de Normas para filtro
   const normasDisponiveis = Array.from(new Set(regras.map((r) => r.norma)));
 
   const getStatusBadge = (status: Projeto["status"]) => {
@@ -240,7 +240,7 @@ export default function Dashboard() {
         return (
           <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />
-            Em anÃ¡lise
+            Em anÃƒÂ¡lise
           </span>
         );
       case "pendente":
@@ -278,13 +278,13 @@ export default function Dashboard() {
       case "critico":
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200">
-            CrÃ­tico
+            CrÃƒÂ­tico
           </span>
         );
       case "atencao":
         return (
           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">
-            AtenÃ§Ã£o
+            AtenÃƒÂ§ÃƒÂ£o
           </span>
         );
       case "informativo":
@@ -309,7 +309,7 @@ export default function Dashboard() {
           </span>
         </div>
 
-        {/* Menu de NavegaÃ§Ã£o */}
+        {/* Menu de NavegaÃƒÂ§ÃƒÂ£o */}
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button
             onClick={() => setActiveTab("dashboard")}
@@ -346,7 +346,7 @@ export default function Dashboard() {
           </button>
         </nav>
 
-        {/* RodapÃ© da Sidebar */}
+        {/* RodapÃƒÂ© da Sidebar */}
         <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
@@ -358,7 +358,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      {/* CONTEÃšDO PRINCIPAL */}
+      {/* CONTEÃƒÅ¡DO PRINCIPAL */}
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
         {/* Topo / Header */}
         <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
@@ -367,15 +367,15 @@ export default function Dashboard() {
               {loadingUser ? (
                 <span className="h-6 w-32 bg-slate-100 animate-pulse rounded block" />
               ) : (
-                `OlÃ¡, ${userName}`
+                `OlÃƒÂ¡, ${userName}`
               )}
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Seja bem-vindo ao portal de diagnÃ³sticos do VISAcheck GO.
+              Seja bem-vindo ao portal de diagnÃƒÂ³sticos do VISAcheck GO.
             </p>
           </div>
 
-          {/* BotÃ£o flutuante no canto superior direito do conteÃºdo */}
+          {/* BotÃƒÂ£o flutuante no canto superior direito do conteÃƒÂºdo */}
           <Button
             onClick={() => setNovoProjetoOpen(true)}
             className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm"
@@ -385,7 +385,7 @@ export default function Dashboard() {
           </Button>
         </header>
 
-        {/* Ãrea de ConteÃºdo */}
+        {/* ÃƒÂrea de ConteÃƒÂºdo */}
         <div className="flex-1 p-8 space-y-8 max-w-7xl w-full mx-auto">
           {/* CARDS DE RESUMO (Exibidos em todas as abas para fornecer contexto) */}
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -427,11 +427,11 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Card Em AnÃ¡lise */}
+            {/* Card Em AnÃƒÂ¡lise */}
             <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
               <div className="space-y-1">
                 <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                  Em AnÃ¡lise
+                  Em AnÃƒÂ¡lise
                 </span>
                 <p className="text-2xl font-bold text-[#1E293B]">
                   {loadingProjetos ? (
@@ -498,14 +498,14 @@ export default function Dashboard() {
                     </div>
                     <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
                     <p className="text-sm text-muted-foreground">
-                      Nenhum projeto ainda. Clique em + Novo Projeto para comeÃ§ar.
+                      Nenhum projeto ainda. Clique em + Novo Projeto para comeÃƒÂ§ar.
                     </p>
                     <Button
                       onClick={() => setNovoProjetoOpen(true)}
                       className="bg-primary hover:bg-primary-hover text-white gap-2"
                     >
                       <Plus className="w-4 h-4" />
-                      ComeÃ§ar agora
+                      ComeÃƒÂ§ar agora
                     </Button>
                   </div>
                 </div>
@@ -542,7 +542,7 @@ export default function Dashboard() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-600">
-                              {proj.tipo_arquivo || "NÃ£o informado"}
+                              {proj.tipo_arquivo || "NÃƒÂ£o informado"}
                             </td>
                             <td className="px-6 py-4">
                               {getStatusBadge(proj.status)}
@@ -590,7 +590,7 @@ export default function Dashboard() {
                   >
                     <option value="todos">Todos os Status</option>
                     <option value="aprovado">Aprovado</option>
-                    <option value="analisando">Em anÃ¡lise</option>
+                    <option value="analisando">Em anÃƒÂ¡lise</option>
                     <option value="pendente">Pendente</option>
                     <option value="reprovado">Reprovado</option>
                   </select>
@@ -607,7 +607,7 @@ export default function Dashboard() {
                     <Info className="w-10 h-10 text-muted-foreground mx-auto" />
                     <h3 className="text-base font-semibold">Nenhum projeto encontrado</h3>
                     <p className="text-sm text-muted-foreground">
-                      NÃ£o encontramos projetos com os filtros aplicados.
+                      NÃƒÂ£o encontramos projetos com os filtros aplicados.
                     </p>
                     <Button
                       variant="outline"
@@ -633,7 +633,7 @@ export default function Dashboard() {
                             Estabelecimento
                           </th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
-                            PontuaÃ§Ã£o
+                            PontuaÃƒÂ§ÃƒÂ£o
                           </th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">
                             Status
@@ -656,7 +656,7 @@ export default function Dashboard() {
                               </span>
                             </td>
                             <td className="px-6 py-4 text-sm text-slate-600">
-                              {proj.tipo_arquivo || "NÃ£o informado"}
+                              {proj.tipo_arquivo || "NÃƒÂ£o informado"}
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
@@ -706,7 +706,7 @@ export default function Dashboard() {
                     Base de Regras e Normas
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Consulte as diretrizes e regras computÃ¡veis utilizadas na auditoria do VISAcheck GO.
+                    Consulte as diretrizes e regras computÃƒÂ¡veis utilizadas na auditoria do VISAcheck GO.
                   </p>
                 </div>
 
@@ -714,7 +714,7 @@ export default function Dashboard() {
                   <div className="relative flex-1 sm:w-64 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      placeholder="Buscar por cÃ³digo ou norma..."
+                      placeholder="Buscar por cÃƒÂ³digo ou norma..."
                       value={filtroBuscaRegra}
                       onChange={(e) => setFiltroBuscaRegra(e.target.value)}
                       className="pl-9"
@@ -747,7 +747,7 @@ export default function Dashboard() {
                   <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <h3 className="text-base font-semibold">Nenhuma regra encontrada</h3>
                   <p className="text-sm text-muted-foreground">
-                    Tente ajustar os parÃ¢metros de pesquisa ou filtros.
+                    Tente ajustar os parÃƒÂ¢metros de pesquisa ou filtros.
                   </p>
                 </div>
               ) : (
@@ -782,7 +782,7 @@ export default function Dashboard() {
                       {r.sugestao_corretiva && (
                         <div className="mt-4 pt-4 border-t border-slate-100 bg-slate-50/50 p-3 rounded-lg border">
                           <span className="text-[10px] font-semibold text-primary block mb-1">
-                            AÃ§Ã£o corretiva sugerida:
+                            AÃƒÂ§ÃƒÂ£o corretiva sugerida:
                           </span>
                           <p className="text-[11px] text-[#1E293B] italic">
                             {r.sugestao_corretiva}
@@ -804,10 +804,10 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2">
               <FileText className="w-5 h-5" />
-              Novo DiagnÃ³stico RegulatÃ³rio
+              Novo DiagnÃƒÂ³stico RegulatÃƒÂ³rio
             </DialogTitle>
             <DialogDescription>
-              Insira os dados do projeto para iniciar a anÃ¡lise automatizada.
+              Insira os dados do projeto para iniciar a anÃƒÂ¡lise automatizada.
             </DialogDescription>
           </DialogHeader>
 
@@ -819,7 +819,7 @@ export default function Dashboard() {
                 id="proj-name"
                 value={nomeProjeto}
                 onChange={(e) => setNomeProjeto(e.target.value)}
-                placeholder="Ex: ClÃ­nicas Reunidas - Bloco A"
+                placeholder="Ex: ClÃƒÂ­nicas Reunidas - Bloco A"
                 required
               />
             </div>
@@ -834,17 +834,17 @@ export default function Dashboard() {
                 className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="Hospital">Hospital Geral</option>
-                <option value="ClÃ­nica MÃ©dica">ClÃ­nica MÃ©dica / AmbulatÃ³rio</option>
-                <option value="ConsultÃ³rio">ConsultÃ³rio Individual</option>
+                <option value="ClÃƒÂ­nica MÃƒÂ©dica">ClÃƒÂ­nica MÃƒÂ©dica / AmbulatÃƒÂ³rio</option>
+                <option value="ConsultÃƒÂ³rio">ConsultÃƒÂ³rio Individual</option>
                 <option value="CME">CME (Central de Materiais)</option>
-                <option value="LaboratÃ³rio">LaboratÃ³rio de AnÃ¡lises</option>
-                <option value="Outro">Outro Estabelecimento de SaÃºde</option>
+                <option value="LaboratÃƒÂ³rio">LaboratÃƒÂ³rio de AnÃƒÂ¡lises</option>
+                <option value="Outro">Outro Estabelecimento de SaÃƒÂºde</option>
               </select>
             </div>
 
-            {/* SeleÃ§Ã£o do Arquivo (Simulado/Visual) */}
+            {/* SeleÃƒÂ§ÃƒÂ£o do Arquivo (Simulado/Visual) */}
             <div className="space-y-2">
-              <Label htmlFor="proj-file">Anexar Prancha ArquitetÃ´nica (PDF / DWG)</Label>
+              <Label htmlFor="proj-file">Anexar Prancha ArquitetÃƒÂ´nica (PDF / DWG)</Label>
               <div className="flex gap-2">
                 <Input
                   id="proj-file-dummy"
@@ -876,7 +876,7 @@ export default function Dashboard() {
                 }}
               />
               <p className="text-[10px] text-muted-foreground">
-                Arquivos suportados: PDF ou DWG atÃ© 50MB. O arquivo serÃ¡ analisado pelo motor regulatÃ³rio.
+                Arquivos suportados: PDF ou DWG atÃƒÂ© 50MB. O arquivo serÃƒÂ¡ analisado pelo motor regulatÃƒÂ³rio.
               </p>
             </div>
 
@@ -908,7 +908,7 @@ export default function Dashboard() {
                   </>
                 ) : (
                   <>
-                    Iniciar AnÃ¡lise
+                    Iniciar AnÃƒÂ¡lise
                     <Plus className="w-4 h-4" />
                   </>
                 )}
