@@ -22,10 +22,10 @@ interface Regra {
 
 const TIPOS_ESTABELECIMENTO = [
   "Hospital Geral",
-  "Clínica Médica",
-  "Consultório",
+  "ClÃ­nica MÃ©dica",
+  "ConsultÃ³rio",
   "CME",
-  "Laboratório",
+  "LaboratÃ³rio",
   "Distribuidora",
   "Outro",
 ];
@@ -58,7 +58,7 @@ export default function Analise() {
     navigate("/login");
   };
 
-  // Cria o projeto no banco antes da análise automática
+  // Cria o projeto no banco antes da anÃ¡lise automÃ¡tica
   const criarProjetoParaAutomatica = async (): Promise<string | null> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
@@ -88,7 +88,7 @@ export default function Analise() {
   };
 
   const handleAnaliseConcluida = (scoreGeral: number) => {
-    // Redireciona para o laudo após análise automática concluída
+    // Redireciona para o laudo apÃ³s anÃ¡lise automÃ¡tica concluÃ­da
     if (projetoSalvoId) {
       setTimeout(() => navigate(`/projetos/${projetoSalvoId}`), 2000);
     }
@@ -168,7 +168,7 @@ export default function Analise() {
           projeto_id: proj.id,
           regra_id: r.id,
           status: respostas[r.id] === "conforme" ? "aprovado" : "reprovado",
-          observacao: respostas[r.id] === "conforme" ? "Conforme verificação manual" : "Não conformidade identificada",
+          observacao: respostas[r.id] === "conforme" ? "Conforme verificaÃ§Ã£o manual" : "NÃ£o conformidade identificada",
         }));
 
       if (validacoes.length > 0) {
@@ -176,8 +176,8 @@ export default function Analise() {
       }
 
       const resumo = scoreCalculado === 100
-        ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}.`
-        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformes} não-conformidades. Score: ${scoreCalculado}%.`;
+        ? `O projeto "${nomeProjeto}" atende a todas as especificaÃ§Ãµes regulatÃ³rias verificadas para ${tipoEstabelecimento}.`
+        : `O diagnÃ³stico de "${nomeProjeto}" identificou ${totalNaoConformes} nÃ£o-conformidades. Score: ${scoreCalculado}%.`;
 
       await supabase.from("pareceres").insert({
         projeto_id: proj.id,
@@ -188,7 +188,7 @@ export default function Analise() {
       setProjetoSalvoId(proj.id);
       setPasso(3);
     } catch (err) {
-      console.error("Erro ao salvar análise:", err);
+      console.error("Erro ao salvar anÃ¡lise:", err);
     } finally {
       setSalvando(false);
     }
@@ -196,21 +196,21 @@ export default function Analise() {
 
   const exportarRelatorio = () => {
     const linhas = [
-      `RELATÓRIO DE CONFORMIDADE REGULATÓRIA`,
-      `VISAcheck GO — Diagnóstico`,
+      `RELATÃ“RIO DE CONFORMIDADE REGULATÃ“RIA`,
+      `VISAcheck GO â€” DiagnÃ³stico`,
       ``,
       `Projeto: ${nomeProjeto}`,
       `Tipo: ${tipoEstabelecimento}`,
       `Data: ${new Date().toLocaleDateString("pt-BR")}`,
       `Score: ${scoreCalculado}%`,
       ``,
-      `VALIDAÇÕES POR CATEGORIA`,
-      ...validacoesPorCategoria.map(v => `  • ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
+      `VALIDAÃ‡Ã•ES POR CATEGORIA`,
+      ...validacoesPorCategoria.map(v => `  â€¢ ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
       ``,
-      `NÃO-CONFORMIDADES (${naoConformidades.length})`,
+      `NÃƒO-CONFORMIDADES (${naoConformidades.length})`,
       ...naoConformidades.map(nc => `  [${nc.norma_origem}] ${nc.codigo}\n  ${nc.descricao}`),
       ``,
-      `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
+      `RelatÃ³rio gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
     ];
     const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -233,7 +233,7 @@ export default function Analise() {
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><Home className="w-4 h-4" />Dashboard</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><Folder className="w-4 h-4" />Meus Projetos</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><BookOpen className="w-4 h-4" />Base de Normas</button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-[#1E3A5F]"><ClipboardList className="w-4 h-4" />Nova Análise</button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-[#1E3A5F]"><ClipboardList className="w-4 h-4" />Nova AnÃ¡lise</button>
         </nav>
         <div className="p-4 border-t border-border">
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50"><LogOut className="w-4 h-4" />Sair</button>
@@ -245,8 +245,8 @@ export default function Analise() {
         <header className="border-b border-border bg-white py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
-            <h1 className="text-xl font-semibold text-[#1E293B]">Nova Análise Regulatória</h1>
-            <p className="text-xs text-muted-foreground">Diagnóstico baseado nas normas ANVISA e ABNT</p>
+            <h1 className="text-xl font-semibold text-[#1E293B]">Nova AnÃ¡lise RegulatÃ³ria</h1>
+            <p className="text-xs text-muted-foreground">DiagnÃ³stico baseado nas normas ANVISA e ABNT</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {[1, 2, 3].map(p => (
@@ -256,7 +256,7 @@ export default function Analise() {
               </div>
             ))}
             <div className="ml-3 text-xs text-muted-foreground">
-              {passo === 1 ? "Dados do projeto" : passo === 2 ? "Checklist regulatório" : "Resultado"}
+              {passo === 1 ? "Dados do projeto" : passo === 2 ? "Checklist regulatÃ³rio" : "Resultado"}
             </div>
           </div>
         </header>
@@ -272,12 +272,12 @@ export default function Analise() {
                     <ClipboardList className="w-6 h-6 text-[#1E3A5F]" />
                   </div>
                   <h2 className="text-lg font-bold text-[#1E293B]">Dados do Projeto</h2>
-                  <p className="text-sm text-muted-foreground">Preencha as informações básicas para iniciar o diagnóstico</p>
+                  <p className="text-sm text-muted-foreground">Preencha as informaÃ§Ãµes bÃ¡sicas para iniciar o diagnÃ³stico</p>
                 </div>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="nome">Nome do Projeto</Label>
-                    <Input id="nome" value={nomeProjeto} onChange={e => setNomeProjeto(e.target.value)} placeholder="Ex: UPA Norte — Reforma Ala B" />
+                    <Input id="nome" value={nomeProjeto} onChange={e => setNomeProjeto(e.target.value)} placeholder="Ex: UPA Norte â€” Reforma Ala B" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tipo">Tipo de Estabelecimento</Label>
@@ -292,7 +292,7 @@ export default function Analise() {
                   <div className="space-y-3 pt-2">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider text-center">Como deseja analisar?</p>
                     <div className="grid grid-cols-2 gap-3">
-                      {/* AUTOMÁTICA */}
+                      {/* AUTOMÃTICA */}
                       <button
                         onClick={handleIniciarAutomatica}
                         className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-blue-200 bg-blue-50 hover:bg-blue-100 transition-all text-left"
@@ -300,8 +300,8 @@ export default function Analise() {
                         <div className="bg-blue-600 rounded-full p-2">
                           <Zap className="w-5 h-5 text-white" />
                         </div>
-                        <span className="text-sm font-bold text-blue-700">Automática com IA</span>
-                        <span className="text-[11px] text-blue-500 text-center">Upload do PDF — a IA analisa tudo sozinha</span>
+                        <span className="text-sm font-bold text-blue-700">AutomÃ¡tica com IA</span>
+                        <span className="text-[11px] text-blue-500 text-center">Upload do PDF â€” a IA analisa tudo sozinha</span>
                       </button>
                       {/* MANUAL */}
                       <button
@@ -319,7 +319,7 @@ export default function Analise() {
                   </div>
                 )}
 
-                {/* ANÁLISE AUTOMÁTICA — componente Groq */}
+                {/* ANÃLISE AUTOMÃTICA â€” componente Groq */}
                 {nomeProjeto.trim() && modoAnalise === "automatica" && projetoId && (
                   <div className="pt-2">
                     <BotaoAnaliseAutomatica
@@ -335,7 +335,7 @@ export default function Analise() {
                   </div>
                 )}
 
-                {/* Botão padrão quando nome não preenchido */}
+                {/* BotÃ£o padrÃ£o quando nome nÃ£o preenchido */}
                 {!nomeProjeto.trim() && (
                   <Button disabled className="w-full bg-[#1E3A5F] text-white gap-2 opacity-50">
                     Preencha o nome para continuar <ChevronRight className="w-4 h-4" />
@@ -352,7 +352,7 @@ export default function Analise() {
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <h2 className="text-sm font-bold text-[#1E293B]">{nomeProjeto}</h2>
-                    <p className="text-xs text-muted-foreground">{tipoEstabelecimento} · {regras.length} regras a verificar</p>
+                    <p className="text-xs text-muted-foreground">{tipoEstabelecimento} Â· {regras.length} regras a verificar</p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">Respondidas</p>
@@ -396,9 +396,9 @@ export default function Analise() {
                           <p className="text-xs text-slate-700 leading-relaxed">{regra.descricao}</p>
                         </div>
                         <div className="flex gap-1.5 flex-shrink-0">
-                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}>✓ Conforme</button>
-                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}>✗ Não conforme</button>
-                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-slate-500 text-white border-slate-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>— N/A</button>
+                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}>âœ“ Conforme</button>
+                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}>âœ— NÃ£o conforme</button>
+                          <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-slate-500 text-white border-slate-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>â€” N/A</button>
                         </div>
                       </div>
                     </div>
@@ -410,7 +410,7 @@ export default function Analise() {
                     </Button>
                     {categorias.indexOf(categoriaAtiva) < categorias.length - 1 ? (
                       <Button onClick={() => { const i = categorias.indexOf(categoriaAtiva); setCategoriaAtiva(categorias[i + 1] ?? ""); }} className="bg-[#1E3A5F] text-white gap-2">
-                        Próxima categoria<ChevronRight className="w-4 h-4" />
+                        PrÃ³xima categoria<ChevronRight className="w-4 h-4" />
                       </Button>
                     ) : (
                       <Button onClick={salvarNoBanco} disabled={salvando} className="bg-green-600 hover:bg-green-700 text-white gap-2">
@@ -435,22 +435,22 @@ export default function Analise() {
                       <div className={`h-3 rounded-full ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
                     <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${scoreCalculado === 100 ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                      {scoreCalculado === 100 ? "✓ APROVADO" : `${totalNaoConformes} não-conformidades`}
+                      {scoreCalculado === 100 ? "âœ“ APROVADO" : `${totalNaoConformes} nÃ£o-conformidades`}
                     </span>
                   </div>
                 </div>
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2">
-                  <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3">Resumo da Análise</h3>
+                  <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3">Resumo da AnÃ¡lise</h3>
                   <p className="text-sm text-slate-700 leading-relaxed">
                     {scoreCalculado === 100
-                      ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}. Nenhuma não-conformidade foi identificada.`
-                      : `O diagnóstico de "${nomeProjeto}" (${tipoEstabelecimento}) identificou ${totalNaoConformes} não-conformidades entre ${totalRespondidas} itens verificados. Score global: ${scoreCalculado}%.`
+                      ? `O projeto "${nomeProjeto}" atende a todas as especificaÃ§Ãµes regulatÃ³rias verificadas para ${tipoEstabelecimento}. Nenhuma nÃ£o-conformidade foi identificada.`
+                      : `O diagnÃ³stico de "${nomeProjeto}" (${tipoEstabelecimento}) identificou ${totalNaoConformes} nÃ£o-conformidades entre ${totalRespondidas} itens verificados. Score global: ${scoreCalculado}%.`
                     }
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-700"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
-                    <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
-                    <div className="flex items-center gap-2 text-slate-500"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalRespondidas} não aplicáveis</span></div>
+                    <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} nÃ£o-conformes</span></div>
+                    <div className="flex items-center gap-2 text-slate-500"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalRespondidas} nÃ£o aplicÃ¡veis</span></div>
                   </div>
                 </div>
               </div>
@@ -458,7 +458,7 @@ export default function Analise() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
-                  <h2 className="text-base font-bold">Validações por Categoria</h2>
+                  <h2 className="text-base font-bold">ValidaÃ§Ãµes por Categoria</h2>
                 </div>
                 <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
@@ -466,7 +466,7 @@ export default function Analise() {
                       <tr className="bg-slate-50 border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Conformes</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Pendências</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">PendÃªncias</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase w-48">Conformidade</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Status</th>
                       </tr>
@@ -495,7 +495,7 @@ export default function Analise() {
 
               {naoConformidades.length > 0 && (
                 <div className="space-y-4">
-                  <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
+                  <h2 className="text-base font-bold">NÃ£o-Conformidades ({naoConformidades.length})</h2>
                   <div className="space-y-4">
                     {naoConformidades.map(nc => (
                       <div key={nc.id} className="bg-white border border-red-200 rounded-xl p-5 shadow-sm space-y-3">
@@ -507,7 +507,7 @@ export default function Analise() {
                             </div>
                             <p className="text-sm text-slate-700">{nc.descricao}</p>
                           </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700 border border-red-200 flex-shrink-0">Não conforme</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700 border border-red-200 flex-shrink-0">NÃ£o conforme</span>
                         </div>
                       </div>
                     ))}
@@ -517,7 +517,7 @@ export default function Analise() {
 
               <div className="flex gap-4 pt-4">
                 <Button onClick={exportarRelatorio} variant="outline" className="gap-2">
-                  <Download className="w-4 h-4" />Exportar Relatório
+                  <Download className="w-4 h-4" />Exportar RelatÃ³rio
                 </Button>
                 {projetoSalvoId && (
                   <Button onClick={() => navigate(`/projetos/${projetoSalvoId}`)} className="bg-[#1E3A5F] text-white gap-2">
