@@ -66,7 +66,7 @@ export default function Analise() {
       .from("projetos")
       .insert({
         nome_projeto: nomeProjeto,
-        tipo_estabelecimento: tipoEstabelecimento,
+        tipo_estabelecimento: tipoEstabelecimento as any,
         user_id: user.id,
         status: "pendente",
         score_conformidade: 0,
@@ -152,7 +152,7 @@ export default function Analise() {
         .from("projetos")
         .insert({
           nome_projeto: nomeProjeto,
-          tipo_estabelecimento: tipoEstabelecimento,
+          tipo_estabelecimento: tipoEstabelecimento as any,
           user_id: user.id,
           status: scoreCalculado === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente",
           score_conformidade: scoreCalculado,
