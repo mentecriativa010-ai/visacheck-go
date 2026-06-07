@@ -1,11 +1,11 @@
 // ============================================================
-// groqService.ts ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â AnÃƒÆ’Ã‚Â¡lise automÃƒÆ’Ã‚Â¡tica de PDF via Groq (grÃƒÆ’Ã‚Â¡tis)
+// groqService.ts ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica de PDF via Groq (grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tis)
 // Coloque este arquivo em: src/services/groqService.ts
 // ============================================================
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-// Pegue sua chave grÃƒÆ’Ã‚Â¡tis em: https://console.groq.com
+// Pegue sua chave grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tis em: https://console.groq.com
 // Depois adicione no .env: VITE_GROQ_API_KEY=gsk_xxxxx
 const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
@@ -42,33 +42,33 @@ export async function extrairTextoPDF(arquivo: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      // Converte o ArrayBuffer para string e tenta extrair texto legÃƒÆ’Ã‚Â­vel
+      // Converte o ArrayBuffer para string e tenta extrair texto legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel
       const buffer = reader.result as ArrayBuffer;
       const bytes = new Uint8Array(buffer);
       let texto = "";
       for (let i = 0; i < bytes.length; i++) {
         const c = bytes[i];
-        // Captura caracteres ASCII legÃƒÆ’Ã‚Â­veis
+        // Captura caracteres ASCII legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis
         if ((c >= 32 && c <= 126) || c === 10 || c === 13) {
           texto += String.fromCharCode(c);
         }
       }
-      // Filtra linhas com conteÃƒÆ’Ã‚Âºdo real (>5 chars)
+      // Filtra linhas com conteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo real (>5 chars)
       const linhasUteis = texto
         .split(/\n|\r/)
         .map((l) => l.trim())
         .filter((l) => l.length > 5 && !/^[\d\s.()]+$/.test(l))
-        .slice(0, 300) // Limita para nÃƒÆ’Ã‚Â£o estourar tokens
+        .slice(0, 100) // Limita para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estourar tokens
         .join("\n");
 
-      resolve(linhasUteis || "PDF sem texto legÃƒÆ’Ã‚Â­vel extraÃƒÆ’Ã‚Â­do.");
+      resolve(linhasUteis || "PDF sem texto legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do.");
     };
     reader.readAsArrayBuffer(arquivo);
   });
 }
 
 // ----------------------------------------------------------------
-// Analisa o texto extraÃƒÆ’Ã‚Â­do cruzando com as regras via Groq
+// Analisa o texto extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do cruzando com as regras via Groq
 // ----------------------------------------------------------------
 export async function analisarComGroq(
   textoPDF: string,
@@ -79,45 +79,45 @@ export async function analisarComGroq(
       resultados: [],
       resumo: "",
       score_geral: 0,
-      erro: "Chave VITE_GROQ_API_KEY nÃƒÆ’Ã‚Â£o configurada no .env",
+      erro: "Chave VITE_GROQ_API_KEY nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada no .env",
     };
   }
 
   // Monta lista compacta de regras para o prompt
-  const listaRegras = regras
+  const regrasLimitadas = regras.slice(0, 30); const listaRegras = regrasLimitadas
     .map(
       (r) =>
-        `[${r.codigo}] ${r.categoria}: ${r.descricao}${r.valor_minimo ? ` (mÃƒÆ’Ã‚Â­nimo: ${r.valor_minimo}${r.unidade || ""})` : ""}`
+        `[${r.codigo}] ${r.categoria}: ${r.descricao}${r.valor_minimo ? ` (mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­nimo: ${r.valor_minimo}${r.unidade || ""})` : ""}`
     )
     .join("\n");
 
-  const prompt = `VocÃƒÆ’Ã‚Âª ÃƒÆ’Ã‚Â© um auditor especialista em normas regulatÃƒÆ’Ã‚Â³rias de estabelecimentos de saÃƒÆ’Ã‚Âºde no Brasil (NBR 9050, RDC 1.002/2024, RDC 50).
+  const prompt = `VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© um auditor especialista em normas regulatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rias de estabelecimentos de saÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºde no Brasil (NBR 9050, RDC 1.002/2024, RDC 50).
 
-Analise o texto abaixo extraÃƒÆ’Ã‚Â­do de um projeto arquitetÃƒÆ’Ã‚Â´nico e avalie cada regra regulatÃƒÆ’Ã‚Â³ria.
+Analise o texto abaixo extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do de um projeto arquitetÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´nico e avalie cada regra regulatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria.
 
 TEXTO DO PROJETO:
-${textoPDF.slice(0, 3000)}
+${textoPDF.slice(0, 1500)}
 
 REGRAS A AVALIAR:
 ${listaRegras}
 
-Responda APENAS com JSON vÃƒÆ’Ã‚Â¡lido neste formato exato (sem markdown, sem explicaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Âµes fora do JSON):
+Responda APENAS com JSON vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido neste formato exato (sem markdown, sem explicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes fora do JSON):
 {
   "resultados": [
     {
       "codigo": "NBR9050-001",
       "status": "conforme" | "nao_conforme" | "nao_aplicavel",
-      "justificativa": "explicaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o curta de 1 linha"
+      "justificativa": "explicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o curta de 1 linha"
     }
   ],
-  "resumo": "Resumo executivo da anÃƒÆ’Ã‚Â¡lise em 2-3 frases"
+  "resumo": "Resumo executivo da anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise em 2-3 frases"
 }
 
 Regras importantes:
-- Use "nao_aplicavel" quando a regra nÃƒÆ’Ã‚Â£o se aplica ao tipo de estabelecimento
+- Use "nao_aplicavel" quando a regra nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o se aplica ao tipo de estabelecimento
 - Use "conforme" quando o projeto atende claramente a norma
-- Use "nao_conforme" quando hÃƒÆ’Ã‚Â¡ evidÃƒÆ’Ã‚Âªncia de violaÃƒÆ’Ã‚Â§ÃƒÆ’Ã‚Â£o ou dado insuficiente para confirmar conformidade
-- Avalie TODAS as ${regras.length} regras listadas`;
+- Use "nao_conforme" quando hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ evidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia de violaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou dado insuficiente para confirmar conformidade
+- avalie TODAS as ${regrasLimitadas.length} regras listadas`;
 
   try {
     const response = await fetch(GROQ_API_URL, {
@@ -127,7 +127,7 @@ Regras importantes:
         Authorization: `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "llama-3.3-70b-versatile",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.1,
         max_tokens: 4000,
@@ -157,7 +157,7 @@ Regras importantes:
         resultados: [],
         resumo: "",
         score_geral: 0,
-        erro: "Groq retornou resposta invÃƒÆ’Ã‚Â¡lida. Tente novamente.",
+        erro: "Groq retornou resposta invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida. Tente novamente.",
       };
     }
 
@@ -191,7 +191,7 @@ Regras importantes:
       resultados: [],
       resumo: "",
       score_geral: 0,
-      erro: `Erro de conexÃƒÆ’Ã‚Â£o: ${err.message}`,
+      erro: `Erro de conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ${err.message}`,
     };
   }
 }
