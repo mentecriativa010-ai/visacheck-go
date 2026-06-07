@@ -1,13 +1,5 @@
-// ============================================================
-// groqService.ts ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â AnÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise automÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tica de PDF via Groq (grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tis)
-// Coloque este arquivo em: src/services/groqService.ts
-// ============================================================
-
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-
-// Pegue sua chave grÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡tis em: https://console.groq.com
-// Depois adicione no .env: VITE_GROQ_API_KEY=gsk_xxxxx
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export interface RegraRegulatoria {
   id: string;
@@ -35,133 +27,83 @@ export interface ResultadoAnalise {
   erro?: string;
 }
 
-// ----------------------------------------------------------------
-// Extrai o texto do PDF usando FileReader (sem biblioteca externa)
-// ----------------------------------------------------------------
 export async function extrairTextoPDF(arquivo: File): Promise<string> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
-      // Converte o ArrayBuffer para string e tenta extrair texto legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel
       const buffer = reader.result as ArrayBuffer;
       const bytes = new Uint8Array(buffer);
       let texto = "";
       for (let i = 0; i < bytes.length; i++) {
         const c = bytes[i];
-        // Captura caracteres ASCII legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­veis
         if ((c >= 32 && c <= 126) || c === 10 || c === 13) {
           texto += String.fromCharCode(c);
         }
       }
-      // Filtra linhas com conteÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºdo real (>5 chars)
       const linhasUteis = texto
         .split(/\n|\r/)
         .map((l) => l.trim())
         .filter((l) => l.length > 5 && !/^[\d\s.()]+$/.test(l))
-        .slice(0, 100) // Limita para nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o estourar tokens
+        .slice(0, 80)
         .join("\n");
-
-      resolve(linhasUteis || "PDF sem texto legÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­vel extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do.");
+      resolve(linhasUteis || "PDF sem texto legivel extraido.");
     };
     reader.readAsArrayBuffer(arquivo);
   });
 }
 
-// ----------------------------------------------------------------
-// Analisa o texto extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do cruzando com as regras via Groq
-// ----------------------------------------------------------------
 export async function analisarComGroq(
   textoPDF: string,
   regras: RegraRegulatoria[]
 ): Promise<ResultadoAnalise> {
-  if (!GROQ_API_KEY) {
-    return {
-      resultados: [],
-      resumo: "",
-      score_geral: 0,
-      erro: "Chave VITE_GROQ_API_KEY nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o configurada no .env",
-    };
+  if (!GEMINI_API_KEY) {
+    return { resultados: [], resumo: "", score_geral: 0, erro: "Chave VITE_GEMINI_API_KEY nao configurada no Vercel." };
   }
 
-  // Monta lista compacta de regras para o prompt
-  const regrasLimitadas = regras.slice(0, 30); const listaRegras = regrasLimitadas
-    .map(
-      (r) =>
-        `[${r.codigo}] ${r.categoria}: ${r.descricao}${r.valor_minimo ? ` (mÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­nimo: ${r.valor_minimo}${r.unidade || ""})` : ""}`
-    )
-    .join("\n");
+  const lote = regras.slice(0, 40);
+  const listaRegras = lote.map((r) => `[${r.codigo}] ${r.categoria}: ${r.descricao}`).join("\n");
 
-  const prompt = `VocÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âª ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â© um auditor especialista em normas regulatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³rias de estabelecimentos de saÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºde no Brasil (NBR 9050, RDC 1.002/2024, RDC 50).
+  const prompt = `Voce e um auditor especialista em normas regulatorias de estabelecimentos de saude no Brasil (NBR 9050, RDC 1.002/2024, RDC 50).
 
-Analise o texto abaixo extraÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­do de um projeto arquitetÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â´nico e avalie cada regra regulatÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³ria.
+Analise o texto abaixo extraido de um projeto arquitetonico e avalie cada regra regulatoria.
 
 TEXTO DO PROJETO:
-${textoPDF.slice(0, 1500)}
+${textoPDF.slice(0, 2000)}
 
 REGRAS A AVALIAR:
 ${listaRegras}
 
-Responda APENAS com JSON vÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lido neste formato exato (sem markdown, sem explicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âµes fora do JSON):
-{
-  "resultados": [
-    {
-      "codigo": "NBR9050-001",
-      "status": "conforme" | "nao_conforme" | "nao_aplicavel",
-      "justificativa": "explicaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o curta de 1 linha"
-    }
-  ],
-  "resumo": "Resumo executivo da anÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lise em 2-3 frases"
-}
+Responda APENAS com JSON valido neste formato exato (sem markdown, sem explicacoes fora do JSON):
+{"resultados":[{"codigo":"NBR9050-001","status":"conforme","justificativa":"explicacao curta"}],"resumo":"Resumo em 2 frases"}
 
-Regras importantes:
-- Use "nao_aplicavel" quando a regra nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o se aplica ao tipo de estabelecimento
-- Use "conforme" quando o projeto atende claramente a norma
-- Use "nao_conforme" quando hÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡ evidÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âªncia de violaÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â§ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o ou dado insuficiente para confirmar conformidade
-- avalie TODAS as ${regrasLimitadas.length} regras listadas`;
+Use status: conforme, nao_conforme, ou nao_aplicavel. Avalie TODAS as ${lote.length} regras.`;
 
   try {
-    const response = await fetch(GROQ_API_URL, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${GROQ_API_KEY}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.1,
-        max_tokens: 4000,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 }
       }),
     });
 
     if (!response.ok) {
       const erro = await response.text();
-      return {
-        resultados: [],
-        resumo: "",
-        score_geral: 0,
-        erro: `Groq API erro ${response.status}: ${erro}`,
-      };
+      return { resultados: [], resumo: "", score_geral: 0, erro: `Gemini API erro ${response.status}: ${erro}` };
     }
 
     const data = await response.json();
-    const conteudo = data.choices?.[0]?.message?.content || "";
+    const conteudo = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Parse do JSON retornado
     let parsed: { resultados: any[]; resumo: string };
     try {
       const jsonLimpo = conteudo.replace(/```json|```/g, "").trim();
       parsed = JSON.parse(jsonLimpo);
     } catch {
-      return {
-        resultados: [],
-        resumo: "",
-        score_geral: 0,
-        erro: "Groq retornou resposta invÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¡lida. Tente novamente.",
-      };
+      return { resultados: [], resumo: "", score_geral: 0, erro: "Gemini retornou resposta invalida. Tente novamente." };
     }
 
-    // Mapeia resultados para o formato completo
     const resultados: ResultadoRegra[] = parsed.resultados.map((r: any) => {
       const regra = regras.find((rg) => rg.codigo === r.codigo);
       return {
@@ -176,22 +118,10 @@ Regras importantes:
 
     const aplicaveis = resultados.filter((r) => r.status !== "nao_aplicavel");
     const conformes = aplicaveis.filter((r) => r.status === "conforme");
-    const score =
-      aplicaveis.length > 0
-        ? Math.round((conformes.length / aplicaveis.length) * 100)
-        : 0;
+    const score = aplicaveis.length > 0 ? Math.round((conformes.length / aplicaveis.length) * 100) : 0;
 
-    return {
-      resultados,
-      resumo: parsed.resumo || "",
-      score_geral: score,
-    };
+    return { resultados, resumo: parsed.resumo || "", score_geral: score };
   } catch (err: any) {
-    return {
-      resultados: [],
-      resumo: "",
-      score_geral: 0,
-      erro: `Erro de conexÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â£o: ${err.message}`,
-    };
+    return { resultados: [], resumo: "", score_geral: 0, erro: `Erro de conexao: ${err.message}` };
   }
 }
