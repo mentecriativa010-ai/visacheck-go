@@ -52,7 +52,7 @@ export default function ProjectDetails() {
       setLoading(true);
       setError("");
 
-      // 1. Obter usuÃ¡rio logado
+      // 1. Obter usuÃƒÂ¡rio logado
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         navigate("/login");
@@ -72,7 +72,7 @@ export default function ProjectDetails() {
       }
 
       if (!projData) {
-        setError("Projeto nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o para acessÃ¡-lo.");
+        setError("Projeto nÃƒÂ£o encontrado ou vocÃƒÂª nÃƒÂ£o tem permissÃƒÂ£o para acessÃƒÂ¡-lo.");
       } else {
         setProjeto(projData as Projeto);
       }
@@ -89,23 +89,23 @@ export default function ProjectDetails() {
     navigate("/login");
   };
 
-  // Gerar nÃ£o-conformidades mockadas baseadas no tipo de estabelecimento
+  // Gerar nÃƒÂ£o-conformidades mockadas baseadas no tipo de estabelecimento
   const getMockNaoConformidades = (tipo: string): NaoConformidade[] => {
     const defaultMocks: NaoConformidade[] = [
       {
         codigo: "GEN-01",
-        nome: "Falta de abrigo temporÃ¡rio para resÃ­duos de saÃºde (DML)",
+        nome: "Falta de abrigo temporÃƒÂ¡rio para resÃƒÂ­duos de saÃƒÂºde (DML)",
         severidade: "critico",
         norma: "RDC 222/2018 / RDC 50/2002",
-        descricao: "AusÃªncia de depÃ³sito de material de limpeza (DML) com ralo sifonado dotado de tampa escamoteÃ¡vel na Ã¡rea de circulaÃ§Ã£o interna, dificultando o armazenamento seguro e provisÃ³rio de sacos de resÃ­duos infectantes.",
-        sugestao: "Instalar abrigo temporÃ¡rio de resÃ­duos/DML revestido com material cerÃ¢mico impermeÃ¡vel, contendo torneira para lavagem e ralo sifonado."
+        descricao: "AusÃƒÂªncia de depÃƒÂ³sito de material de limpeza (DML) com ralo sifonado dotado de tampa escamoteÃƒÂ¡vel na ÃƒÂ¡rea de circulaÃƒÂ§ÃƒÂ£o interna, dificultando o armazenamento seguro e provisÃƒÂ³rio de sacos de resÃƒÂ­duos infectantes.",
+        sugestao: "Instalar abrigo temporÃƒÂ¡rio de resÃƒÂ­duos/DML revestido com material cerÃƒÂ¢mico impermeÃƒÂ¡vel, contendo torneira para lavagem e ralo sifonado."
       },
       {
         codigo: "GEN-02",
-        nome: "Portas de saÃ­das de emergÃªncia abrindo contra o fluxo",
+        nome: "Portas de saÃƒÂ­das de emergÃƒÂªncia abrindo contra o fluxo",
         severidade: "atencao",
         norma: "NBR 9077 / NBR 9050",
-        descricao: "As portas das rotas de fuga principais abrem para o lado interno das salas circundantes, obstruindo parcialmente o fluxo livre em caso de pÃ¢nico ou evacuaÃ§Ã£o urgente.",
+        descricao: "As portas das rotas de fuga principais abrem para o lado interno das salas circundantes, obstruindo parcialmente o fluxo livre em caso de pÃƒÂ¢nico ou evacuaÃƒÂ§ÃƒÂ£o urgente.",
         sugestao: "Inverter o sentido de abertura das folhas de porta para que abram no sentido do fluxo de escape."
       }
     ];
@@ -116,117 +116,117 @@ export default function ProjectDetails() {
         nome: "Fluxo cruzado entre material limpo e contaminado na CME",
         severidade: "bloqueante",
         norma: "RDC 50/2002 - Anexo I (Infraestrutura)",
-        descricao: "Foi detectada uma abertura direta (porta convencional) ligando a Ã¡rea de recepÃ§Ã£o/expurgo (zona contaminada) Ã  Ã¡rea de preparo de materiais (zona limpa), sem barreira fÃ­sica estanque ou autoclave com porta dupla.",
-        sugestao: "Substituir a comunicaÃ§Ã£o fÃ­sica direta por uma autoclave de barreira (dupla porta) e fechar o acesso para manter fluxo unidirecional rÃ­gido."
+        descricao: "Foi detectada uma abertura direta (porta convencional) ligando a ÃƒÂ¡rea de recepÃƒÂ§ÃƒÂ£o/expurgo (zona contaminada) ÃƒÂ  ÃƒÂ¡rea de preparo de materiais (zona limpa), sem barreira fÃƒÂ­sica estanque ou autoclave com porta dupla.",
+        sugestao: "Substituir a comunicaÃƒÂ§ÃƒÂ£o fÃƒÂ­sica direta por uma autoclave de barreira (dupla porta) e fechar o acesso para manter fluxo unidirecional rÃƒÂ­gido."
       },
       {
         codigo: "HOSP-02",
-        nome: "AusÃªncia de lavatÃ³rio exclusivo para higienizaÃ§Ã£o no posto",
+        nome: "AusÃƒÂªncia de lavatÃƒÂ³rio exclusivo para higienizaÃƒÂ§ÃƒÂ£o no posto",
         severidade: "critico",
         norma: "RDC 50/2002 / NR 32",
-        descricao: "O posto de enfermagem central do Bloco de InternaÃ§Ã£o nÃ£o dispÃµe de pia exclusiva para lavagem das mÃ£os, havendo apenas pias de utilidades de uso compartilhado.",
-        sugestao: "Instalar lavatÃ³rio com torneira de acionamento que dispense o contato manual (sensor, pedal ou cotovelo), acompanhado de porta-papel toalha e saboneteira lÃ­quida."
+        descricao: "O posto de enfermagem central do Bloco de InternaÃƒÂ§ÃƒÂ£o nÃƒÂ£o dispÃƒÂµe de pia exclusiva para lavagem das mÃƒÂ£os, havendo apenas pias de utilidades de uso compartilhado.",
+        sugestao: "Instalar lavatÃƒÂ³rio com torneira de acionamento que dispense o contato manual (sensor, pedal ou cotovelo), acompanhado de porta-papel toalha e saboneteira lÃƒÂ­quida."
       },
       {
         codigo: "HOSP-03",
-        nome: "Dimensionamento inadequado de quartos de internaÃ§Ã£o",
+        nome: "Dimensionamento inadequado de quartos de internaÃƒÂ§ÃƒÂ£o",
         severidade: "atencao",
         norma: "RDC 50/2002 - Item 3",
-        descricao: "Os quartos projetados para 2 leitos apresentam Ã¡rea Ãºtil interna de 10.2mÂ², valor inferior ao mÃ­nimo normatizado de 12.0mÂ² exigido para permitir manobra livre de cadeiras de rodas e macas.",
-        sugestao: "Ajustar o leiaute arquitetÃ´nico para alocar apenas 1 leito por quarto ou realizar o recuo de divisÃ³rias internas para atingir a metragem mÃ­nima."
+        descricao: "Os quartos projetados para 2 leitos apresentam ÃƒÂ¡rea ÃƒÂºtil interna de 10.2mÃ‚Â², valor inferior ao mÃƒÂ­nimo normatizado de 12.0mÃ‚Â² exigido para permitir manobra livre de cadeiras de rodas e macas.",
+        sugestao: "Ajustar o leiaute arquitetÃƒÂ´nico para alocar apenas 1 leito por quarto ou realizar o recuo de divisÃƒÂ³rias internas para atingir a metragem mÃƒÂ­nima."
       }
     ];
 
     const clinicaMocks: NaoConformidade[] = [
       {
         codigo: "CLIN-01",
-        nome: "Sala de procedimentos sem revestimento lavÃ¡vel",
+        nome: "Sala de procedimentos sem revestimento lavÃƒÂ¡vel",
         severidade: "critico",
-        norma: "RDC 50/2002 - Acabamentos de SuperfÃ­cies",
-        descricao: "A sala de pequenos procedimentos ambulatoriais apresenta pintura acrÃ­lica convencional e juntas nas soleiras de madeira, superfÃ­cies que acumulam agentes patogÃªnicos e dificultam a higienizaÃ§Ã£o quÃ­mica periÃ³dica.",
-        sugestao: "Revestir o piso com material vinÃ­lico ou cerÃ¢mico monolÃ­tico com cantos arredondados e pintar as paredes com tinta epÃ³xi hospitalar lavÃ¡vel."
+        norma: "RDC 50/2002 - Acabamentos de SuperfÃƒÂ­cies",
+        descricao: "A sala de pequenos procedimentos ambulatoriais apresenta pintura acrÃƒÂ­lica convencional e juntas nas soleiras de madeira, superfÃƒÂ­cies que acumulam agentes patogÃƒÂªnicos e dificultam a higienizaÃƒÂ§ÃƒÂ£o quÃƒÂ­mica periÃƒÂ³dica.",
+        sugestao: "Revestir o piso com material vinÃƒÂ­lico ou cerÃƒÂ¢mico monolÃƒÂ­tico com cantos arredondados e pintar as paredes com tinta epÃƒÂ³xi hospitalar lavÃƒÂ¡vel."
       },
       {
         codigo: "CLIN-02",
-        nome: "Falta de acessibilidade e Ã¡rea de giro nos sanitÃ¡rios",
+        nome: "Falta de acessibilidade e ÃƒÂ¡rea de giro nos sanitÃƒÂ¡rios",
         severidade: "atencao",
         norma: "NBR 9050 / RDC 50",
-        descricao: "Os sanitÃ¡rios abertos ao pÃºblico nÃ£o dispÃµem de Ã¡rea interna livre para diÃ¢metro de rotaÃ§Ã£o de 1,50m, inviabilizando o uso confortÃ¡vel por pacientes cadeirantes.",
-        sugestao: "Remodelar o posicionamento da bacia sanitÃ¡ria e do lavatÃ³rio para liberar o cÃ­rculo de giro e fixar barras metÃ¡licas horizontais e verticais regulamentadas."
+        descricao: "Os sanitÃƒÂ¡rios abertos ao pÃƒÂºblico nÃƒÂ£o dispÃƒÂµem de ÃƒÂ¡rea interna livre para diÃƒÂ¢metro de rotaÃƒÂ§ÃƒÂ£o de 1,50m, inviabilizando o uso confortÃƒÂ¡vel por pacientes cadeirantes.",
+        sugestao: "Remodelar o posicionamento da bacia sanitÃƒÂ¡ria e do lavatÃƒÂ³rio para liberar o cÃƒÂ­rculo de giro e fixar barras metÃƒÂ¡licas horizontais e verticais regulamentadas."
       },
       {
         codigo: "CLIN-03",
-        nome: "SinalizaÃ§Ã£o tÃ¡til direcional e de alerta ausente",
+        nome: "SinalizaÃƒÂ§ÃƒÂ£o tÃƒÂ¡til direcional e de alerta ausente",
         severidade: "informativo",
         norma: "NBR 9050",
-        descricao: "InexistÃªncia de piso tÃ¡til direcional a partir da calÃ§ada externa atÃ© o balcÃ£o principal de atendimento na recepÃ§Ã£o.",
-        sugestao: "Aplicar piso tÃ¡til de borracha autocolante obedecendo a coloraÃ§Ã£o contrastante com o piso de fundo para auxiliar deficientes visuais."
+        descricao: "InexistÃƒÂªncia de piso tÃƒÂ¡til direcional a partir da calÃƒÂ§ada externa atÃƒÂ© o balcÃƒÂ£o principal de atendimento na recepÃƒÂ§ÃƒÂ£o.",
+        sugestao: "Aplicar piso tÃƒÂ¡til de borracha autocolante obedecendo a coloraÃƒÂ§ÃƒÂ£o contrastante com o piso de fundo para auxiliar deficientes visuais."
       }
     ];
 
     const cmeMocks: NaoConformidade[] = [
       {
         codigo: "CME-01",
-        nome: "Falta de diferencial de pressÃ£o no sistema de exaustÃ£o",
+        nome: "Falta de diferencial de pressÃƒÂ£o no sistema de exaustÃƒÂ£o",
         severidade: "bloqueante",
         norma: "RDC 15/2012 / RDC 50/2002",
-        descricao: "A Ã¡rea fÃ­sica de expurgo (recepÃ§Ã£o de material sujo) nÃ£o opera sob pressÃ£o negativa constante em relaÃ§Ã£o aos ambientes vizinhos, possibilitando vazamento de ar com patÃ³genos em suspensÃ£o.",
-        sugestao: "Ajustar o damper de retorno e exaustÃ£o mecÃ¢nica para gerar uma pressÃ£o negativa mÃ­nima de 2,5 Pa na sala de expurgo."
+        descricao: "A ÃƒÂ¡rea fÃƒÂ­sica de expurgo (recepÃƒÂ§ÃƒÂ£o de material sujo) nÃƒÂ£o opera sob pressÃƒÂ£o negativa constante em relaÃƒÂ§ÃƒÂ£o aos ambientes vizinhos, possibilitando vazamento de ar com patÃƒÂ³genos em suspensÃƒÂ£o.",
+        sugestao: "Ajustar o damper de retorno e exaustÃƒÂ£o mecÃƒÂ¢nica para gerar uma pressÃƒÂ£o negativa mÃƒÂ­nima de 2,5 Pa na sala de expurgo."
       },
       {
         codigo: "CME-02",
-        nome: "Falta de barreira tÃ©cnica (pass-through) na lavagem",
+        nome: "Falta de barreira tÃƒÂ©cnica (pass-through) na lavagem",
         severidade: "critico",
         norma: "RDC 15/2012",
-        descricao: "Falta de passa-pratos ou visor vedado na barreira que delimita a lavagem manual de materiais da sala de esterilizaÃ§Ã£o quÃ­mica.",
-        sugestao: "Instalar guichÃª estanque do tipo pass-through provido de intertravamento eletrÃ´nico de portas para transferÃªncia de kits limpos."
+        descricao: "Falta de passa-pratos ou visor vedado na barreira que delimita a lavagem manual de materiais da sala de esterilizaÃƒÂ§ÃƒÂ£o quÃƒÂ­mica.",
+        sugestao: "Instalar guichÃƒÂª estanque do tipo pass-through provido de intertravamento eletrÃƒÂ´nico de portas para transferÃƒÂªncia de kits limpos."
       }
     ];
 
     const labMocks: NaoConformidade[] = [
       {
         codigo: "LAB-01",
-        nome: "AusÃªncia de chuveiro de emergÃªncia e lava-olhos",
+        nome: "AusÃƒÂªncia de chuveiro de emergÃƒÂªncia e lava-olhos",
         severidade: "critico",
         norma: "NR 32 / RDC 50/2002",
-        descricao: "A bancada de manipulaÃ§Ã£o Ã¡cida e bacteriolÃ³gica nÃ£o dispÃµe de chuveiro de emergÃªncia e lava-olhos acoplado a uma distÃ¢ncia mÃ¡xima de 10 metros.",
-        sugestao: "Instalar um mÃ³dulo conjugado de chuveiro industrial e lava-olhos de emergÃªncia com acionamento manual rÃ¡pido por haste."
+        descricao: "A bancada de manipulaÃƒÂ§ÃƒÂ£o ÃƒÂ¡cida e bacteriolÃƒÂ³gica nÃƒÂ£o dispÃƒÂµe de chuveiro de emergÃƒÂªncia e lava-olhos acoplado a uma distÃƒÂ¢ncia mÃƒÂ¡xima de 10 metros.",
+        sugestao: "Instalar um mÃƒÂ³dulo conjugado de chuveiro industrial e lava-olhos de emergÃƒÂªncia com acionamento manual rÃƒÂ¡pido por haste."
       },
       {
         codigo: "LAB-02",
-        nome: "Armazenamento inadequado de gases inflamÃ¡veis",
+        nome: "Armazenamento inadequado de gases inflamÃƒÂ¡veis",
         severidade: "atencao",
         norma: "RDC 50/2002 / NR 20",
-        descricao: "Identificados cilindros de reposiÃ§Ã£o de gÃ¡s GLP encostados diretamente na parede interna de alvenaria do laboratÃ³rio de patologia.",
-        sugestao: "Remover os cilindros do ambiente interno e abrigÃ¡-los na central externa de cilindros de gases, dotada de veneziana de ventilaÃ§Ã£o natural."
+        descricao: "Identificados cilindros de reposiÃƒÂ§ÃƒÂ£o de gÃƒÂ¡s GLP encostados diretamente na parede interna de alvenaria do laboratÃƒÂ³rio de patologia.",
+        sugestao: "Remover os cilindros do ambiente interno e abrigÃƒÂ¡-los na central externa de cilindros de gases, dotada de veneziana de ventilaÃƒÂ§ÃƒÂ£o natural."
       }
     ];
 
     const consultorioMocks: NaoConformidade[] = [
       {
         codigo: "CONS-01",
-        nome: "Falta de pia de lavagem de mÃ£os no consultÃ³rio de exames",
+        nome: "Falta de pia de lavagem de mÃƒÂ£os no consultÃƒÂ³rio de exames",
         severidade: "atencao",
         norma: "RDC 50/2002",
-        descricao: "O consultÃ³rio planejado para a realizaÃ§Ã£o de consultas clÃ­nicas e exames ginecolÃ³gicos nÃ£o dispÃµe de pia interna integrada, dependendo da pia do banheiro social anexo.",
-        sugestao: "Instalar cuba em inox ou louÃ§a com torneira e dispenser de sabÃ£o diretamente na sala de exames fÃ­sicos."
+        descricao: "O consultÃƒÂ³rio planejado para a realizaÃƒÂ§ÃƒÂ£o de consultas clÃƒÂ­nicas e exames ginecolÃƒÂ³gicos nÃƒÂ£o dispÃƒÂµe de pia interna integrada, dependendo da pia do banheiro social anexo.",
+        sugestao: "Instalar cuba em inox ou louÃƒÂ§a com torneira e dispenser de sabÃƒÂ£o diretamente na sala de exames fÃƒÂ­sicos."
       },
       {
         codigo: "CONS-02",
-        nome: "IluminaÃ§Ã£o geral abaixo da faixa exigida para exames",
+        nome: "IluminaÃƒÂ§ÃƒÂ£o geral abaixo da faixa exigida para exames",
         severidade: "informativo",
         norma: "NBR ISO/CIE 8995-1",
-        descricao: "O fluxo luminoso medido horizontalmente na maca de exames Ã© de apenas 220 lux, sendo a especificaÃ§Ã£o regulamentar de no mÃ­nimo 500 lux para anÃ¡lises clÃ­nicas precisas.",
-        sugestao: "Redimensionar o arranjo de iluminaÃ§Ã£o no teto incluindo luminÃ¡rias de LED complementares ou adicionar um foco de luz articulado de pedestal."
+        descricao: "O fluxo luminoso medido horizontalmente na maca de exames ÃƒÂ© de apenas 220 lux, sendo a especificaÃƒÂ§ÃƒÂ£o regulamentar de no mÃƒÂ­nimo 500 lux para anÃƒÂ¡lises clÃƒÂ­nicas precisas.",
+        sugestao: "Redimensionar o arranjo de iluminaÃƒÂ§ÃƒÂ£o no teto incluindo luminÃƒÂ¡rias de LED complementares ou adicionar um foco de luz articulado de pedestal."
       }
     ];
 
-    const t = tipo.toLowerCase();
+    const t = tipo?.toLowerCase();
     if (t.includes("hospital")) return hospitalMocks;
-    if (t.includes("clÃ­nica") || t.includes("clinica")) return clinicaMocks;
+    if (t.includes("clÃƒÂ­nica") || t.includes("clinica")) return clinicaMocks;
     if (t.includes("cme")) return cmeMocks;
-    if (t.includes("laboratÃ³rio") || t.includes("laboratorio")) return labMocks;
-    if (t.includes("consultÃ³rio") || t.includes("consultorio")) return consultorioMocks;
+    if (t.includes("laboratÃƒÂ³rio") || t.includes("laboratorio")) return labMocks;
+    if (t.includes("consultÃƒÂ³rio") || t.includes("consultorio")) return consultorioMocks;
 
     return defaultMocks;
   };
@@ -244,7 +244,7 @@ export default function ProjectDetails() {
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200">
             <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />
-            Em anÃ¡lise
+            Em anÃƒÂ¡lise
           </span>
         );
       case "pendente":
@@ -284,14 +284,14 @@ export default function ProjectDetails() {
         return (
           <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            CrÃ­tico
+            CrÃƒÂ­tico
           </span>
         );
       case "atencao":
         return (
           <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            AtenÃ§Ã£o
+            AtenÃƒÂ§ÃƒÂ£o
           </span>
         );
       case "informativo":
@@ -305,18 +305,18 @@ export default function ProjectDetails() {
     }
   };
 
-  // Gerar resumo executivo dinÃ¢mico
+  // Gerar resumo executivo dinÃƒÂ¢mico
   const getResumoExecutivo = (proj: Projeto, totalInfracoes: number) => {
-    const nomeEst = proj.tipo_arquivo || "Estabelecimento de SaÃºde";
+    const nomeEst = proj.tipo_arquivo || "Estabelecimento de SaÃƒÂºde";
     if (proj.status === "aprovado" || proj.score_conformidade === 100) {
-      return `O projeto "${proj.nome_projeto}" foi analisado Ã  luz das normas regulatÃ³rias (RDC 50/2002 e correlatas) para ${nomeEst}. NÃ£o foram identificadas nÃ£o-conformidades de carÃ¡ter impeditivo. A prancha e fluxo arquitetÃ´nico encontram-se plenamente alinhados com as exigÃªncias sanitÃ¡rias vigentes.`;
+      return `O projeto "${proj.nome_projeto}" foi analisado ÃƒÂ  luz das normas regulatÃƒÂ³rias (RDC 50/2002 e correlatas) para ${nomeEst}. NÃƒÂ£o foram identificadas nÃƒÂ£o-conformidades de carÃƒÂ¡ter impeditivo. A prancha e fluxo arquitetÃƒÂ´nico encontram-se plenamente alinhados com as exigÃƒÂªncias sanitÃƒÂ¡rias vigentes.`;
     }
     
     if (proj.status === "pendente") {
-      return `O projeto "${proj.nome_projeto}" foi cadastrado no sistema e aguarda o processamento do motor regulatÃ³rio computÃ¡vel. As pranchas estÃ£o na fila para identificaÃ§Ã£o automÃ¡tica de barreiras, fluxos e arranjos espaciais em relaÃ§Ã£o Ã s diretrizes regulatÃ³rias da vigilÃ¢ncia sanitÃ¡ria.`;
+      return `O projeto "${proj.nome_projeto}" foi cadastrado no sistema e aguarda o processamento do motor regulatÃƒÂ³rio computÃƒÂ¡vel. As pranchas estÃƒÂ£o na fila para identificaÃƒÂ§ÃƒÂ£o automÃƒÂ¡tica de barreiras, fluxos e arranjos espaciais em relaÃƒÂ§ÃƒÂ£o ÃƒÂ s diretrizes regulatÃƒÂ³rias da vigilÃƒÂ¢ncia sanitÃƒÂ¡ria.`;
     }
 
-    return `O diagnÃ³stico arquitetÃ´nico automatizado para o projeto "${proj.nome_projeto}" (${nomeEst}) identificou um total de ${totalInfracoes} nÃ£o-conformidades estruturais e/ou de fluxo em relaÃ§Ã£o Ã s legislaÃ§Ãµes sanitÃ¡rias aplicÃ¡veis. O Ã­ndice global de conformidade atingiu ${proj.score_conformidade}%, indicando que ajustes corretivos sÃ£o necessÃ¡rios antes da submissÃ£o formal ao Ã³rgÃ£o fiscalizador competente.`;
+    return `O diagnÃƒÂ³stico arquitetÃƒÂ´nico automatizado para o projeto "${proj.nome_projeto}" (${nomeEst}) identificou um total de ${totalInfracoes} nÃƒÂ£o-conformidades estruturais e/ou de fluxo em relaÃƒÂ§ÃƒÂ£o ÃƒÂ s legislaÃƒÂ§ÃƒÂµes sanitÃƒÂ¡rias aplicÃƒÂ¡veis. O ÃƒÂ­ndice global de conformidade atingiu ${proj.score_conformidade}%, indicando que ajustes corretivos sÃƒÂ£o necessÃƒÂ¡rios antes da submissÃƒÂ£o formal ao ÃƒÂ³rgÃƒÂ£o fiscalizador competente.`;
   };
 
   const naoconformidades = projeto ? getMockNaoConformidades(projeto.tipo_arquivo) : [];
@@ -335,7 +335,7 @@ export default function ProjectDetails() {
           </span>
         </div>
 
-        {/* Menu de NavegaÃ§Ã£o */}
+        {/* Menu de NavegaÃƒÂ§ÃƒÂ£o */}
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button
             onClick={() => navigate("/dashboard")}
@@ -360,7 +360,7 @@ export default function ProjectDetails() {
           </button>
         </nav>
 
-        {/* RodapÃ© da Sidebar */}
+        {/* RodapÃƒÂ© da Sidebar */}
         <div className="p-4 border-t border-border">
           <button
             onClick={handleLogout}
@@ -372,7 +372,7 @@ export default function ProjectDetails() {
         </div>
       </aside>
 
-      {/* CONTEÃšDO PRINCIPAL */}
+      {/* CONTEÃƒÅ¡DO PRINCIPAL */}
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
         {/* Topo / Header */}
         <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
@@ -400,14 +400,14 @@ export default function ProjectDetails() {
                 {loading ? (
                   <span className="h-3 w-32 bg-slate-100 animate-pulse rounded block" />
                 ) : (
-                  `Laudo TÃ©cnico do Estabelecimento: ${projeto?.tipo_arquivo}`
+                  `Laudo TÃƒÂ©cnico do Estabelecimento: ${projeto?.tipo_arquivo}`
                 )}
               </p>
             </div>
           </div>
         </header>
 
-        {/* Ãrea de ConteÃºdo */}
+        {/* ÃƒÂrea de ConteÃƒÂºdo */}
         <div className="flex-1 p-8 space-y-8 max-w-5xl w-full mx-auto">
           {loading ? (
             <div className="min-h-[400px] flex flex-col justify-center items-center gap-3">
@@ -439,7 +439,7 @@ export default function ProjectDetails() {
                       }`}>
                         {score}%
                       </span>
-                      <span className="text-xs text-muted-foreground">de aprovaÃ§Ã£o</span>
+                      <span className="text-xs text-muted-foreground">de aprovaÃƒÂ§ÃƒÂ£o</span>
                     </div>
                   </div>
 
@@ -454,7 +454,7 @@ export default function ProjectDetails() {
                       />
                     </div>
                     <span className="text-[10px] text-muted-foreground block text-right font-medium">
-                      {status === "aprovado" ? "Conformidade Total" : "Ajustes sanitÃ¡rios pendentes"}
+                      {status === "aprovado" ? "Conformidade Total" : "Ajustes sanitÃƒÂ¡rios pendentes"}
                     </span>
                   </div>
                 </div>
@@ -471,28 +471,28 @@ export default function ProjectDetails() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-muted-foreground">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>AnÃ¡lise executada de acordo com as normas da ANVISA e ABNT aplicÃ¡veis.</span>
+                    <span>AnÃƒÂ¡lise executada de acordo com as normas da ANVISA e ABNT aplicÃƒÂ¡veis.</span>
                   </div>
                 </div>
               </div>
 
-              {/* LISTA DE NÃƒO-CONFORMIDADES */}
+              {/* LISTA DE NÃƒÆ’O-CONFORMIDADES */}
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-base font-bold text-[#1E293B]">
-                    NÃ£o-Conformidades Identificadas ({status === "aprovado" ? 0 : naoconformidades.length})
+                    NÃƒÂ£o-Conformidades Identificadas ({status === "aprovado" ? 0 : naoconformidades.length})
                   </h2>
                   <span className="text-xs text-muted-foreground font-medium">
-                    Regulamento TÃ©cnico: RDC 50/2002
+                    Regulamento TÃƒÂ©cnico: RDC 50/2002
                   </span>
                 </div>
 
                 {status === "aprovado" || naoconformidades.length === 0 ? (
                   <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
-                    <h3 className="text-base font-semibold">ParabÃ©ns! Nenhuma irregularidade</h3>
+                    <h3 className="text-base font-semibold">ParabÃƒÂ©ns! Nenhuma irregularidade</h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      O projeto atende a todas as especificaÃ§Ãµes sanitÃ¡rias analisadas.
+                      O projeto atende a todas as especificaÃƒÂ§ÃƒÂµes sanitÃƒÂ¡rias analisadas.
                     </p>
                   </div>
                 ) : (
@@ -520,20 +520,20 @@ export default function ProjectDetails() {
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
 
-                        {/* DescriÃ§Ã£o do Erro */}
+                        {/* DescriÃƒÂ§ÃƒÂ£o do Erro */}
                         <div className="space-y-1.5">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-                            Detalhamento TÃ©cnico da Irregularidade
+                            Detalhamento TÃƒÂ©cnico da Irregularidade
                           </span>
                           <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/50 border border-slate-100 p-3 rounded-lg">
                             {nc.descricao}
                           </p>
                         </div>
 
-                        {/* AÃ§Ã£o Corretiva Sugerida */}
+                        {/* AÃƒÂ§ÃƒÂ£o Corretiva Sugerida */}
                         <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg space-y-1.5">
                           <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">
-                            AÃ§Ã£o Corretiva Sugerida pelo Auditor AI
+                            AÃƒÂ§ÃƒÂ£o Corretiva Sugerida pelo Auditor AI
                           </span>
                           <p className="text-xs text-slate-800 font-medium">
                             {nc.sugestao}
