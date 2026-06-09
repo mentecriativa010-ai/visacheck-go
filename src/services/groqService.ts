@@ -1,4 +1,5 @@
-const CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export interface RegraRegulatoria {
   id: string; codigo: string; norma_origem: string;
@@ -6,13 +7,11 @@ export interface RegraRegulatoria {
   valor_minimo?: number; unidade?: string;
 }
 export interface ResultadoRegra {
-  regra_id: string; codigo: string; descricao: string;
-  categoria: string; status: "conforme" | "nao_conforme" | "nao_aplicavel";
-  justificativa: string;
+  regra_id: string; codigo: string; descricao: string; categoria: string;
+  status: "conforme" | "nao_conforme" | "nao_aplicavel"; justificativa: string;
 }
 export interface ResultadoAnalise {
-  resultados: ResultadoRegra[]; resumo: string;
-  score_geral: number; erro?: string;
+  resultados: ResultadoRegra[]; resumo: string; score_geral: number; erro?: string;
 }
 
 export async function extrairTextoPDF(arquivo: File): Promise<string> {
@@ -26,64 +25,69 @@ export async function extrairTextoPDF(arquivo: File): Promise<string> {
         const c = bytes[i];
         if ((c >= 32 && c <= 126) || c === 10 || c === 13) texto += String.fromCharCode(c);
       }
-      const linhas = texto.split(/\n|\r/).map(l => l.trim())
-        .filter(l => l.length > 5 && !/^[\d\s.()]+$/.test(l)).slice(0, 60).join("\n");
+      const linhas = texto.split(/\n|\r/).map((l) => l.trim())
+        .filter((l) => l.length > 5 && !/^[\d\s.()]+$/.test(l)).slice(0, 50).join("\n");
       resolve(linhas || "PDF sem texto legivel.");
     };
     reader.readAsArrayBuffer(arquivo);
   });
 }
 
-export async function analisarComGroq(textoPDF: string, regras: RegraRegulatoria[]): Promise<ResultadoAnalise> {
-  const lote = regras.slice(0, 35);
-  const listaRegras = lote.map(r => `[${r.codigo}] ${r.categoria}: ${r.descricao}`).join("\n");
-  const prompt = `Voce e um auditor de normas regulatorias de saude no Brasil (NBR 9050, RDC 50).
-Analise o texto do projeto e avalie cada regra. Responda APENAS JSON valido:
-{"resultados":[{"codigo":"X","status":"conforme","justificativa":"texto"}],"resumo":"2 frases"}
+async function analisarLote(textoPDF: string, lote: RegraRegulatoria[]): Promise<ResultadoRegra[]> {
+  if (!GEMINI_API_KEY) return [];
+  const listaRegras = lote.map((r) => `[${r.codigo}] ${r.descricao}`).join("\n");
+  const prompt = `Auditor de normas regulatorias de saude no Brasil. Analise o projeto e avalie as regras.
+Responda APENAS JSON: {"resultados":[{"codigo":"X","status":"conforme","justificativa":"texto curto"}]}
 Status: conforme, nao_conforme, nao_aplicavel.
-
-TEXTO: ${textoPDF.slice(0, 1500)}
-
+PROJETO: ${textoPDF.slice(0, 800)}
 REGRAS: ${listaRegras}`;
 
   try {
-    const response = await fetch(CLAUDE_API_URL, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 2048,
-        messages: [{ role: "user", content: prompt }]
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, maxOutputTokens: 1024 }
       }),
     });
-    if (!response.ok) {
-      const erro = await response.text();
-      return { resultados: [], resumo: "", score_geral: 0, erro: `Claude API erro ${response.status}: ${erro}` };
-    }
+    if (!response.ok) return [];
     const data = await response.json();
-    const conteudo = data.content?.[0]?.text || "";
-    let parsed: { resultados: any[]; resumo: string };
-    try {
-      parsed = JSON.parse(conteudo.replace(/```json|```/g, "").trim());
-    } catch {
-      return { resultados: [], resumo: "", score_geral: 0, erro: "Resposta invalida da API." };
-    }
-    const resultados: ResultadoRegra[] = parsed.resultados.map((r: any) => {
-      const regra = regras.find(rg => rg.codigo === r.codigo);
-      return { regra_id: regra?.id || r.codigo, codigo: r.codigo,
+    const conteudo = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const jsonLimpo = conteudo.replace(/```json|```/g, "").trim();
+    const parsed = JSON.parse(jsonLimpo);
+    return parsed.resultados.map((r: any) => {
+      const regra = lote.find((rg) => rg.codigo === r.codigo);
+      return {
+        regra_id: regra?.id || r.codigo, codigo: r.codigo,
         descricao: regra?.descricao || r.codigo, categoria: regra?.categoria || "Geral",
-        status: r.status || "nao_aplicavel", justificativa: r.justificativa || "" };
+        status: r.status || "nao_aplicavel", justificativa: r.justificativa || "",
+      };
     });
-    const aplicaveis = resultados.filter(r => r.status !== "nao_aplicavel");
-    const conformes = aplicaveis.filter(r => r.status === "conforme");
-    const score = aplicaveis.length > 0 ? Math.round((conformes.length / aplicaveis.length) * 100) : 0;
-    return { resultados, resumo: parsed.resumo || "", score_geral: score };
-  } catch (err: any) {
-    return { resultados: [], resumo: "", score_geral: 0, erro: `Erro: ${err.message}` };
+  } catch { return []; }
+}
+
+export async function analisarComGroq(textoPDF: string, regras: RegraRegulatoria[]): Promise<ResultadoAnalise> {
+  if (!GEMINI_API_KEY) {
+    return { resultados: [], resumo: "", score_geral: 0, erro: "Chave VITE_GEMINI_API_KEY nao configurada." };
   }
+
+  const TAMANHO_LOTE = 15;
+  const todosResultados: ResultadoRegra[] = [];
+
+  for (let i = 0; i < regras.length; i += TAMANHO_LOTE) {
+    const lote = regras.slice(i, i + TAMANHO_LOTE);
+    const resultadosLote = await analisarLote(textoPDF, lote);
+    todosResultados.push(...resultadosLote);
+    if (i + TAMANHO_LOTE < regras.length) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+
+  const aplicaveis = todosResultados.filter((r) => r.status !== "nao_aplicavel");
+  const conformes = aplicaveis.filter((r) => r.status === "conforme");
+  const score = aplicaveis.length > 0 ? Math.round((conformes.length / aplicaveis.length) * 100) : 0;
+  const resumo = `Analisadas ${todosResultados.length} regras. Score de conformidade: ${score}%. ${conformes.length} conformes, ${aplicaveis.length - conformes.length} nao conformes.`;
+
+  return { resultados: todosResultados, resumo, score_geral: score };
 }
