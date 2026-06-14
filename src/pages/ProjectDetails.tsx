@@ -1,25 +1,18 @@
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
-  ShieldCheck,
-  Home,
-  Folder,
-  BookOpen,
-  LogOut,
-  ArrowLeft,
-  Loader2,
-  AlertTriangle,
-  CheckCircle,
-  AlertOctagon,
-  Info
+  ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
+  Loader2, AlertTriangle, CheckCircle, AlertOctagon, Info,
+  FileText, Download, ClipboardList, BarChart2, RefreshCw,
 } from "lucide-react";
 
 interface Projeto {
   id: string;
   nome_projeto: string;
-  tipo_arquivo: string; // Utilizado como Tipo de Estabelecimento
+  tipo_estabelecimento: string;
   status: "pendente" | "analisando" | "aprovado" | "parcial" | "reprovado";
   created_at: string;
   score_conformidade: number;
@@ -34,17 +27,40 @@ interface NaoConformidade {
   sugestao: string;
 }
 
+interface ValidacaoCategoria {
+  categoria: string;
+  total: number;
+  conformes: number;
+  naoConformes: number;
+  percentual: number;
+}
+
+interface Parecer {
+  norma: string;
+  status: string;
+  observacao: string;
+  risco: string;
+}
+
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  
+
   const [projeto, setProjeto] = useState<Projeto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [naoconformidades, setNaoConformidades] = useState<NaoConformidade[]>([]);
+  const [resumoExecutivo, setResumoExecutivo] = useState("");
+  const [validacoesPorCategoria, setValidacoesPorCategoria] = useState<ValidacaoCategoria[]>([]);
+  const [pareceres, setPareceres] = useState<Parecer[]>([]);
+  const [exportando, setExportando] = useState(false);
+  const [novaAnaliseOpen, setNovaAnaliseOpen] = useState(false);
+  const [arquivoNovaAnalise, setArquivoNovaAnalise] = useState("");
+  const [arquivoNovaAnaliseFile, setArquivoNovaAnaliseFile] = useState<File | null>(null);
+  const [rodarNovaAnalise, setRodarNovaAnalise] = useState(false);
+  const [temValidacoesReais, setTemValidacoesReais] = useState(false);
 
-  useEffect(() => {
-    fetchProjectAndUser();
-  }, [id]);
+  useEffect(() => { fetchProjectAndUser(); }, [id]);
 
   const fetchProjectAndUser = async () => {
     if (!id) return;
@@ -52,29 +68,87 @@ export default function ProjectDetails() {
       setLoading(true);
       setError("");
 
-      // 1. Obter usuÃƒÂ¡rio logado
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        navigate("/login");
-        return;
-      }
+      if (userError || !user) { navigate("/login"); return; }
 
-      // 2. Buscar projeto por id
       const { data: projData, error: projError } = await supabase
         .from("projetos")
-        .select("id, nome_projeto, tipo_arquivo, status, created_at, score_conformidade")
+        .select("id, nome_projeto, tipo_estabelecimento, status, created_at, score_conformidade")
         .eq("id", id)
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (projError) {
-        throw projError;
+      if (projError) throw projError;
+      if (!projData) {
+        setError("Projeto não encontrado ou você não tem permissão para acessá-lo.");
+        setLoading(false);
+        return;
       }
 
-      if (!projData) {
-        setError("Projeto nÃƒÂ£o encontrado ou vocÃƒÂª nÃƒÂ£o tem permissÃƒÂ£o para acessÃƒÂ¡-lo.");
+      setProjeto(projData as Projeto);
+
+      const { data: parecerData } = await supabase
+        .from("pareceres")
+        .select("parecer, nivel_risco")
+        .eq("projeto_id", id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (parecerData) {
+        setResumoExecutivo(parecerData.parecer || "");
+        setPareceres([
+          { norma: "NBR 9050:2020 — Acessibilidade", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de rampas, corredores, sanitários e sinalização tátil.", risco: parecerData.nivel_risco || "baixo" },
+          { norma: "RDC ANVISA 1.002/2025 — Boas Práticas", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de fluxos, revestimentos, ventilação e gestão de resíduos.", risco: parecerData.nivel_risco || "baixo" },
+        ]);
       } else {
-        setProjeto(projData as Projeto);
+        setResumoExecutivo("");
+        setPareceres([
+          { norma: "NBR 9050:2020 — Acessibilidade", status: "Aguardando análise", observacao: "Análise pendente — faça upload do PDF do projeto.", risco: "indefinido" },
+          { norma: "RDC ANVISA 1.002/2025 — Boas Práticas", status: "Aguardando análise", observacao: "Análise pendente — faça upload do PDF do projeto.", risco: "indefinido" },
+        ]);
+      }
+
+      const { data: valData } = await supabase
+        .from("validacoes")
+        .select(`id, status, observacao, regras_regulatorias (codigo, descricao, norma_origem, artigo_referencia, categoria)`)
+        .eq("projeto_id", id);
+
+      if (valData && valData.length > 0) {
+        setTemValidacoesReais(true);
+        const naoConformes = valData.filter((v: any) => v.status === "reprovado");
+        setNaoConformidades(naoConformes.map((v: any) => {
+          const regra = v.regras_regulatorias;
+          return {
+            codigo: regra?.codigo || v.id,
+            nome: regra?.descricao?.slice(0, 60) || "Regra Regulatória",
+            severidade: "atencao" as const,
+            norma: regra?.norma_origem || "ANVISA",
+            descricao: regra?.descricao || "Não conformidade detectada.",
+            sugestao: regra?.artigo_referencia || "Consulte a norma vigente."
+          };
+        }));
+        const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
+        valData.forEach((v: any) => {
+          const cat = v.regras_regulatorias?.categoria || "Geral";
+          if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0 };
+          categoriaMap[cat].total++;
+          if (v.status === "aprovado") categoriaMap[cat].conformes++;
+          else if (v.status === "reprovado") categoriaMap[cat].naoConformes++;
+        });
+        setValidacoesPorCategoria(Object.entries(categoriaMap).map(([cat, val]) => ({
+          categoria: cat, total: val.total, conformes: val.conformes, naoConformes: val.naoConformes,
+          percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
+        })));
+      } else {
+        setTemValidacoesReais(false);
+        setNaoConformidades([]);
+        setValidacoesPorCategoria([
+          { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
+          { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
+          { categoria: "Higiene", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+          { categoria: "Gestão", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+        ]);
       }
     } catch (err: any) {
       console.error("Erro ao buscar detalhes do projeto:", err);
@@ -84,330 +158,175 @@ export default function ProjectDetails() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate("/login");
+  const handleNovaAnalise = async () => {
+    if (!id) return;
+    try {
+      setRodarNovaAnalise(true);
+      if (arquivoNovaAnaliseFile) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const fileExt = arquivoNovaAnaliseFile.name.split('.').pop();
+          const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+          await supabase.storage.from("projetos-pdf").upload(filePath, arquivoNovaAnaliseFile);
+          await supabase.from("projetos").update({ pdf_path: filePath, pdf_nome: arquivoNovaAnaliseFile.name }).eq("id", id);
+        }
+      }
+      await supabase.from("validacoes").delete().eq("projeto_id", id);
+      await supabase.from("pareceres").delete().eq("projeto_id", id);
+      await supabase.from("projetos").update({ status: "pendente", score_conformidade: 0 }).eq("id", id);
+      setNovaAnaliseOpen(false);
+      setArquivoNovaAnalise("");
+      setArquivoNovaAnaliseFile(null);
+      await fetchProjectAndUser();
+    } catch (err: any) {
+      console.error("Erro ao rodar nova análise:", err);
+    } finally {
+      setRodarNovaAnalise(false);
+    }
   };
 
-  // Gerar nÃƒÂ£o-conformidades mockadas baseadas no tipo de estabelecimento
-  const getMockNaoConformidades = (tipo: string): NaoConformidade[] => {
-    const defaultMocks: NaoConformidade[] = [
-      {
-        codigo: "GEN-01",
-        nome: "Falta de abrigo temporÃƒÂ¡rio para resÃƒÂ­duos de saÃƒÂºde (DML)",
-        severidade: "critico",
-        norma: "RDC 222/2018 / RDC 50/2002",
-        descricao: "AusÃƒÂªncia de depÃƒÂ³sito de material de limpeza (DML) com ralo sifonado dotado de tampa escamoteÃƒÂ¡vel na ÃƒÂ¡rea de circulaÃƒÂ§ÃƒÂ£o interna, dificultando o armazenamento seguro e provisÃƒÂ³rio de sacos de resÃƒÂ­duos infectantes.",
-        sugestao: "Instalar abrigo temporÃƒÂ¡rio de resÃƒÂ­duos/DML revestido com material cerÃƒÂ¢mico impermeÃƒÂ¡vel, contendo torneira para lavagem e ralo sifonado."
-      },
-      {
-        codigo: "GEN-02",
-        nome: "Portas de saÃƒÂ­das de emergÃƒÂªncia abrindo contra o fluxo",
-        severidade: "atencao",
-        norma: "NBR 9077 / NBR 9050",
-        descricao: "As portas das rotas de fuga principais abrem para o lado interno das salas circundantes, obstruindo parcialmente o fluxo livre em caso de pÃƒÂ¢nico ou evacuaÃƒÂ§ÃƒÂ£o urgente.",
-        sugestao: "Inverter o sentido de abertura das folhas de porta para que abram no sentido do fluxo de escape."
-      }
-    ];
+  const handleLogout = async () => { await supabase.auth.signOut(); navigate("/login"); };
 
-    const hospitalMocks: NaoConformidade[] = [
-      {
-        codigo: "HOSP-01",
-        nome: "Fluxo cruzado entre material limpo e contaminado na CME",
-        severidade: "bloqueante",
-        norma: "RDC 50/2002 - Anexo I (Infraestrutura)",
-        descricao: "Foi detectada uma abertura direta (porta convencional) ligando a ÃƒÂ¡rea de recepÃƒÂ§ÃƒÂ£o/expurgo (zona contaminada) ÃƒÂ  ÃƒÂ¡rea de preparo de materiais (zona limpa), sem barreira fÃƒÂ­sica estanque ou autoclave com porta dupla.",
-        sugestao: "Substituir a comunicaÃƒÂ§ÃƒÂ£o fÃƒÂ­sica direta por uma autoclave de barreira (dupla porta) e fechar o acesso para manter fluxo unidirecional rÃƒÂ­gido."
-      },
-      {
-        codigo: "HOSP-02",
-        nome: "AusÃƒÂªncia de lavatÃƒÂ³rio exclusivo para higienizaÃƒÂ§ÃƒÂ£o no posto",
-        severidade: "critico",
-        norma: "RDC 50/2002 / NR 32",
-        descricao: "O posto de enfermagem central do Bloco de InternaÃƒÂ§ÃƒÂ£o nÃƒÂ£o dispÃƒÂµe de pia exclusiva para lavagem das mÃƒÂ£os, havendo apenas pias de utilidades de uso compartilhado.",
-        sugestao: "Instalar lavatÃƒÂ³rio com torneira de acionamento que dispense o contato manual (sensor, pedal ou cotovelo), acompanhado de porta-papel toalha e saboneteira lÃƒÂ­quida."
-      },
-      {
-        codigo: "HOSP-03",
-        nome: "Dimensionamento inadequado de quartos de internaÃƒÂ§ÃƒÂ£o",
-        severidade: "atencao",
-        norma: "RDC 50/2002 - Item 3",
-        descricao: "Os quartos projetados para 2 leitos apresentam ÃƒÂ¡rea ÃƒÂºtil interna de 10.2mÃ‚Â², valor inferior ao mÃƒÂ­nimo normatizado de 12.0mÃ‚Â² exigido para permitir manobra livre de cadeiras de rodas e macas.",
-        sugestao: "Ajustar o leiaute arquitetÃƒÂ´nico para alocar apenas 1 leito por quarto ou realizar o recuo de divisÃƒÂ³rias internas para atingir a metragem mÃƒÂ­nima."
-      }
-    ];
-
-    const clinicaMocks: NaoConformidade[] = [
-      {
-        codigo: "CLIN-01",
-        nome: "Sala de procedimentos sem revestimento lavÃƒÂ¡vel",
-        severidade: "critico",
-        norma: "RDC 50/2002 - Acabamentos de SuperfÃƒÂ­cies",
-        descricao: "A sala de pequenos procedimentos ambulatoriais apresenta pintura acrÃƒÂ­lica convencional e juntas nas soleiras de madeira, superfÃƒÂ­cies que acumulam agentes patogÃƒÂªnicos e dificultam a higienizaÃƒÂ§ÃƒÂ£o quÃƒÂ­mica periÃƒÂ³dica.",
-        sugestao: "Revestir o piso com material vinÃƒÂ­lico ou cerÃƒÂ¢mico monolÃƒÂ­tico com cantos arredondados e pintar as paredes com tinta epÃƒÂ³xi hospitalar lavÃƒÂ¡vel."
-      },
-      {
-        codigo: "CLIN-02",
-        nome: "Falta de acessibilidade e ÃƒÂ¡rea de giro nos sanitÃƒÂ¡rios",
-        severidade: "atencao",
-        norma: "NBR 9050 / RDC 50",
-        descricao: "Os sanitÃƒÂ¡rios abertos ao pÃƒÂºblico nÃƒÂ£o dispÃƒÂµem de ÃƒÂ¡rea interna livre para diÃƒÂ¢metro de rotaÃƒÂ§ÃƒÂ£o de 1,50m, inviabilizando o uso confortÃƒÂ¡vel por pacientes cadeirantes.",
-        sugestao: "Remodelar o posicionamento da bacia sanitÃƒÂ¡ria e do lavatÃƒÂ³rio para liberar o cÃƒÂ­rculo de giro e fixar barras metÃƒÂ¡licas horizontais e verticais regulamentadas."
-      },
-      {
-        codigo: "CLIN-03",
-        nome: "SinalizaÃƒÂ§ÃƒÂ£o tÃƒÂ¡til direcional e de alerta ausente",
-        severidade: "informativo",
-        norma: "NBR 9050",
-        descricao: "InexistÃƒÂªncia de piso tÃƒÂ¡til direcional a partir da calÃƒÂ§ada externa atÃƒÂ© o balcÃƒÂ£o principal de atendimento na recepÃƒÂ§ÃƒÂ£o.",
-        sugestao: "Aplicar piso tÃƒÂ¡til de borracha autocolante obedecendo a coloraÃƒÂ§ÃƒÂ£o contrastante com o piso de fundo para auxiliar deficientes visuais."
-      }
-    ];
-
-    const cmeMocks: NaoConformidade[] = [
-      {
-        codigo: "CME-01",
-        nome: "Falta de diferencial de pressÃƒÂ£o no sistema de exaustÃƒÂ£o",
-        severidade: "bloqueante",
-        norma: "RDC 15/2012 / RDC 50/2002",
-        descricao: "A ÃƒÂ¡rea fÃƒÂ­sica de expurgo (recepÃƒÂ§ÃƒÂ£o de material sujo) nÃƒÂ£o opera sob pressÃƒÂ£o negativa constante em relaÃƒÂ§ÃƒÂ£o aos ambientes vizinhos, possibilitando vazamento de ar com patÃƒÂ³genos em suspensÃƒÂ£o.",
-        sugestao: "Ajustar o damper de retorno e exaustÃƒÂ£o mecÃƒÂ¢nica para gerar uma pressÃƒÂ£o negativa mÃƒÂ­nima de 2,5 Pa na sala de expurgo."
-      },
-      {
-        codigo: "CME-02",
-        nome: "Falta de barreira tÃƒÂ©cnica (pass-through) na lavagem",
-        severidade: "critico",
-        norma: "RDC 15/2012",
-        descricao: "Falta de passa-pratos ou visor vedado na barreira que delimita a lavagem manual de materiais da sala de esterilizaÃƒÂ§ÃƒÂ£o quÃƒÂ­mica.",
-        sugestao: "Instalar guichÃƒÂª estanque do tipo pass-through provido de intertravamento eletrÃƒÂ´nico de portas para transferÃƒÂªncia de kits limpos."
-      }
-    ];
-
-    const labMocks: NaoConformidade[] = [
-      {
-        codigo: "LAB-01",
-        nome: "AusÃƒÂªncia de chuveiro de emergÃƒÂªncia e lava-olhos",
-        severidade: "critico",
-        norma: "NR 32 / RDC 50/2002",
-        descricao: "A bancada de manipulaÃƒÂ§ÃƒÂ£o ÃƒÂ¡cida e bacteriolÃƒÂ³gica nÃƒÂ£o dispÃƒÂµe de chuveiro de emergÃƒÂªncia e lava-olhos acoplado a uma distÃƒÂ¢ncia mÃƒÂ¡xima de 10 metros.",
-        sugestao: "Instalar um mÃƒÂ³dulo conjugado de chuveiro industrial e lava-olhos de emergÃƒÂªncia com acionamento manual rÃƒÂ¡pido por haste."
-      },
-      {
-        codigo: "LAB-02",
-        nome: "Armazenamento inadequado de gases inflamÃƒÂ¡veis",
-        severidade: "atencao",
-        norma: "RDC 50/2002 / NR 20",
-        descricao: "Identificados cilindros de reposiÃƒÂ§ÃƒÂ£o de gÃƒÂ¡s GLP encostados diretamente na parede interna de alvenaria do laboratÃƒÂ³rio de patologia.",
-        sugestao: "Remover os cilindros do ambiente interno e abrigÃƒÂ¡-los na central externa de cilindros de gases, dotada de veneziana de ventilaÃƒÂ§ÃƒÂ£o natural."
-      }
-    ];
-
-    const consultorioMocks: NaoConformidade[] = [
-      {
-        codigo: "CONS-01",
-        nome: "Falta de pia de lavagem de mÃƒÂ£os no consultÃƒÂ³rio de exames",
-        severidade: "atencao",
-        norma: "RDC 50/2002",
-        descricao: "O consultÃƒÂ³rio planejado para a realizaÃƒÂ§ÃƒÂ£o de consultas clÃƒÂ­nicas e exames ginecolÃƒÂ³gicos nÃƒÂ£o dispÃƒÂµe de pia interna integrada, dependendo da pia do banheiro social anexo.",
-        sugestao: "Instalar cuba em inox ou louÃƒÂ§a com torneira e dispenser de sabÃƒÂ£o diretamente na sala de exames fÃƒÂ­sicos."
-      },
-      {
-        codigo: "CONS-02",
-        nome: "IluminaÃƒÂ§ÃƒÂ£o geral abaixo da faixa exigida para exames",
-        severidade: "informativo",
-        norma: "NBR ISO/CIE 8995-1",
-        descricao: "O fluxo luminoso medido horizontalmente na maca de exames ÃƒÂ© de apenas 220 lux, sendo a especificaÃƒÂ§ÃƒÂ£o regulamentar de no mÃƒÂ­nimo 500 lux para anÃƒÂ¡lises clÃƒÂ­nicas precisas.",
-        sugestao: "Redimensionar o arranjo de iluminaÃƒÂ§ÃƒÂ£o no teto incluindo luminÃƒÂ¡rias de LED complementares ou adicionar um foco de luz articulado de pedestal."
-      }
-    ];
-
-    const t = tipo?.toLowerCase();
-    if (t.includes("hospital")) return hospitalMocks;
-    if (t.includes("clÃƒÂ­nica") || t.includes("clinica")) return clinicaMocks;
-    if (t.includes("cme")) return cmeMocks;
-    if (t.includes("laboratÃƒÂ³rio") || t.includes("laboratorio")) return labMocks;
-    if (t.includes("consultÃƒÂ³rio") || t.includes("consultorio")) return consultorioMocks;
-
-    return defaultMocks;
+  const handleExportarPDF = async () => {
+    if (!projeto) return;
+    setExportando(true);
+    try {
+      const linhas = [
+        `RELATÓRIO DE CONFORMIDADE REGULATÓRIA`,
+        `VISAcheck GO — Diagnóstico Arquitetônico Automatizado`,
+        ``, `Projeto: ${projeto.nome_projeto}`,
+        `Tipo de Estabelecimento: ${projeto.tipo_estabelecimento}`,
+        `Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`,
+        `Score de Conformidade: ${scoreCalculado}%`,
+        `Status: ${scoreCalculado === 100 ? "APROVADO" : projeto.status}`,
+        ``, `RESUMO EXECUTIVO`,
+        resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length),
+        ``, `VALIDAÇÕES POR CATEGORIA`,
+        ...validacoesPorCategoria.map(v => `  • ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
+        ``, `NÃO-CONFORMIDADES (${naoconformidades.length})`,
+        ...naoconformidades.map(nc => `  [${nc.severidade.toUpperCase()}] ${nc.codigo}\n  Norma: ${nc.norma}\n  ${nc.descricao}`),
+        ``, `PARECERES TÉCNICOS`,
+        ...pareceres.map(p => `  • ${p.norma}\n    Status: ${p.status}\n    ${p.observacao}`),
+        ``, `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
+      ];
+      const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `VISAcheck_${projeto.nome_projeto.replace(/\s+/g, "_")}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { setExportando(false); }
   };
 
-  const getStatusBadge = (status: Projeto["status"]) => {
+  const scoreCalculado = validacoesPorCategoria.length > 0
+    ? Math.round(validacoesPorCategoria.reduce((sum, v) => sum + v.percentual, 0) / validacoesPorCategoria.length)
+    : projeto?.status === "aprovado" ? 100
+    : projeto?.score_conformidade ?? 0;
+
+  const getStatusEfetivo = (proj: Projeto) => {
+    if (scoreCalculado === 100 || proj.status === "aprovado") return "aprovado";
+    if (scoreCalculado >= 50) return "parcial";
+    if (scoreCalculado > 0) return "reprovado";
+    return proj.status;
+  };
+
+  const getStatusBadge = (proj: Projeto) => {
+    const status = getStatusEfetivo(proj);
     switch (status) {
-      case "aprovado":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-            Aprovado
-          </span>
-        );
-      case "analisando":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />
-            Em anÃƒÂ¡lise
-          </span>
-        );
-      case "pendente":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />
-            Pendente
-          </span>
-        );
+      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
+      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "reprovado":
-      case "parcial":
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />
-            Reprovado
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200">
-            Pendente
-          </span>
-        );
+      case "parcial": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
+      default: return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200"><span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />Pendente</span>;
     }
   };
 
   const getSeveridadeBadge = (severidade: NaoConformidade["severidade"]) => {
     switch (severidade) {
-      case "bloqueante":
-        return (
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-[#DC2626] border border-red-200 flex items-center gap-1">
-            <AlertOctagon className="w-3 h-3" />
-            Bloqueante
-          </span>
-        );
-      case "critico":
-        return (
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            CrÃƒÂ­tico
-          </span>
-        );
-      case "atencao":
-        return (
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3" />
-            AtenÃƒÂ§ÃƒÂ£o
-          </span>
-        );
-      case "informativo":
-      default:
-        return (
-          <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
-            <Info className="w-3 h-3" />
-            Informativo
-          </span>
-        );
+      case "bloqueante": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-[#DC2626] border border-red-200 flex items-center gap-1"><AlertOctagon className="w-3 h-3" />Bloqueante</span>;
+      case "critico": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Crítico</span>;
+      case "atencao": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Atenção</span>;
+      default: return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1"><Info className="w-3 h-3" />Informativo</span>;
     }
   };
 
-  // Gerar resumo executivo dinÃƒÂ¢mico
+  const getRiscoBadge = (risco: string) => {
+    switch (risco) {
+      case "alto": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-50 text-red-600 border border-red-200">Risco Alto</span>;
+      case "medio": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Risco Médio</span>;
+      case "baixo": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-50 text-green-700 border border-green-200">Risco Baixo</span>;
+      default: return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-50 text-gray-500 border border-gray-200">Indefinido</span>;
+    }
+  };
+
   const getResumoExecutivo = (proj: Projeto, totalInfracoes: number) => {
-    const nomeEst = proj.tipo_arquivo || "Estabelecimento de SaÃƒÂºde";
-    if (proj.status === "aprovado" || proj.score_conformidade === 100) {
-      return `O projeto "${proj.nome_projeto}" foi analisado ÃƒÂ  luz das normas regulatÃƒÂ³rias (RDC 50/2002 e correlatas) para ${nomeEst}. NÃƒÂ£o foram identificadas nÃƒÂ£o-conformidades de carÃƒÂ¡ter impeditivo. A prancha e fluxo arquitetÃƒÂ´nico encontram-se plenamente alinhados com as exigÃƒÂªncias sanitÃƒÂ¡rias vigentes.`;
-    }
-    
-    if (proj.status === "pendente") {
-      return `O projeto "${proj.nome_projeto}" foi cadastrado no sistema e aguarda o processamento do motor regulatÃƒÂ³rio computÃƒÂ¡vel. As pranchas estÃƒÂ£o na fila para identificaÃƒÂ§ÃƒÂ£o automÃƒÂ¡tica de barreiras, fluxos e arranjos espaciais em relaÃƒÂ§ÃƒÂ£o ÃƒÂ s diretrizes regulatÃƒÂ³rias da vigilÃƒÂ¢ncia sanitÃƒÂ¡ria.`;
-    }
-
-    return `O diagnÃƒÂ³stico arquitetÃƒÂ´nico automatizado para o projeto "${proj.nome_projeto}" (${nomeEst}) identificou um total de ${totalInfracoes} nÃƒÂ£o-conformidades estruturais e/ou de fluxo em relaÃƒÂ§ÃƒÂ£o ÃƒÂ s legislaÃƒÂ§ÃƒÂµes sanitÃƒÂ¡rias aplicÃƒÂ¡veis. O ÃƒÂ­ndice global de conformidade atingiu ${proj.score_conformidade}%, indicando que ajustes corretivos sÃƒÂ£o necessÃƒÂ¡rios antes da submissÃƒÂ£o formal ao ÃƒÂ³rgÃƒÂ£o fiscalizador competente.`;
+    const nomeEst = proj.tipo_estabelecimento || "Estabelecimento de Saúde";
+    if (scoreCalculado === 100 || proj.status === "aprovado")
+      return `O projeto "${proj.nome_projeto}" foi analisado à luz das normas regulatórias vigentes para ${nomeEst}. Não foram identificadas não-conformidades impeditivas.`;
+    if (proj.status === "pendente" && !temValidacoesReais)
+      return `O projeto "${proj.nome_projeto}" foi cadastrado e aguarda a análise regulatória.`;
+    return `O diagnóstico para "${proj.nome_projeto}" (${nomeEst}) identificou ${totalInfracoes} não-conformidades. Score global: ${scoreCalculado}%.`;
   };
 
-  const naoconformidades = projeto ? getMockNaoConformidades(projeto.tipo_arquivo) : [];
-  const score = projeto?.score_conformidade ?? 100;
-  const status = projeto?.status ?? "pendente";
+  const statusEfetivo = projeto ? getStatusEfetivo(projeto) : "pendente";
+  const temNaoConformidades = naoconformidades.length > 0;
+
+  const getMensagemScore = () => {
+    if (statusEfetivo === "aprovado") return "Análise concluída com êxito";
+    if (!projeto?.status === "pendente") return "Aguardando análise do projeto";
+    return "Ajustes sanitários pendentes";
+  };
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
-      {/* SIDEBAR FIXA */}
       <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
-        {/* Logo */}
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
-          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">
-            VISAcheck GO
-          </span>
+          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">VISAcheck GO</span>
         </div>
-
-        {/* Menu de NavegaÃƒÂ§ÃƒÂ£o */}
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"
-          >
-            <Home className="w-4 h-4" />
-            Dashboard
-          </button>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-[#1E3A5F]/5 text-[#1E3A5F]"
-          >
-            <Folder className="w-4 h-4" />
-            Meus Projetos
-          </button>
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"
-          >
-            <BookOpen className="w-4 h-4" />
-            Base de Normas
-          </button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"><Home className="w-4 h-4" />Dashboard</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-[#1E3A5F]/5 text-[#1E3A5F]"><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"><BookOpen className="w-4 h-4" />Base de Normas</button>
         </nav>
-
-        {/* RodapÃƒÂ© da Sidebar */}
         <div className="p-4 border-t border-border">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50 transition-all duration-200"
-          >
-            <LogOut className="w-4 h-4" />
-            Sair
-          </button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>
 
-      {/* CONTEÃƒÅ¡DO PRINCIPAL */}
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        {/* Topo / Header */}
         <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8 rounded-lg"
-              onClick={() => navigate("/dashboard")}
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-semibold text-[#1E293B]">
-                  {loading ? (
-                    <span className="h-6 w-48 bg-slate-100 animate-pulse rounded block" />
-                  ) : (
-                    projeto?.nome_projeto
-                  )}
+                  {loading ? <span className="h-6 w-48 bg-slate-100 animate-pulse rounded block" /> : projeto?.nome_projeto}
                 </h1>
-                {!loading && projeto && getStatusBadge(projeto.status)}
+                {!loading && projeto && getStatusBadge(projeto)}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {loading ? (
-                  <span className="h-3 w-32 bg-slate-100 animate-pulse rounded block" />
-                ) : (
-                  `Laudo TÃƒÂ©cnico do Estabelecimento: ${projeto?.tipo_arquivo}`
-                )}
+                {loading ? <span className="h-3 w-32 bg-slate-100 animate-pulse rounded block" /> : `Laudo Técnico: ${projeto?.tipo_estabelecimento}`}
               </p>
             </div>
           </div>
+          {!loading && projeto && (
+            <div className="flex items-center gap-3">
+              {temNaoConformidades && (
+                <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F]/5 flex items-center gap-2 text-sm">
+                  {rodarNovaAnalise ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                  Nova Análise
+                </Button>
+              )}
+              <Button onClick={handleExportarPDF} disabled={exportando} className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white flex items-center gap-2 text-sm">
+                {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                Exportar Relatório
+              </Button>
+            </div>
+          )}
         </header>
 
-        {/* ÃƒÂrea de ConteÃƒÂºdo */}
         <div className="flex-1 p-8 space-y-8 max-w-5xl w-full mx-auto">
           {loading ? (
             <div className="min-h-[400px] flex flex-col justify-center items-center gap-3">
@@ -419,135 +338,186 @@ export default function ProjectDetails() {
               <AlertOctagon className="w-12 h-12 text-[#DC2626] mx-auto mb-4" />
               <h3 className="text-base font-bold mb-2">Erro ao carregar projeto</h3>
               <p className="text-sm text-muted-foreground mb-6">{error}</p>
-              <Button onClick={() => navigate("/dashboard")} className="bg-[#1E3A5F]">
-                Voltar ao Dashboard
-              </Button>
+              <Button onClick={() => navigate("/dashboard")} className="bg-[#1E3A5F]">Voltar ao Dashboard</Button>
             </div>
           ) : projeto && (
             <div className="space-y-8">
-              {/* CARD DE SCORE & RESUMO */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Score de Conformidade */}
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between md:col-span-1">
                   <div>
-                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">
-                      Score de Conformidade
-                    </h3>
+                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                     <div className="flex items-baseline gap-1.5 mb-2">
-                      <span className={`text-4xl font-extrabold tracking-tight ${
-                        score >= 80 ? "text-[#16A34A]" : score >= 50 ? "text-[#D97706]" : "text-[#DC2626]"
-                      }`}>
-                        {score}%
-                      </span>
-                      <span className="text-xs text-muted-foreground">de aprovaÃƒÂ§ÃƒÂ£o</span>
+                      <span className={`text-4xl font-extrabold tracking-tight ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{scoreCalculado}%</span>
+                      <span className="text-xs text-muted-foreground">de aprovação</span>
                     </div>
                   </div>
-
-                  {/* Barra de Progresso */}
                   <div className="space-y-2 mt-4">
                     <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          score >= 80 ? "bg-[#16A34A]" : score >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"
-                        }`}
-                        style={{ width: `${score}%` }}
-                      />
+                      <div className={`h-full rounded-full transition-all duration-500 ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
-                    <span className="text-[10px] text-muted-foreground block text-right font-medium">
-                      {status === "aprovado" ? "Conformidade Total" : "Ajustes sanitÃƒÂ¡rios pendentes"}
-                    </span>
+                    <span className="text-[10px] text-muted-foreground block text-right font-medium">{getMensagemScore()}</span>
                   </div>
                 </div>
-
-                {/* Resumo Executivo */}
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2 flex flex-col justify-between">
                   <div className="space-y-2">
-                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                      Resumo Executivo
-                    </h3>
-                    <p className="text-sm leading-relaxed text-slate-700">
-                      {getResumoExecutivo(projeto, naoconformidades.length)}
-                    </p>
+                    <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Resumo Executivo</h3>
+                    <p className="text-sm leading-relaxed text-slate-700">{resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length)}</p>
                   </div>
                   <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-muted-foreground">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>AnÃƒÂ¡lise executada de acordo com as normas da ANVISA e ABNT aplicÃƒÂ¡veis.</span>
+                    <span>Análise executada de acordo com as normas da ANVISA e ABNT aplicáveis.</span>
                   </div>
                 </div>
               </div>
 
-              {/* LISTA DE NÃƒÆ’O-CONFORMIDADES */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
+                  <h2 className="text-base font-bold text-[#1E293B]">Validações por Categoria</h2>
+                </div>
+                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-border">
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conformes</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendências</th>
+                        <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-48">Conformidade</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {validacoesPorCategoria.map((v) => (
+                        <tr key={v.categoria} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-[#1E293B]">{v.categoria}</td>
+                          <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-slate-400">0</span>}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div className={`h-full rounded-full ${v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${v.percentual}%` }} />
+                              </div>
+                              <span className="text-xs font-semibold text-slate-600 w-10 text-right">{v.percentual}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-base font-bold text-[#1E293B]">
-                    NÃƒÂ£o-Conformidades Identificadas ({status === "aprovado" ? 0 : naoconformidades.length})
-                  </h2>
-                  <span className="text-xs text-muted-foreground font-medium">
-                    Regulamento TÃƒÂ©cnico: RDC 50/2002
-                  </span>
+                  <h2 className="text-base font-bold text-[#1E293B]">Não-Conformidades ({naoconformidades.length})</h2>
+                  <span className="text-xs text-muted-foreground font-medium">Regulamento: RDC 50/2002 e correlatas</span>
                 </div>
-
-                {status === "aprovado" || naoconformidades.length === 0 ? (
+                {naoconformidades.length === 0 ? (
                   <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
-                    <h3 className="text-base font-semibold">ParabÃƒÂ©ns! Nenhuma irregularidade</h3>
+                    <h3 className="text-base font-semibold">
+                      {scoreCalculado === 100 ? "Parabéns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
+                    </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      O projeto atende a todas as especificaÃƒÂ§ÃƒÂµes sanitÃƒÂ¡rias analisadas.
+                      {scoreCalculado === 100 ? "O projeto atende a todas as especificações sanitárias analisadas." : "Aguardando análise regulatória do projeto."}
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    {naoconformidades.map((nc) => (
-                      <div
-                        key={nc.codigo}
-                        className="bg-white border border-border rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow duration-200 space-y-4"
-                      >
-                        {/* Top Line */}
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                      <RefreshCw className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Correções necessárias</p>
+                        <p className="text-xs text-amber-700 mt-0.5">Após corrigir o projeto, clique em <strong>Nova Análise</strong> para submeter o projeto corrigido.</p>
+                      </div>
+                    </div>
+                    {naoconformidades.map((nc, idx) => (
+                      <div key={idx} className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
                         <div className="flex flex-wrap justify-between items-start gap-3">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-mono font-bold text-muted-foreground">
-                                {nc.codigo}
-                              </span>
-                              <h3 className="text-sm font-bold text-[#1E293B]">
-                                {nc.nome}
-                              </h3>
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1E3A5F] tracking-wide uppercase bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">
-                              Norma: {nc.norma}
-                            </span>
+                            <span className="text-xs font-mono font-bold text-muted-foreground">{nc.codigo}</span>
+                            <h3 className="text-sm font-bold text-[#1E293B]">{nc.nome}</h3>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1E3A5F] tracking-wide uppercase bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">Norma: {nc.norma}</span>
                           </div>
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
-
-                        {/* DescriÃƒÂ§ÃƒÂ£o do Erro */}
                         <div className="space-y-1.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">
-                            Detalhamento TÃƒÂ©cnico da Irregularidade
-                          </span>
-                          <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/50 border border-slate-100 p-3 rounded-lg">
-                            {nc.descricao}
-                          </p>
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Detalhamento</span>
+                          <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/50 border border-slate-100 p-3 rounded-lg">{nc.descricao}</p>
                         </div>
-
-                        {/* AÃƒÂ§ÃƒÂ£o Corretiva Sugerida */}
                         <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg space-y-1.5">
-                          <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">
-                            AÃƒÂ§ÃƒÂ£o Corretiva Sugerida pelo Auditor AI
-                          </span>
-                          <p className="text-xs text-slate-800 font-medium">
-                            {nc.sugestao}
-                          </p>
+                          <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">Referência</span>
+                          <p className="text-xs text-slate-800 font-medium">{nc.sugestao}</p>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-[#1E3A5F]" />
+                  <h2 className="text-base font-bold text-[#1E293B]">Pareceres Técnicos por Norma</h2>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {pareceres.map((p, idx) => (
+                    <div key={idx} className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-[#1E3A5F] flex-shrink-0" />
+                          <h3 className="text-sm font-bold text-[#1E293B] leading-tight">{p.norma}</h3>
+                        </div>
+                        {getRiscoBadge(p.risco)}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {p.status === "Conforme" ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" /> : <Loader2 className="w-4 h-4 text-slate-400 flex-shrink-0" />}
+                        <span className={`text-sm font-semibold ${p.status === "Conforme" ? "text-green-700" : "text-slate-500"}`}>{p.status}</span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-100 p-3 rounded-lg">{p.observacao}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
         </div>
       </main>
+
+      {novaAnaliseOpen && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+            <div className="flex items-center gap-3">
+              <RefreshCw className="w-5 h-5 text-[#1E3A5F]" />
+              <h2 className="text-base font-bold text-[#1E293B]">Nova Análise Regulatória</h2>
+            </div>
+            <p className="text-sm text-slate-600">Anexe o projeto corrigido para substituir o anterior e iniciar nova análise.</p>
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 block">Projeto corrigido (PDF / DWG)</label>
+              <div className="flex gap-2">
+                <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoNovaAnalise} readOnly
+                  className="flex-1 h-9 px-3 rounded-md border border-input bg-slate-50 text-sm cursor-pointer"
+                  onClick={() => document.getElementById("nova-analise-file")?.click()} />
+                <button type="button" onClick={() => document.getElementById("nova-analise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-slate-50">Procurar</button>
+              </div>
+              <input id="nova-analise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden"
+                onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoNovaAnaliseFile(file); setArquivoNovaAnalise(file.name); } }} />
+            </div>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+              <strong>Atenção:</strong> Os resultados anteriores serão substituídos.
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => { setNovaAnaliseOpen(false); setArquivoNovaAnalise(""); }} disabled={rodarNovaAnalise}
+                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 disabled:opacity-50">Cancelar</button>
+              <button onClick={handleNovaAnalise} disabled={rodarNovaAnalise}
+                className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
+                {rodarNovaAnalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Nova Análise</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

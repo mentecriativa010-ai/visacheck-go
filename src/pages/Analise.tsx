@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   CheckCircle, AlertTriangle, AlertOctagon, ChevronRight,
   ChevronLeft, Loader2, ClipboardList, BarChart2, Download,
+  Zap, Upload, XCircle,
 } from "lucide-react";
+import { extrairTextoPDF, analisarComGroq, ResultadoAnalise } from "@/services/groqService";
 
 interface Regra {
   id: string;
@@ -16,7 +18,7 @@ interface Regra {
   descricao: string;
   norma_origem: string | null;
   categoria: string | null;
-  subcategoria: string | null;
+  
 }
 
 const TIPOS_ESTABELECIMENTO = [
@@ -29,17 +31,28 @@ const TIPOS_ESTABELECIMENTO = [
   "Outro",
 ];
 
+type EtapaIA = "idle" | "extraindo_pdf" | "analisando" | "salvando" | "concluido" | "erro";
+
 export default function Analise() {
   const navigate = useNavigate();
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const [passo, setPasso] = useState(1);
   const [nomeProjeto, setNomeProjeto] = useState("");
   const [tipoEstabelecimento, setTipoEstabelecimento] = useState("Hospital Geral");
+  const [arquivoNome, setArquivoNome] = useState<string | null>(null);
+
+  // Estados da análise IA
+  const [etapaIA, setEtapaIA] = useState<EtapaIA>("idle");
+  const [progressoIA, setProgressoIA] = useState(0);
+  const [erroIA, setErroIA] = useState<string | null>(null);
+
+  // Dados do resultado
   const [regras, setRegras] = useState<Regra[]>([]);
   const [respostas, setRespostas] = useState<Record<string, "conforme" | "nao_conforme" | "nao_aplicavel">>({});
-  const [loadingRegras, setLoadingRegras] = useState(false);
-  const [salvando, setSalvando] = useState(false);
   const [projetoSalvoId, setProjetoSalvoId] = useState<string | null>(null);
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
+  const [resultadoIA, setResultadoIA] = useState<ResultadoAnalise | null>(null);
 
   useEffect(() => {
     verificarAuth();
@@ -55,115 +68,145 @@ export default function Analise() {
     navigate("/login");
   };
 
-  const carregarRegras = async () => {
-    setLoadingRegras(true);
+  const handleArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const arquivo = e.target.files?.[0];
+    if (!arquivo) return;
+    if (arquivo.type !== "application/pdf") {
+      alert("Por favor, selecione um arquivo PDF.");
+      return;
+    }
+    setArquivoNome(arquivo.name);
+    setErroIA(null);
+  };
+
+  const iniciarAnaliseAutomatica = async () => {
+    if (!nomeProjeto.trim() || !inputRef.current?.files?.[0]) return;
+    const arquivo = inputRef.current.files[0];
+
+    setErroIA(null);
+    setEtapaIA("extraindo_pdf");
+    setProgressoIA(10);
+
     try {
-      const { data, error } = await supabase
+      // 1. Extrair texto do PDF
+      const textoPDF = await extrairTextoPDF(arquivo);
+
+      // 2. Buscar regras do Supabase
+      setEtapaIA("analisando");
+      setProgressoIA(30);
+      const { data: regrasData, error: erroRegras } = await supabase
         .from("regras_regulatorias")
-        .select("id, codigo, descricao, norma_origem, categoria, subcategoria")
-        .order("categoria", { ascending: true });
-      if (!error && data) {
-        setRegras(data as Regra[]);
-        // Inicializa todas as respostas como "nao_aplicavel"
-        const init: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
-        data.forEach((r: Regra) => { init[r.id] = "nao_aplicavel"; });
-        setRespostas(init);
-        // Define primeira categoria ativa
-        if (data.length > 0) setCategoriaAtiva(data[0].categoria ?? "");
+        .select("*")
+        ;
+
+      if (erroRegras || !regrasData || regrasData.length === 0) {
+        throw new Error("Não foi possível buscar as regras do banco de dados.");
       }
-    } finally {
-      setLoadingRegras(false);
+
+      setRegras(regrasData as Regra[]);
+      setProgressoIA(50);
+
+      // 3. Analisar com IA (OpenRouter)
+      const analise = await analisarComGroq(textoPDF, regrasData as any);
+
+      if (analise.erro) throw new Error(analise.erro);
+
+      setProgressoIA(75);
+      setResultadoIA(analise);
+
+      // 4. Montar respostas a partir do resultado da IA
+      const novasRespostas: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
+      regrasData.forEach((r: Regra) => { novasRespostas[r.id] = "nao_aplicavel"; });
+      analise.resultados.forEach((res) => {
+        if (novasRespostas.hasOwnProperty(res.regra_id)) {
+          novasRespostas[res.regra_id] = res.status;
+        }
+      });
+      setRespostas(novasRespostas);
+      if (regrasData.length > 0) setCategoriaAtiva(regrasData[0].categoria ?? "");
+
+      // 5. Salvar no banco
+      setEtapaIA("salvando");
+      setProgressoIA(85);
+      await salvarNoBanco(regrasData as Regra[], novasRespostas, analise.score_geral, analise.resumo);
+
+      setProgressoIA(100);
+      setEtapaIA("concluido");
+      setPasso(3);
+    } catch (err: any) {
+      setErroIA(err.message || "Erro desconhecido na análise.");
+      setEtapaIA("erro");
     }
   };
 
-  const avancarPasso1 = async () => {
-    if (!nomeProjeto.trim()) return;
-    await carregarRegras();
-    setPasso(2);
-  };
-
-  const categorias = [...new Set(regras.map(r => r.categoria))];
-
-  const regrasPorCategoria = regras.filter(r => r.categoria === categoriaAtiva);
-
-  const totalRespondidas = Object.values(respostas).filter(v => v !== "nao_aplicavel").length;
-  const totalAplicaveis = Object.values(respostas).filter(v => v !== "nao_aplicavel").length;
+  // Cálculos de score a partir das respostas
   const totalConformes = Object.values(respostas).filter(v => v === "conforme").length;
   const totalNaoConformes = Object.values(respostas).filter(v => v === "nao_conforme").length;
+  const totalAplicaveis = Object.values(respostas).filter(v => v !== "nao_aplicavel").length;
+  const scoreCalculado = resultadoIA?.score_geral ?? (totalAplicaveis > 0 ? Math.round((totalConformes / totalAplicaveis) * 100) : 0);
 
-  const scoreCalculado = totalAplicaveis > 0
-    ? Math.round((totalConformes / totalAplicaveis) * 100)
-    : 0;
+  const categorias = [...new Set(regras.map(r => r.categoria))];
+  const regrasPorCategoria = regras.filter(r => r.categoria === categoriaAtiva);
+  const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
 
   const validacoesPorCategoria = categorias.map(cat => {
     const regrasCat = regras.filter(r => r.categoria === cat);
     const aplicaveis = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel");
     const conformes = regrasCat.filter(r => respostas[r.id] === "conforme");
-    const naoConformes = regrasCat.filter(r => respostas[r.id] === "nao_conforme");
+    const naoConf = regrasCat.filter(r => respostas[r.id] === "nao_conforme");
     const pct = aplicaveis.length > 0 ? Math.round((conformes.length / aplicaveis.length) * 100) : 100;
-    return { categoria: cat, total: aplicaveis.length, conformes: conformes.length, naoConformes: naoConformes.length, percentual: pct };
+    return { categoria: cat, total: aplicaveis.length, conformes: conformes.length, naoConformes: naoConf.length, percentual: pct };
   });
 
-  const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
+  const salvarNoBanco = async (
+    regrasParam: Regra[],
+    respostasParam: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel">,
+    score: number,
+    resumo: string
+  ) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-  const salvarNoBanco = async () => {
-    setSalvando(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const { data: proj, error: projError } = await supabase
+      .from("projetos")
+      .insert({
+        nome_projeto: nomeProjeto,
+        tipo_estabelecimento: tipoEstabelecimento,
+        user_id: user.id,
+        status: score === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente",
+        score_conformidade: score,
+      })
+      .select("id")
+      .single();
 
-      const { data: proj, error: projError } = await supabase
-        .from("projetos")
-        .insert({
-          nome_projeto: nomeProjeto,
-          tipo_estabelecimento: tipoEstabelecimento,
-          user_id: user.id,
-          status: scoreCalculado === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente",
-          score_conformidade: scoreCalculado,
-        })
-        .select("id")
-        .single();
+    if (projError || !proj) throw projError;
 
-      if (projError || !proj) throw projError;
-
-      // Insere validações
-      const validacoes = regras
-        .filter(r => respostas[r.id] !== "nao_aplicavel")
-        .map(r => ({
-          projeto_id: proj.id,
-          regra_id: r.id,
-          status: respostas[r.id] === "conforme" ? "aprovado" : "reprovado",
-          observacao: respostas[r.id] === "conforme" ? "Conforme verificação manual" : "Não conformidade identificada",
-        }));
-
-      if (validacoes.length > 0) {
-        await supabase.from("validacoes").insert(validacoes);
-      }
-
-      // Insere parecer
-      const resumo = scoreCalculado === 100
-        ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}.`
-        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformes} não-conformidades. Score: ${scoreCalculado}%.`;
-
-      await supabase.from("pareceres").insert({
+    const validacoes = regrasParam
+      .filter(r => respostasParam[r.id] !== "nao_aplicavel")
+      .map(r => ({
         projeto_id: proj.id,
-        parecer: resumo,
-        nivel_risco: scoreCalculado === 100 ? "baixo" : scoreCalculado >= 70 ? "medio" : "alto",
-      });
+        regra_id: r.id,
+        status: respostasParam[r.id] === "conforme" ? "aprovado" : "reprovado",
+        observacao: respostasParam[r.id] === "conforme" ? "Conforme — análise automática por IA" : "Não conformidade identificada pela IA",
+      }));
 
-      setProjetoSalvoId(proj.id);
-      setPasso(3);
-    } catch (err) {
-      console.error("Erro ao salvar análise:", err);
-    } finally {
-      setSalvando(false);
+    if (validacoes.length > 0) {
+      await supabase.from("validacoes").insert(validacoes);
     }
+
+    await supabase.from("pareceres").insert({
+      projeto_id: proj.id,
+      parecer: resumo,
+      nivel_risco: score === 100 ? "baixo" : score >= 70 ? "medio" : "alto",
+    });
+
+    setProjetoSalvoId(proj.id);
   };
 
   const exportarRelatorio = () => {
     const linhas = [
       `RELATÓRIO DE CONFORMIDADE REGULATÓRIA`,
-      `VISAcheck GO — Diagnóstico Manual`,
+      `VISAcheck GO — Diagnóstico Automático por IA`,
       ``,
       `Projeto: ${nomeProjeto}`,
       `Tipo: ${tipoEstabelecimento}`,
@@ -185,6 +228,17 @@ export default function Analise() {
     a.download = `VISAcheck_${nomeProjeto.replace(/\s+/g, "_")}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const emProgresso = etapaIA !== "idle" && etapaIA !== "concluido" && etapaIA !== "erro";
+
+  const mensagemEtapa: Record<EtapaIA, string> = {
+    idle: "",
+    extraindo_pdf: "Lendo o PDF...",
+    analisando: "IA analisando as regras regulatórias... (pode levar até 30s)",
+    salvando: "Salvando resultados...",
+    concluido: "Análise concluída!",
+    erro: "Erro na análise",
   };
 
   return (
@@ -212,147 +266,118 @@ export default function Analise() {
           <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
             <h1 className="text-xl font-semibold text-[#1E293B]">Nova Análise Regulatória</h1>
-            <p className="text-xs text-muted-foreground">Diagnóstico manual baseado nas normas ANVISA e ABNT</p>
+            <p className="text-xs text-muted-foreground">Diagnóstico automático por IA — ANVISA e ABNT</p>
           </div>
-          {/* INDICADOR DE PASSOS */}
           <div className="ml-auto flex items-center gap-2">
-            {[1, 2, 3].map(p => (
+            {[1, 2].map(p => (
               <div key={p} className="flex items-center gap-2">
                 <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-slate-100 text-slate-400"}`}>{p}</div>
-                {p < 3 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-slate-200"}`} />}
+                {p < 2 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-slate-200"}`} />}
               </div>
             ))}
             <div className="ml-3 text-xs text-muted-foreground">
-              {passo === 1 ? "Dados do projeto" : passo === 2 ? "Checklist regulatório" : "Resultado"}
+              {passo === 1 ? "Dados do projeto" : "Resultado"}
             </div>
           </div>
         </header>
 
-        <div className="flex-1 p-8 max-w-5xl w-full mx-auto">
+        <div className="flex-1 p-8 max-w-2xl w-full mx-auto">
 
-          {/* PASSO 1: DADOS DO PROJETO */}
+          {/* PASSO 1: DADOS + UPLOAD */}
           {passo === 1 && (
-            <div className="max-w-lg mx-auto space-y-6">
+            <div className="space-y-6">
               <div className="bg-white border border-border rounded-xl p-8 shadow-sm space-y-6">
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 bg-[#1E3A5F]/10 rounded-full flex items-center justify-center mx-auto">
-                    <ClipboardList className="w-6 h-6 text-[#1E3A5F]" />
+                    <Zap className="w-6 h-6 text-[#1E3A5F]" />
                   </div>
-                  <h2 className="text-lg font-bold text-[#1E293B]">Dados do Projeto</h2>
-                  <p className="text-sm text-muted-foreground">Preencha as informações básicas para iniciar o diagnóstico</p>
+                  <h2 className="text-lg font-bold text-[#1E293B]">Análise Automática com IA</h2>
+                  <p className="text-sm text-muted-foreground">Preencha os dados e faça upload do PDF — a IA avalia todas as regras automaticamente</p>
                 </div>
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="nome">Nome do Projeto</Label>
-                    <Input id="nome" value={nomeProjeto} onChange={e => setNomeProjeto(e.target.value)} placeholder="Ex: UPA Norte — Reforma Ala B" />
+                    <Input id="nome" value={nomeProjeto} onChange={e => setNomeProjeto(e.target.value)} placeholder="Ex: UPA Norte — Reforma Ala B" disabled={emProgresso} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tipo">Tipo de Estabelecimento</Label>
-                    <select id="tipo" value={tipoEstabelecimento} onChange={e => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                    <select id="tipo" value={tipoEstabelecimento} onChange={e => setTipoEstabelecimento(e.target.value)} disabled={emProgresso} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                       {TIPOS_ESTABELECIMENTO.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
-                </div>
-                <Button onClick={avancarPasso1} disabled={!nomeProjeto.trim() || loadingRegras} className="w-full bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2">
-                  {loadingRegras ? <><Loader2 className="w-4 h-4 animate-spin" />Carregando regras...</> : <>Iniciar Checklist<ChevronRight className="w-4 h-4" /></>}
-                </Button>
-              </div>
-            </div>
-          )}
 
-          {/* PASSO 2: CHECKLIST */}
-          {passo === 2 && (
-            <div className="space-y-6">
-              {/* PROGRESSO */}
-              <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-[#1E293B]">{nomeProjeto}</h2>
-                    <p className="text-xs text-muted-foreground">{tipoEstabelecimento} · {regras.length} regras a verificar</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Respondidas</p>
-                    <p className="text-lg font-bold text-[#1E3A5F]">{totalRespondidas}<span className="text-sm font-normal text-muted-foreground">/{regras.length}</span></p>
-                  </div>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="h-2 rounded-full bg-[#1E3A5F] transition-all duration-300" style={{ width: `${(totalRespondidas / regras.length) * 100}%` }} />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-6">
-                {/* MENU DE CATEGORIAS */}
-                <div className="col-span-1 space-y-1">
-                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Categorias</p>
-                  {categorias.map(cat => {
-                    const regrasCat = regras.filter(r => r.categoria === cat);
-                    const respondidas = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel").length;
-                    const todas = regrasCat.length;
-                    return (
-                      <button key={cat} onClick={() => setCategoriaAtiva(cat ?? "")} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
-                        <span className="block truncate">{cat}</span>
-                        <span className={`text-[10px] ${categoriaAtiva === cat ? "text-blue-200" : "text-muted-foreground"}`}>{respondidas}/{todas}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* REGRAS DA CATEGORIA */}
-                <div className="col-span-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-[#1E293B]">{categoriaAtiva}</h3>
-                    <span className="text-xs text-muted-foreground">{regrasPorCategoria.length} regras</span>
-                  </div>
-                  {regrasPorCategoria.map(regra => (
-                    <div key={regra.id} className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 bg-green-50/30" : respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30" : "border-border"}`}>
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-bold text-[#1E3A5F] bg-[#1E3A5F]/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
-                            <span className="text-[10px] font-mono text-muted-foreground">{regra.codigo}</span>
-                          </div>
-                          <p className="text-xs text-slate-700 leading-relaxed">{regra.descricao}</p>
+                  {/* UPLOAD DO PDF */}
+                  <div className="space-y-2">
+                    <Label>PDF do Projeto</Label>
+                    <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleArquivo} disabled={emProgresso} />
+                    <div
+                      onClick={() => !emProgresso && inputRef.current?.click()}
+                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      {arquivoNome ? (
+                        <div className="flex items-center justify-center gap-2 text-green-700">
+                          <CheckCircle className="w-5 h-5" />
+                          <span className="text-sm font-medium">{arquivoNome}</span>
                         </div>
-                        {/* BOTÕES DE RESPOSTA */}
-                        <div className="flex gap-1.5 flex-shrink-0">
-                          <button
-                            onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}
-                          >✓ Conforme</button>
-                          <button
-                            onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}
-                          >✗ Não conforme</button>
-                          <button
-                            onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-slate-500 text-white border-slate-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}
-                          >— N/A</button>
+                      ) : (
+                        <div className="space-y-1">
+                          <Upload className="w-6 h-6 text-slate-400 mx-auto" />
+                          <p className="text-sm text-slate-500">Clique para selecionar o PDF</p>
+                          <p className="text-xs text-slate-400">Planta baixa, memorial descritivo, laudo técnico...</p>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-
-                  {/* NAVEGAÇÃO ENTRE CATEGORIAS */}
-                  <div className="flex justify-between pt-2">
-                    <Button variant="outline" onClick={() => { const i = categorias.indexOf(categoriaAtiva); if (i > 0) setCategoriaAtiva(categorias[i - 1] ?? ""); }} disabled={categorias.indexOf(categoriaAtiva) === 0} className="gap-2">
-                      <ChevronLeft className="w-4 h-4" />Anterior
-                    </Button>
-                    {categorias.indexOf(categoriaAtiva) < categorias.length - 1 ? (
-                      <Button onClick={() => { const i = categorias.indexOf(categoriaAtiva); setCategoriaAtiva(categorias[i + 1] ?? ""); }} className="bg-[#1E3A5F] text-white gap-2">
-                        Próxima categoria<ChevronRight className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button onClick={salvarNoBanco} disabled={salvando} className="bg-green-600 hover:bg-green-700 text-white gap-2">
-                        {salvando ? <><Loader2 className="w-4 h-4 animate-spin" />Salvando...</> : <>Finalizar e ver resultado<ChevronRight className="w-4 h-4" /></>}
-                      </Button>
-                    )}
                   </div>
                 </div>
+
+                {/* PROGRESSO DA IA */}
+                {emProgresso && (
+                  <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {mensagemEtapa[etapaIA]}
+                    </div>
+                    <div className="w-full bg-blue-100 rounded-full h-2">
+                      <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressoIA}%` }} />
+                    </div>
+                    <p className="text-xs text-blue-600">{progressoIA}% concluído</p>
+                  </div>
+                )}
+
+                {/* ERRO */}
+                {etapaIA === "erro" && erroIA && (
+                  <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-red-600 font-semibold text-sm">
+                      <XCircle className="w-4 h-4" />
+                      Erro na análise
+                    </div>
+                    <p className="text-xs text-red-600">{erroIA}</p>
+                    <Button variant="outline" size="sm" onClick={() => { setEtapaIA("idle"); setErroIA(null); setProgressoIA(0); }} className="text-xs">
+                      Tentar novamente
+                    </Button>
+                  </div>
+                )}
+
+                <Button
+                  onClick={iniciarAnaliseAutomatica}
+                  disabled={!nomeProjeto.trim() || !arquivoNome || emProgresso}
+                  className="w-full bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2"
+                >
+                  {emProgresso
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Analisando...</>
+                    : <><Zap className="w-4 h-4" />Analisar com IA<ChevronRight className="w-4 h-4" /></>
+                  }
+                </Button>
+
+                <p className="text-center text-xs text-slate-400">
+                  Usa OpenRouter (LLaMA 3.1 8B) — gratuito no plano free
+                </p>
               </div>
             </div>
           )}
 
-          {/* PASSO 3: RESULTADO */}
+          {/* PASSO 2 (RESULTADO) */}
           {passo === 3 && (
             <div className="space-y-8">
               {/* SCORE */}
@@ -365,25 +390,74 @@ export default function Analise() {
                       <div className={`h-3 rounded-full ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
                     <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${scoreCalculado === 100 ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
-                      {scoreCalculado === 100 ? "✓ APROVADO" : `${totalNaoConformes} não-conformidades`}
+                      {scoreCalculado === 100 ? "✔ APROVADO" : `${totalNaoConformes} não-conformidades`}
                     </span>
                   </div>
                 </div>
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3">Resumo da Análise</h3>
                   <p className="text-sm text-slate-700 leading-relaxed">
-                    {scoreCalculado === 100
-                      ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}. Nenhuma não-conformidade foi identificada.`
-                      : `O diagnóstico de "${nomeProjeto}" (${tipoEstabelecimento}) identificou ${totalNaoConformes} não-conformidades entre ${totalRespondidas} itens verificados. Score global: ${scoreCalculado}%.`
-                    }
+                    {resultadoIA?.resumo || (scoreCalculado === 100
+                      ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}.`
+                      : `O diagnóstico de "${nomeProjeto}" (${tipoEstabelecimento}) identificou ${totalNaoConformes} não-conformidades. Score global: ${scoreCalculado}%.`
+                    )}
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-700"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
                     <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
-                    <div className="flex items-center gap-2 text-slate-500"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalRespondidas} não aplicáveis</span></div>
+                    <div className="flex items-center gap-2 text-slate-500"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalAplicaveis} não aplicáveis</span></div>
                   </div>
                 </div>
               </div>
+
+              {/* CHECKLIST REVISÁVEL */}
+              {regras.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold">Checklist Preenchido pela IA</h2>
+                    <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">Você pode revisar abaixo</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-4">
+                    <div className="col-span-1 space-y-1">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2 mb-2">Categorias</p>
+                      {categorias.map(cat => {
+                        const regrasCat = regras.filter(r => r.categoria === cat);
+                        const respondidas = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel").length;
+                        return (
+                          <button key={cat} onClick={() => setCategoriaAtiva(cat ?? "")} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
+                            <span className="block truncate">{cat}</span>
+                            <span className={`text-[10px] ${categoriaAtiva === cat ? "text-blue-200" : "text-muted-foreground"}`}>{respondidas}/{regrasCat.length}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="col-span-3 space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {regrasPorCategoria.map(regra => (
+                        <div key={regra.id} className={`bg-white border rounded-xl p-3 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 bg-green-50/30" : respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30" : "border-border"}`}>
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-bold text-[#1E3A5F] bg-[#1E3A5F]/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
+                                <span className="text-[10px] font-mono text-muted-foreground">{regra.codigo}</span>
+                              </div>
+                              <p className="text-xs text-slate-700 leading-relaxed">{regra.descricao}</p>
+                            </div>
+                            <div className="flex gap-1 flex-shrink-0">
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}>✔</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}>✗</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-slate-500 text-white border-slate-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>N/A</button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      <div className="flex justify-between pt-1">
+                        <Button variant="outline" size="sm" onClick={() => { const i = categorias.indexOf(categoriaAtiva); if (i > 0) setCategoriaAtiva(categorias[i - 1] ?? ""); }} disabled={categorias.indexOf(categoriaAtiva) === 0} className="gap-1 text-xs"><ChevronLeft className="w-3 h-3" />Anterior</Button>
+                        <Button variant="outline" size="sm" onClick={() => { const i = categorias.indexOf(categoriaAtiva); if (i < categorias.length - 1) setCategoriaAtiva(categorias[i + 1] ?? ""); }} disabled={categorias.indexOf(categoriaAtiva) === categorias.length - 1} className="gap-1 text-xs">Próxima<ChevronRight className="w-3 h-3" /></Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* VALIDAÇÕES POR CATEGORIA */}
               <div className="space-y-4">
@@ -430,7 +504,7 @@ export default function Analise() {
                   <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
                   <div className="space-y-4">
                     {naoConformidades.map(nc => (
-                      <div key={nc.id} className="bg-white border border-red-200 rounded-xl p-5 shadow-sm space-y-3">
+                      <div key={nc.id} className="bg-white border border-red-200 rounded-xl p-5 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
