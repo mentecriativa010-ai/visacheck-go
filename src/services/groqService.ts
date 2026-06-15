@@ -78,7 +78,7 @@ ${listaRegras}`;
         "X-Title": "VISAcheck GO",
       },
       body: JSON.stringify({
-        model: "deepseek/deepseek-r1:free",
+        model: "mistralai/mistral-7b-instruct:free",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 1024,
         temperature: 0.1,
