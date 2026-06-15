@@ -56,11 +56,11 @@ async function analisarLote(
 ): Promise<ResultadoRegra[]> {
   if (!OPENROUTER_API_KEY) return [];
   const listaRegras = lote.map((r) => `[${r.codigo}] ${r.descricao}`).join("\n");
-  const prompt = `Voce e um auditor de normas regulatorias de estabelecimentos de saude no Brasil.
+  const prompt = `Voce e um auditor de normas regulatorias de estabelecimentos de saude no Brasil. Seja criterioso e justo: use nao_conforme APENAS quando o texto do projeto claramente contradiz a regra. Se o texto nao menciona a regra ou nao ha informacao suficiente para avaliar, use nao_aplicavel. Use conforme quando o texto confirma ou é compativel com a regra.
 Analise o texto do projeto arquitetonico e avalie CADA UMA das regras abaixo, na ordem.
 Responda APENAS com JSON valido, sem markdown:
 [{"codigo":"COD1","status":"conforme","justificativa":"motivo curto"}]
-Use status: conforme, nao_conforme, ou nao_aplicavel. O array deve ter exatamente ${lote.length} itens, na mesma ordem das regras abaixo. Nao escreva nada antes ou depois do array.
+Use status: conforme quando confirmado, nao_conforme APENAS quando claramente violado, nao_aplicavel quando sem informacao suficiente. O array deve ter exatamente ${lote.length} itens, na mesma ordem das regras abaixo. Nao escreva nada antes ou depois do array.
 
 TEXTO DO PROJETO:
 ${textoPDF.slice(0, 1000)}
