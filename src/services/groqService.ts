@@ -42,7 +42,7 @@ export async function extrairTextoPDF(arquivo: File): Promise<string> {
         .map((l) => l.trim())
         .filter((l) => l.length > 2)
         .filter((l) => /[a-zA-ZÀ-ú=²%,./]/.test(l))
-        .slice(0, 200)
+        .slice(0, 500)
         .join("\n");
       resolve(linhas || "PDF sem texto legivel.");
     };
@@ -63,7 +63,7 @@ Responda APENAS com JSON valido, sem markdown:
 Use status: conforme quando confirmado, nao_conforme APENAS quando claramente violado, nao_aplicavel quando sem informacao suficiente. O array deve ter exatamente ${lote.length} itens, na mesma ordem das regras abaixo. Nao escreva nada antes ou depois do array.
 
 TEXTO DO PROJETO:
-${textoPDF.slice(0, 1000)}
+${textoPDF.slice(0, 3000)}
 
 REGRAS A AVALIAR:
 ${listaRegras}`;
@@ -78,7 +78,7 @@ ${listaRegras}`;
         "X-Title": "VISAcheck GO",
       },
       body: JSON.stringify({
-        model: "openrouter/free",
+        model: "meta-llama/llama-3.1-8b-instruct:free",
         messages: [{ role: "user", content: prompt }],
         max_tokens: 1024,
         temperature: 0.1,
