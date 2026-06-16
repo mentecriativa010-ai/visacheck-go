@@ -18,7 +18,7 @@ interface Regra {
   descricao: string;
   norma_origem: string | null;
   categoria: string | null;
-  
+  subcategoria: string | null;
 }
 
 const TIPOS_ESTABELECIMENTO = [
@@ -96,8 +96,8 @@ export default function Analise() {
       setProgressoIA(30);
       const { data: regrasData, error: erroRegras } = await supabase
         .from("regras_regulatorias")
-        .select("*")
-        ;
+        .select("id, codigo, descricao, norma_origem, categoria, subcategoria")
+        .order("categoria", { ascending: true });
 
       if (erroRegras || !regrasData || regrasData.length === 0) {
         throw new Error("Não foi possível buscar as regras do banco de dados.");
@@ -175,6 +175,7 @@ export default function Analise() {
         user_id: user.id,
         status: score === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente",
         score_conformidade: score,
+        resumo_executivo: resumo,
       })
       .select("id")
       .single();
