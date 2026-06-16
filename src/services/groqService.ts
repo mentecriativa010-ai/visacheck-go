@@ -50,6 +50,67 @@ export async function extrairTextoPDF(arquivo: File): Promise<string> {
   });
 }
 
+function extrairRetryDelay(mensagemErro: string): number {
+  // Tenta extrair "Please try again in 18.24s" da mensagem da Groq
+  const match = mensagemErro.match(/try again in ([\d.]+)s/i);
+  if (match) {
+    const segundos = parseFloat(match[1]);
+    return Math.ceil(segundos * 1000) + 1000; // +1s de margem
+  }
+  return 15000; // fallback: 15s
+}
+
+async function chamarGroqComRetry(
+  prompt: string,
+  maxTentativas = 3
+): Promise<string | null> {
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${GROQ_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: "llama-3.1-8b-instant",
+          messages: [{ role: "user", content: prompt }],
+          max_tokens: 1500,
+          temperature: 0.1,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        return data.choices?.[0]?.message?.content || "";
+      }
+
+      const errText = await response.text();
+
+      // Rate limit: espera o tempo indicado e tenta de novo
+      if (response.status === 429) {
+        const delay = extrairRetryDelay(errText);
+        console.warn(`Rate limit (tentativa ${tentativa}/${maxTentativas}). Aguardando ${delay}ms...`);
+        if (tentativa < maxTentativas) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      console.error("Groq API error:", response.status, errText);
+      return null;
+    } catch (err) {
+      console.error(`Erro de rede (tentativa ${tentativa}/${maxTentativas}):`, err);
+      if (tentativa < maxTentativas) {
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        continue;
+      }
+      return null;
+    }
+  }
+  return null;
+}
+
 async function analisarLote(
   textoPDF: string,
   lote: RegraRegulatoria[]
@@ -63,32 +124,15 @@ Responda APENAS com JSON valido, sem markdown:
 Use status: conforme quando confirmado, nao_conforme APENAS quando claramente violado, nao_aplicavel quando sem informacao suficiente. O array deve ter exatamente ${lote.length} itens, na mesma ordem das regras abaixo. Nao escreva nada antes ou depois do array.
 
 TEXTO DO PROJETO:
-${textoPDF.slice(0, 3000)}
+${textoPDF.slice(0, 2000)}
 
 REGRAS A AVALIAR:
 ${listaRegras}`;
 
+  const conteudo = await chamarGroqComRetry(prompt);
+  if (!conteudo) return [];
+
   try {
-    const response = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 2048,
-        temperature: 0.1,
-      }),
-    });
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Groq API error:", response.status, errText);
-      return [];
-    }
-    const data = await response.json();
-    const conteudo = data.choices?.[0]?.message?.content || "";
     const jsonLimpo = conteudo.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(jsonLimpo);
     return (Array.isArray(parsed) ? parsed : (parsed.resultados || [parsed])).map((r: any) => {
@@ -103,7 +147,7 @@ ${listaRegras}`;
       };
     });
   } catch (err) {
-    console.error("Erro ao processar lote:", err);
+    console.error("Erro ao parsear resposta da IA:", err, conteudo);
     return [];
   }
 }
@@ -121,7 +165,7 @@ export async function analisarComGroq(
     };
   }
 
-  const TAMANHO_LOTE = 15;
+  const TAMANHO_LOTE = 8;
   const todosResultados: ResultadoRegra[] = [];
 
   for (let i = 0; i < regras.length; i += TAMANHO_LOTE) {
@@ -129,7 +173,7 @@ export async function analisarComGroq(
     const resultadosLote = await analisarLote(textoPDF, lote);
     todosResultados.push(...resultadosLote);
     if (i + TAMANHO_LOTE < regras.length) {
-      await new Promise((resolve) => setTimeout(resolve, 8000));
+      await new Promise((resolve) => setTimeout(resolve, 12000));
     }
   }
 
