@@ -380,7 +380,7 @@ export default function Analise() {
                     <Label>PDF do Projeto</Label>
                     <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleArquivo} disabled={emProgresso} />
                     <div
-                      onClick={() => !emProgresso && inputRef.current?.click()}
+                      onClick={() => { if (!emProgresso) inputRef.current?.click(); }}
                       className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {arquivoNome ? (
