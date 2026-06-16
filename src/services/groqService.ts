@@ -1,5 +1,5 @@
-const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
 export interface RegraRegulatoria {
   id: string;
@@ -54,7 +54,7 @@ async function analisarLote(
   textoPDF: string,
   lote: RegraRegulatoria[]
 ): Promise<ResultadoRegra[]> {
-  if (!GEMINI_API_KEY) return [];
+  if (!GROQ_API_KEY) return [];
   const listaRegras = lote.map((r) => `[${r.codigo}] ${r.descricao}`).join("\n");
   const prompt = `Voce e um auditor de normas regulatorias de estabelecimentos de saude no Brasil. Seja criterioso e justo: use nao_conforme APENAS quando o texto do projeto claramente contradiz a regra. Se o texto nao menciona a regra ou nao ha informacao suficiente para avaliar, use nao_aplicavel. Use conforme quando o texto confirma ou é compativel com a regra.
 Analise o texto do projeto arquitetonico e avalie CADA UMA das regras abaixo, na ordem.
@@ -69,26 +69,26 @@ REGRAS A AVALIAR:
 ${listaRegras}`;
 
   try {
-    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(GROQ_API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 2048,
-        },
+        model: "llama-3.1-8b-instant",
+        messages: [{ role: "user", content: prompt }],
+        max_tokens: 2048,
+        temperature: 0.1,
       }),
     });
     if (!response.ok) {
       const errText = await response.text();
-      console.error("Gemini API error:", response.status, errText);
+      console.error("Groq API error:", response.status, errText);
       return [];
     }
     const data = await response.json();
-    const conteudo = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const conteudo = data.choices?.[0]?.message?.content || "";
     const jsonLimpo = conteudo.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(jsonLimpo);
     return (Array.isArray(parsed) ? parsed : (parsed.resultados || [parsed])).map((r: any) => {
@@ -112,12 +112,12 @@ export async function analisarComGroq(
   textoPDF: string,
   regras: RegraRegulatoria[]
 ): Promise<ResultadoAnalise> {
-  if (!GEMINI_API_KEY) {
+  if (!GROQ_API_KEY) {
     return {
       resultados: [],
       resumo: "",
       score_geral: 0,
-      erro: "Chave VITE_GEMINI_API_KEY nao configurada no Vercel.",
+      erro: "Chave VITE_GROQ_API_KEY nao configurada no Vercel.",
     };
   }
 
@@ -129,7 +129,7 @@ export async function analisarComGroq(
     const resultadosLote = await analisarLote(textoPDF, lote);
     todosResultados.push(...resultadosLote);
     if (i + TAMANHO_LOTE < regras.length) {
-      await new Promise((resolve) => setTimeout(resolve, 4000));
+      await new Promise((resolve) => setTimeout(resolve, 8000));
     }
   }
 
