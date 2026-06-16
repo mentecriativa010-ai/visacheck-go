@@ -8,7 +8,7 @@ import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   CheckCircle, AlertTriangle, AlertOctagon, ChevronRight,
   ChevronLeft, Loader2, ClipboardList, BarChart2, Download,
-  Zap, Upload, XCircle,
+  Zap, Upload, XCircle, Building2,
 } from "lucide-react";
 import { extrairTextoPDF, analisarComGroq, ResultadoAnalise } from "@/services/groqService";
 
@@ -19,6 +19,7 @@ interface Regra {
   norma_origem: string | null;
   categoria: string | null;
   subcategoria: string | null;
+  ambiente: string[] | null;
 }
 
 const TIPOS_ESTABELECIMENTO = [
@@ -31,6 +32,27 @@ const TIPOS_ESTABELECIMENTO = [
   "Outro",
 ];
 
+const AMBIENTES_POR_TIPO: Record<string, string[]> = {
+  "Hospital Geral": [
+    "Centro Cirúrgico",
+    "CME",
+    "UTI",
+    "Pronto Socorro",
+    "Internação",
+    "Ambulatório",
+    "Farmácia",
+    "Laboratório",
+    "Radiologia",
+    "Geral",
+  ],
+  "Clínica Médica": ["Ambulatório", "Farmácia", "Laboratório", "Geral"],
+  "Consultório": ["Ambulatório", "Geral"],
+  "CME": ["CME", "Geral"],
+  "Laboratório": ["Laboratório", "Geral"],
+  "Distribuidora": ["Farmácia", "Geral"],
+  "Outro": ["Geral"],
+};
+
 type EtapaIA = "idle" | "extraindo_pdf" | "analisando" | "salvando" | "concluido" | "erro";
 
 export default function Analise() {
@@ -40,23 +62,25 @@ export default function Analise() {
   const [passo, setPasso] = useState(1);
   const [nomeProjeto, setNomeProjeto] = useState("");
   const [tipoEstabelecimento, setTipoEstabelecimento] = useState("Hospital Geral");
+  const [ambientesSelecionados, setAmbientesSelecionados] = useState<string[]>([]);
   const [arquivoNome, setArquivoNome] = useState<string | null>(null);
 
-  // Estados da análise IA
   const [etapaIA, setEtapaIA] = useState<EtapaIA>("idle");
   const [progressoIA, setProgressoIA] = useState(0);
   const [erroIA, setErroIA] = useState<string | null>(null);
 
-  // Dados do resultado
   const [regras, setRegras] = useState<Regra[]>([]);
   const [respostas, setRespostas] = useState<Record<string, "conforme" | "nao_conforme" | "nao_aplicavel">>({});
   const [projetoSalvoId, setProjetoSalvoId] = useState<string | null>(null);
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [resultadoIA, setResultadoIA] = useState<ResultadoAnalise | null>(null);
 
+  useEffect(() => { verificarAuth(); }, []);
+
   useEffect(() => {
-    verificarAuth();
-  }, []);
+    // Quando muda o tipo, reseta ambientes selecionados
+    setAmbientesSelecionados([]);
+  }, [tipoEstabelecimento]);
 
   const verificarAuth = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -66,6 +90,12 @@ export default function Analise() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/login");
+  };
+
+  const toggleAmbiente = (amb: string) => {
+    setAmbientesSelecionados(prev =>
+      prev.includes(amb) ? prev.filter(a => a !== amb) : [...prev, amb]
+    );
   };
 
   const handleArquivo = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,16 +118,23 @@ export default function Analise() {
     setProgressoIA(10);
 
     try {
-      // 1. Extrair texto do PDF
       const textoPDF = await extrairTextoPDF(arquivo);
 
-      // 2. Buscar regras do Supabase
       setEtapaIA("analisando");
       setProgressoIA(30);
-      const { data: regrasData, error: erroRegras } = await supabase
+
+      // Monta query filtrando por ambientes selecionados
+      let query = supabase
         .from("regras_regulatorias")
-        .select("id, codigo, descricao, norma_origem, categoria, subcategoria")
+        .select("id, codigo, descricao, norma_origem, categoria, subcategoria, ambiente")
         .order("categoria", { ascending: true });
+
+      // Se há ambientes selecionados, filtra por eles
+      if (ambientesSelecionados.length > 0) {
+        query = query.overlaps("ambiente", ambientesSelecionados);
+      }
+
+      const { data: regrasData, error: erroRegras } = await query;
 
       if (erroRegras || !regrasData || regrasData.length === 0) {
         throw new Error("Não foi possível buscar as regras do banco de dados.");
@@ -106,7 +143,6 @@ export default function Analise() {
       setRegras(regrasData as Regra[]);
       setProgressoIA(50);
 
-      // 3. Analisar com IA (OpenRouter)
       const analise = await analisarComGroq(textoPDF, regrasData as any);
 
       if (analise.erro) throw new Error(analise.erro);
@@ -114,7 +150,6 @@ export default function Analise() {
       setProgressoIA(75);
       setResultadoIA(analise);
 
-      // 4. Montar respostas a partir do resultado da IA
       const novasRespostas: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
       regrasData.forEach((r: Regra) => { novasRespostas[r.id] = "nao_aplicavel"; });
       analise.resultados.forEach((res) => {
@@ -125,7 +160,6 @@ export default function Analise() {
       setRespostas(novasRespostas);
       if (regrasData.length > 0) setCategoriaAtiva(regrasData[0].categoria ?? "");
 
-      // 5. Salvar no banco
       setEtapaIA("salvando");
       setProgressoIA(85);
       await salvarNoBanco(regrasData as Regra[], novasRespostas, analise.score_geral, analise.resumo);
@@ -139,7 +173,6 @@ export default function Analise() {
     }
   };
 
-  // Cálculos de score a partir das respostas
   const totalConformes = Object.values(respostas).filter(v => v === "conforme").length;
   const totalNaoConformes = Object.values(respostas).filter(v => v === "nao_conforme").length;
   const totalAplicaveis = Object.values(respostas).filter(v => v !== "nao_aplicavel").length;
@@ -211,6 +244,7 @@ export default function Analise() {
       ``,
       `Projeto: ${nomeProjeto}`,
       `Tipo: ${tipoEstabelecimento}`,
+      `Ambientes analisados: ${ambientesSelecionados.length > 0 ? ambientesSelecionados.join(", ") : "Todos"}`,
       `Data: ${new Date().toLocaleDateString("pt-BR")}`,
       `Score: ${scoreCalculado}%`,
       ``,
@@ -232,11 +266,13 @@ export default function Analise() {
   };
 
   const emProgresso = etapaIA !== "idle" && etapaIA !== "concluido" && etapaIA !== "erro";
+  const ambientesDisponiveis = AMBIENTES_POR_TIPO[tipoEstabelecimento] || ["Geral"];
+  const podeComecar = nomeProjeto.trim() && arquivoNome && !emProgresso;
 
   const mensagemEtapa: Record<EtapaIA, string> = {
     idle: "",
     extraindo_pdf: "Lendo o PDF...",
-    analisando: "IA analisando as regras regulatórias... (pode levar até 30s)",
+    analisando: `IA analisando ${ambientesSelecionados.length > 0 ? `regras de: ${ambientesSelecionados.join(", ")}` : "todas as regras"}... (pode levar até 30s)`,
     salvando: "Salvando resultados...",
     concluido: "Análise concluída!",
     erro: "Erro na análise",
@@ -244,7 +280,6 @@ export default function Analise() {
 
   return (
     <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
-      {/* SIDEBAR */}
       <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
@@ -262,7 +297,6 @@ export default function Analise() {
       </aside>
 
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        {/* HEADER */}
         <header className="border-b border-border bg-white py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
@@ -284,7 +318,6 @@ export default function Analise() {
 
         <div className="flex-1 p-8 max-w-2xl w-full mx-auto">
 
-          {/* PASSO 1: DADOS + UPLOAD */}
           {passo === 1 && (
             <div className="space-y-6">
               <div className="bg-white border border-border rounded-xl p-8 shadow-sm space-y-6">
@@ -293,7 +326,7 @@ export default function Analise() {
                     <Zap className="w-6 h-6 text-[#1E3A5F]" />
                   </div>
                   <h2 className="text-lg font-bold text-[#1E293B]">Análise Automática com IA</h2>
-                  <p className="text-sm text-muted-foreground">Preencha os dados e faça upload do PDF — a IA avalia todas as regras automaticamente</p>
+                  <p className="text-sm text-muted-foreground">Preencha os dados e faça upload do PDF — a IA avalia as regras dos ambientes selecionados</p>
                 </div>
 
                 <div className="space-y-4">
@@ -301,11 +334,45 @@ export default function Analise() {
                     <Label htmlFor="nome">Nome do Projeto</Label>
                     <Input id="nome" value={nomeProjeto} onChange={e => setNomeProjeto(e.target.value)} placeholder="Ex: UPA Norte — Reforma Ala B" disabled={emProgresso} />
                   </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="tipo">Tipo de Estabelecimento</Label>
                     <select id="tipo" value={tipoEstabelecimento} onChange={e => setTipoEstabelecimento(e.target.value)} disabled={emProgresso} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                       {TIPOS_ESTABELECIMENTO.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
+                  </div>
+
+                  {/* SUBMENU DE AMBIENTES */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-[#1E3A5F]" />
+                      <Label>Ambientes a analisar</Label>
+                      <span className="text-[10px] text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
+                        {ambientesSelecionados.length === 0 ? "Nenhum selecionado = todos" : `${ambientesSelecionados.length} selecionado(s)`}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {ambientesDisponiveis.map(amb => (
+                        <button
+                          key={amb}
+                          type="button"
+                          disabled={emProgresso}
+                          onClick={() => toggleAmbiente(amb)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                            ambientesSelecionados.includes(amb)
+                              ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                              : "bg-white text-slate-600 border-slate-200 hover:border-[#1E3A5F] hover:text-[#1E3A5F]"
+                          } ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                        >
+                          {amb}
+                        </button>
+                      ))}
+                    </div>
+                    {ambientesSelecionados.length === 0 && (
+                      <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                        ⚠️ Sem seleção, todas as {ambientesDisponiveis.length} categorias serão analisadas. Selecione os ambientes do projeto para uma análise mais precisa.
+                      </p>
+                    )}
                   </div>
 
                   {/* UPLOAD DO PDF */}
@@ -332,7 +399,6 @@ export default function Analise() {
                   </div>
                 </div>
 
-                {/* PROGRESSO DA IA */}
                 {emProgresso && (
                   <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
                     <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
@@ -346,7 +412,6 @@ export default function Analise() {
                   </div>
                 )}
 
-                {/* ERRO */}
                 {etapaIA === "erro" && erroIA && (
                   <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2 text-red-600 font-semibold text-sm">
@@ -362,7 +427,7 @@ export default function Analise() {
 
                 <Button
                   onClick={iniciarAnaliseAutomatica}
-                  disabled={!nomeProjeto.trim() || !arquivoNome || emProgresso}
+                  disabled={!podeComecar}
                   className="w-full bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2"
                 >
                   {emProgresso
@@ -372,16 +437,24 @@ export default function Analise() {
                 </Button>
 
                 <p className="text-center text-xs text-slate-400">
-                  Usa OpenRouter (LLaMA 3.1 8B) — gratuito no plano free
+                  Usa OpenRouter (modelo gratuito) — análise por ambientes selecionados
                 </p>
               </div>
             </div>
           )}
 
-          {/* PASSO 2 (RESULTADO) */}
           {passo === 3 && (
             <div className="space-y-8">
-              {/* SCORE */}
+              {ambientesSelecionados.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm font-semibold text-blue-800">Ambientes analisados</p>
+                    <p className="text-xs text-blue-700">{ambientesSelecionados.join(" • ")}</p>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
@@ -411,7 +484,6 @@ export default function Analise() {
                 </div>
               </div>
 
-              {/* CHECKLIST REVISÁVEL */}
               {regras.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
@@ -460,7 +532,6 @@ export default function Analise() {
                 </div>
               )}
 
-              {/* VALIDAÇÕES POR CATEGORIA */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
@@ -499,7 +570,6 @@ export default function Analise() {
                 </div>
               </div>
 
-              {/* NÃO-CONFORMIDADES */}
               {naoConformidades.length > 0 && (
                 <div className="space-y-4">
                   <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
@@ -522,7 +592,6 @@ export default function Analise() {
                 </div>
               )}
 
-              {/* AÇÕES */}
               <div className="flex gap-4 pt-4">
                 <Button onClick={exportarRelatorio} variant="outline" className="gap-2">
                   <Download className="w-4 h-4" />Exportar Relatório
