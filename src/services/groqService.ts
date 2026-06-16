@@ -1,5 +1,5 @@
-const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_API_KEY = import.meta.env.VITE_OPENROUTER_API_KEY;
+const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent";
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
 export interface RegraRegulatoria {
   id: string;
@@ -37,7 +37,7 @@ export async function extrairTextoPDF(arquivo: File): Promise<string> {
         if ((c >= 32 && c <= 126) || c === 10 || c === 13)
           texto += String.fromCharCode(c);
       }
-        const linhas = texto
+      const linhas = texto
         .split(/\n|\r/)
         .map((l) => l.trim())
         .filter((l) => l.length > 2)
@@ -54,7 +54,7 @@ async function analisarLote(
   textoPDF: string,
   lote: RegraRegulatoria[]
 ): Promise<ResultadoRegra[]> {
-  if (!OPENROUTER_API_KEY) return [];
+  if (!GEMINI_API_KEY) return [];
   const listaRegras = lote.map((r) => `[${r.codigo}] ${r.descricao}`).join("\n");
   const prompt = `Voce e um auditor de normas regulatorias de estabelecimentos de saude no Brasil. Seja criterioso e justo: use nao_conforme APENAS quando o texto do projeto claramente contradiz a regra. Se o texto nao menciona a regra ou nao ha informacao suficiente para avaliar, use nao_aplicavel. Use conforme quando o texto confirma ou é compativel com a regra.
 Analise o texto do projeto arquitetonico e avalie CADA UMA das regras abaixo, na ordem.
@@ -69,24 +69,26 @@ REGRAS A AVALIAR:
 ${listaRegras}`;
 
   try {
-    const response = await fetch(OPENROUTER_API_URL, {
+    const response = await fetch(`${GEMINI_API_URL}?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "HTTP-Referer": "https://visacheck-go.vercel.app",
-        "X-Title": "VISAcheck GO",
       },
       body: JSON.stringify({
-        model: "mistralai/mistral-7b-instruct:free",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 1024,
-        temperature: 0.1,
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          maxOutputTokens: 2048,
+        },
       }),
     });
-    if (!response.ok) return [];
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Gemini API error:", response.status, errText);
+      return [];
+    }
     const data = await response.json();
-    const conteudo = data.choices?.[0]?.message?.content || "";
+    const conteudo = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     const jsonLimpo = conteudo.replace(/```json|```/g, "").trim();
     const parsed = JSON.parse(jsonLimpo);
     return (Array.isArray(parsed) ? parsed : (parsed.resultados || [parsed])).map((r: any) => {
@@ -100,7 +102,8 @@ ${listaRegras}`;
         justificativa: r.justificativa || "",
       };
     });
-  } catch {
+  } catch (err) {
+    console.error("Erro ao processar lote:", err);
     return [];
   }
 }
@@ -109,12 +112,12 @@ export async function analisarComGroq(
   textoPDF: string,
   regras: RegraRegulatoria[]
 ): Promise<ResultadoAnalise> {
-  if (!OPENROUTER_API_KEY) {
+  if (!GEMINI_API_KEY) {
     return {
       resultados: [],
       resumo: "",
       score_geral: 0,
-      erro: "Chave VITE_OPENROUTER_API_KEY nao configurada no Vercel.",
+      erro: "Chave VITE_GEMINI_API_KEY nao configurada no Vercel.",
     };
   }
 
@@ -126,7 +129,7 @@ export async function analisarComGroq(
     const resultadosLote = await analisarLote(textoPDF, lote);
     todosResultados.push(...resultadosLote);
     if (i + TAMANHO_LOTE < regras.length) {
-      await new Promise((resolve) => setTimeout(resolve, 6000));
+      await new Promise((resolve) => setTimeout(resolve, 4000));
     }
   }
 
