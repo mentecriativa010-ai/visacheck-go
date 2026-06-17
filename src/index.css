@@ -31,12 +31,40 @@
     --radius: 0.375rem;
   }
 
+  .dark {
+    --background: 222 47% 9%;       /* #0F172A bem escuro */
+    --foreground: 210 40% 96%;      /* quase branco */
+    --card: 222 39% 13%;            /* #1A2332 cards um pouco mais claros que o fundo */
+    --card-foreground: 210 40% 96%;
+    --popover: 222 39% 13%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 213 70% 55%;         /* azul mais vibrante para contraste no escuro */
+    --primary-foreground: 222 47% 9%;
+    --primary-hover: 213 70% 48%;
+    --secondary: 222 30% 18%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 30% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 222 30% 20%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 72% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 65% 45%;
+    --success-foreground: 0 0% 100%;
+    --warning: 32 90% 55%;
+    --warning-foreground: 0 0% 100%;
+    --border: 222 30% 22%;
+    --input: 222 30% 22%;
+    --ring: 213 70% 55%;
+  }
+
   html {
     scroll-behavior: smooth;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   h1, h2, h3, h4, h5, h6 {

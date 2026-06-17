@@ -11,6 +11,7 @@ import {
   Zap, Upload, XCircle, Building2,
 } from "lucide-react";
 import { extrairTextoPDF, analisarComGroq, ResultadoAnalise } from "@/services/groqService";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Regra {
   id: string;
@@ -291,7 +292,11 @@ export default function Analise() {
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><BookOpen className="w-4 h-4" />Base de Normas</button>
           <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-[#1E3A5F]"><ClipboardList className="w-4 h-4" />Nova Análise</button>
         </nav>
-        <div className="p-4 border-t border-border">
+           <div className="p-4 border-t border-border space-y-3">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-xs text-muted-foreground">Tema</span>
+            <ThemeToggle />
+          </div>
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>

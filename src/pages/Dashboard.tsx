@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -287,7 +288,11 @@ export default function Dashboard() {
           <button onClick={() => setActiveTab("projetos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
           <button onClick={() => setActiveTab("normas")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
         </nav>
-        <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border space-y-3">
+          <div className="flex items-center justify-between px-2">
+            <span className="text-xs text-muted-foreground">Tema</span>
+            <ThemeToggle />
+          </div>
           <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>
