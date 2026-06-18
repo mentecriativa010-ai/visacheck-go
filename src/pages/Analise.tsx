@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -79,7 +79,6 @@ export default function Analise() {
   useEffect(() => { verificarAuth(); }, []);
 
   useEffect(() => {
-    // Quando muda o tipo, reseta ambientes selecionados
     setAmbientesSelecionados([]);
   }, [tipoEstabelecimento]);
 
@@ -124,13 +123,11 @@ export default function Analise() {
       setEtapaIA("analisando");
       setProgressoIA(30);
 
-      // Monta query filtrando por ambientes selecionados
       let query = supabase
         .from("regras_regulatorias")
         .select("id, codigo, descricao, norma_origem, categoria, subcategoria, ambiente")
         .order("categoria", { ascending: true });
 
-      // Se há ambientes selecionados, filtra por eles
       if (ambientesSelecionados.length > 0) {
         query = query.overlaps("ambiente", ambientesSelecionados);
       }
@@ -280,8 +277,8 @@ export default function Analise() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-foreground">
-      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
+    <div className="min-h-screen flex bg-background text-foreground">
+      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-primary" />
           <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
@@ -290,14 +287,14 @@ export default function Analise() {
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><Home className="w-4 h-4" />Dashboard</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><Folder className="w-4 h-4" />Meus Projetos</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><BookOpen className="w-4 h-4" />Base de Normas</button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-primary"><ClipboardList className="w-4 h-4" />Nova Análise</button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-primary/5 text-primary"><ClipboardList className="w-4 h-4" />Nova Análise</button>
         </nav>
-           <div className="p-4 border-t border-border space-y-3">
+        <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
             <span className="text-xs text-muted-foreground">Tema</span>
             <ThemeToggle />
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50"><LogOut className="w-4 h-4" />Sair</button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 dark:hover:bg-red-950"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>
 
@@ -311,8 +308,8 @@ export default function Analise() {
           <div className="ml-auto flex items-center gap-2">
             {[1, 2].map(p => (
               <div key={p} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-slate-100 text-muted-foreground"}`}>{p}</div>
-                {p < 2 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-slate-200"}`} />}
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-muted text-muted-foreground"}`}>{p}</div>
+                {p < 2 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-border"}`} />}
               </div>
             ))}
             <div className="ml-3 text-xs text-muted-foreground">
@@ -327,7 +324,7 @@ export default function Analise() {
             <div className="space-y-6">
               <div className="bg-card border border-border rounded-xl p-8 shadow-sm space-y-6">
                 <div className="text-center space-y-2">
-                  <div className="w-12 h-12 bg-[#1E3A5F]/10 rounded-full flex items-center justify-center mx-auto">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
                     <Zap className="w-6 h-6 text-primary" />
                   </div>
                   <h2 className="text-lg font-bold text-foreground">Análise Automática com IA</h2>
@@ -342,17 +339,16 @@ export default function Analise() {
 
                   <div className="space-y-2">
                     <Label htmlFor="tipo">Tipo de Estabelecimento</Label>
-                    <select id="tipo" value={tipoEstabelecimento} onChange={e => setTipoEstabelecimento(e.target.value)} disabled={emProgresso} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                    <select id="tipo" value={tipoEstabelecimento} onChange={e => setTipoEstabelecimento(e.target.value)} disabled={emProgresso} className="w-full h-9 px-3 rounded-md border border-input bg-card text-foreground text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                       {TIPOS_ESTABELECIMENTO.map(t => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
 
-                  {/* SUBMENU DE AMBIENTES */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Building2 className="w-4 h-4 text-primary" />
                       <Label>Ambientes a analisar</Label>
-                      <span className="text-[10px] text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
+                      <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded">
                         {ambientesSelecionados.length === 0 ? "Nenhum selecionado = todos" : `${ambientesSelecionados.length} selecionado(s)`}
                       </span>
                     </div>
@@ -366,7 +362,7 @@ export default function Analise() {
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                             ambientesSelecionados.includes(amb)
                               ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                              : "bg-white text-foreground/80 border-border hover:border-[#1E3A5F] hover:text-primary"
+                              : "bg-card text-foreground/80 border-border hover:border-primary hover:text-primary"
                           } ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {amb}
@@ -374,22 +370,21 @@ export default function Analise() {
                       ))}
                     </div>
                     {ambientesSelecionados.length === 0 && (
-                      <p className="text-[11px] text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
                         ⚠️ Sem seleção, todas as {ambientesDisponiveis.length} categorias serão analisadas. Selecione os ambientes do projeto para uma análise mais precisa.
                       </p>
                     )}
                   </div>
 
-                  {/* UPLOAD DO PDF */}
                   <div className="space-y-2">
                     <Label>PDF do Projeto</Label>
                     <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleArquivo} disabled={emProgresso} />
                     <div
                       onClick={() => { if (!emProgresso) inputRef.current?.click(); }}
-                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50" : "border-border hover:border-blue-300 hover:bg-blue-50/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50 dark:bg-green-950/30" : "border-border hover:border-blue-300 hover:bg-blue-50/30 dark:hover:bg-blue-950/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {arquivoNome ? (
-                        <div className="flex items-center justify-center gap-2 text-green-700">
+                        <div className="flex items-center justify-center gap-2 text-green-700 dark:text-green-400">
                           <CheckCircle className="w-5 h-5" />
                           <span className="text-sm font-medium">{arquivoNome}</span>
                         </div>
@@ -405,25 +400,25 @@ export default function Analise() {
                 </div>
 
                 {emProgresso && (
-                  <div className="border border-blue-200 bg-blue-50 rounded-xl p-4 space-y-3">
-                    <div className="flex items-center gap-2 text-blue-700 font-semibold text-sm">
+                  <div className="border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/40 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 font-semibold text-sm">
                       <Loader2 className="w-4 h-4 animate-spin" />
                       {mensagemEtapa[etapaIA]}
                     </div>
-                    <div className="w-full bg-blue-100 rounded-full h-2">
+                    <div className="w-full bg-blue-100 dark:bg-blue-900 rounded-full h-2">
                       <div className="bg-blue-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progressoIA}%` }} />
                     </div>
-                    <p className="text-xs text-blue-600">{progressoIA}% concluído</p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400">{progressoIA}% concluído</p>
                   </div>
                 )}
 
                 {etapaIA === "erro" && erroIA && (
-                  <div className="border border-red-200 bg-red-50 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-red-600 font-semibold text-sm">
+                  <div className="border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/40 rounded-xl p-4 space-y-2">
+                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400 font-semibold text-sm">
                       <XCircle className="w-4 h-4" />
                       Erro na análise
                     </div>
-                    <p className="text-xs text-red-600">{erroIA}</p>
+                    <p className="text-xs text-red-600 dark:text-red-400">{erroIA}</p>
                     <Button variant="outline" size="sm" onClick={() => { setEtapaIA("idle"); setErroIA(null); setProgressoIA(0); }} className="text-xs">
                       Tentar novamente
                     </Button>
@@ -451,11 +446,11 @@ export default function Analise() {
           {passo === 3 && (
             <div className="space-y-8">
               {ambientesSelecionados.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-blue-600 flex-shrink-0" />
+                <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-blue-800">Ambientes analisados</p>
-                    <p className="text-xs text-blue-700">{ambientesSelecionados.join(" • ")}</p>
+                    <p className="text-sm font-semibold text-blue-800 dark:text-blue-300">Ambientes analisados</p>
+                    <p className="text-xs text-blue-700 dark:text-blue-400">{ambientesSelecionados.join(" • ")}</p>
                   </div>
                 </div>
               )}
@@ -465,10 +460,10 @@ export default function Analise() {
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                   <div>
                     <span className={`text-5xl font-extrabold ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{scoreCalculado}%</span>
-                    <div className="mt-4 w-full bg-slate-100 rounded-full h-3">
+                    <div className="mt-4 w-full bg-muted rounded-full h-3">
                       <div className={`h-3 rounded-full ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
-                    <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${scoreCalculado === 100 ? "bg-green-50 text-green-700 border border-green-200" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                    <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${scoreCalculado === 100 ? "bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800" : "bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"}`}>
                       {scoreCalculado === 100 ? "✔ APROVADO" : `${totalNaoConformes} não-conformidades`}
                     </span>
                   </div>
@@ -482,8 +477,8 @@ export default function Analise() {
                     )}
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
-                    <div className="flex items-center gap-2 text-green-700"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
-                    <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
+                    <div className="flex items-center gap-2 text-green-700 dark:text-green-400"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
+                    <div className="flex items-center gap-2 text-red-600 dark:text-red-400"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
                     <div className="flex items-center gap-2 text-muted-foreground"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalAplicaveis} não aplicáveis</span></div>
                   </div>
                 </div>
@@ -492,8 +487,8 @@ export default function Analise() {
               {regras.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h2 className="text-base font-bold">Checklist Preenchido pela IA</h2>
-                    <span className="text-xs text-muted-foreground bg-slate-100 px-2 py-1 rounded">Você pode revisar abaixo</span>
+                    <h2 className="text-base font-bold text-foreground">Checklist Preenchido pela IA</h2>
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">Você pode revisar abaixo</span>
                   </div>
                   <div className="grid grid-cols-4 gap-4">
                     <div className="col-span-1 space-y-1">
@@ -511,19 +506,19 @@ export default function Analise() {
                     </div>
                     <div className="col-span-3 space-y-2 max-h-96 overflow-y-auto pr-1">
                       {regrasPorCategoria.map(regra => (
-                        <div key={regra.id} className={`bg-card border rounded-xl p-3 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 bg-green-50/30" : respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30" : "border-border"}`}>
+                        <div key={regra.id} className={`bg-card border rounded-xl p-3 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20" : respostas[regra.id] === "nao_conforme" ? "border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/20" : "border-border"}`}>
                           <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-bold text-primary bg-[#1E3A5F]/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
+                                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
                                 <span className="text-[10px] font-mono text-muted-foreground">{regra.codigo}</span>
                               </div>
                               <p className="text-xs text-foreground/90 leading-relaxed">{regra.descricao}</p>
                             </div>
                             <div className="flex gap-1 flex-shrink-0">
-                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}>✔</button>
-                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}>✗</button>
-                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-muted0 text-white border-slate-500" : "border-slate-300 text-muted-foreground hover:bg-muted"}`}>N/A</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50 dark:hover:bg-green-950"}`}>✔</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-950"}`}>✗</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-muted-foreground text-white border-muted-foreground" : "border-border text-muted-foreground hover:bg-muted"}`}>N/A</button>
                             </div>
                           </div>
                         </div>
@@ -540,7 +535,7 @@ export default function Analise() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-primary" />
-                  <h2 className="text-base font-bold">Validações por Categoria</h2>
+                  <h2 className="text-base font-bold text-foreground">Validações por Categoria</h2>
                 </div>
                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
@@ -556,15 +551,15 @@ export default function Analise() {
                     <tbody className="divide-y divide-border">
                       {validacoesPorCategoria.filter(v => v.total > 0).map(v => (
                         <tr key={v.categoria} className="hover:bg-muted/50">
-                          <td className="px-6 py-4 font-medium">{v.categoria}</td>
-                          <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
-                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
+                          <td className="px-6 py-4 font-medium text-foreground">{v.categoria}</td>
+                          <td className="px-4 py-4 text-center text-green-700 dark:text-green-400 font-semibold">{v.conformes}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 dark:text-red-400 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-slate-100 rounded-full h-2">
+                              <div className="flex-1 bg-muted rounded-full h-2">
                                 <div className={`h-2 rounded-full ${v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${v.percentual}%` }} />
                               </div>
-                              <span className="text-xs font-semibold w-10 text-right">{v.percentual}%</span>
+                              <span className="text-xs font-semibold w-10 text-right text-foreground">{v.percentual}%</span>
                             </div>
                           </td>
                           <td className="px-4 py-4 text-center">{v.naoConformes === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}</td>
@@ -577,19 +572,19 @@ export default function Analise() {
 
               {naoConformidades.length > 0 && (
                 <div className="space-y-4">
-                  <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
+                  <h2 className="text-base font-bold text-foreground">Não-Conformidades ({naoConformidades.length})</h2>
                   <div className="space-y-4">
                     {naoConformidades.map(nc => (
-                      <div key={nc.id} className="bg-card border border-red-200 rounded-xl p-5 shadow-sm">
+                      <div key={nc.id} className="bg-card border border-red-200 dark:border-red-800 rounded-xl p-5 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-muted-foreground">{nc.codigo}</span>
-                              <span className="text-[10px] font-bold text-primary bg-slate-100 px-2 py-0.5 rounded">{nc.norma_origem}</span>
+                              <span className="text-[10px] font-bold text-primary bg-muted px-2 py-0.5 rounded">{nc.norma_origem}</span>
                             </div>
                             <p className="text-sm text-foreground/90">{nc.descricao}</p>
                           </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700 border border-red-200 flex-shrink-0">Não conforme</span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800 flex-shrink-0">Não conforme</span>
                         </div>
                       </div>
                     ))}
