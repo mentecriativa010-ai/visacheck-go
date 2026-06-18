@@ -1,4 +1,4 @@
-﻿// @ts-nocheck
+// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -235,29 +235,29 @@ export default function ProjectDetails() {
   const getStatusBadge = (proj: Projeto) => {
     const status = getStatusEfetivo(proj);
     switch (status) {
-      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
-      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-primary border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
+      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 dark:bg-green-950 text-[#16A34A] dark:text-green-400 border border-green-200 dark:border-green-800"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
+      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950 text-primary border border-blue-200 dark:border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "reprovado":
-      case "parcial": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
-      default: return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200"><span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />Pendente</span>;
+      case "parcial": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950 text-[#DC2626] dark:text-red-400 border border-red-200 dark:border-red-800"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
+      default: return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />Pendente</span>;
     }
   };
 
   const getSeveridadeBadge = (severidade: NaoConformidade["severidade"]) => {
     switch (severidade) {
-      case "bloqueante": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-[#DC2626] border border-red-200 flex items-center gap-1"><AlertOctagon className="w-3 h-3" />Bloqueante</span>;
-      case "critico": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 text-[#D97706] border border-orange-200 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Crítico</span>;
-      case "atencao": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Atenção</span>;
-      default: return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1"><Info className="w-3 h-3" />Informativo</span>;
+      case "bloqueante": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 dark:bg-red-950 text-[#DC2626] dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-1"><AlertOctagon className="w-3 h-3" />Bloqueante</span>;
+      case "critico": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 dark:bg-orange-950 text-[#D97706] dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Crítico</span>;
+      case "atencao": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Atenção</span>;
+      default: return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800 flex items-center gap-1"><Info className="w-3 h-3" />Informativo</span>;
     }
   };
 
   const getRiscoBadge = (risco: string) => {
     switch (risco) {
-      case "alto": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-50 text-red-600 border border-red-200">Risco Alto</span>;
-      case "medio": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 text-amber-700 border border-amber-200">Risco Médio</span>;
-      case "baixo": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-50 text-green-700 border border-green-200">Risco Baixo</span>;
-      default: return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-50 text-gray-500 border border-gray-200">Indefinido</span>;
+      case "alto": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">Risco Alto</span>;
+      case "medio": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Risco Médio</span>;
+      case "baixo": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">Risco Baixo</span>;
+      default: return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border">Indefinido</span>;
     }
   };
 
@@ -280,15 +280,15 @@ export default function ProjectDetails() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-foreground">
-      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
+    <div className="min-h-screen flex bg-background text-foreground">
+      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-primary" />
           <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><Home className="w-4 h-4" />Dashboard</button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-[#1E3A5F]/5 text-primary"><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-primary/5 text-primary"><Folder className="w-4 h-4" />Meus Projetos</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><BookOpen className="w-4 h-4" />Base de Normas</button>
         </nav>
         <div className="p-4 border-t border-border space-y-3">
@@ -296,7 +296,7 @@ export default function ProjectDetails() {
             <span className="text-xs text-muted-foreground">Tema</span>
             <ThemeToggle />
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 dark:hover:bg-red-950 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>
 
@@ -307,19 +307,19 @@ export default function ProjectDetails() {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-semibold text-foreground">
-                  {loading ? <span className="h-6 w-48 bg-slate-100 animate-pulse rounded block" /> : projeto?.nome_projeto}
+                  {loading ? <span className="h-6 w-48 bg-muted animate-pulse rounded block" /> : projeto?.nome_projeto}
                 </h1>
                 {!loading && projeto && getStatusBadge(projeto)}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {loading ? <span className="h-3 w-32 bg-slate-100 animate-pulse rounded block" /> : `Laudo Técnico: ${projeto?.tipo_estabelecimento}`}
+                {loading ? <span className="h-3 w-32 bg-muted animate-pulse rounded block" /> : `Laudo Técnico: ${projeto?.tipo_estabelecimento}`}
               </p>
             </div>
           </div>
           {!loading && projeto && (
             <div className="flex items-center gap-3">
               {temNaoConformidades && (
-                <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-primary hover:bg-[#1E3A5F]/5 flex items-center gap-2 text-sm">
+                <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-primary hover:bg-primary/5 flex items-center gap-2 text-sm">
                   {rodarNovaAnalise ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Nova Análise
                 </Button>
@@ -339,9 +339,9 @@ export default function ProjectDetails() {
               <p className="text-sm text-muted-foreground">Buscando laudo do projeto...</p>
             </div>
           ) : error ? (
-            <div className="bg-card border border-red-200 rounded-xl p-8 text-center max-w-lg mx-auto shadow-sm">
+            <div className="bg-card border border-red-200 dark:border-red-800 rounded-xl p-8 text-center max-w-lg mx-auto shadow-sm">
               <AlertOctagon className="w-12 h-12 text-[#DC2626] mx-auto mb-4" />
-              <h3 className="text-base font-bold mb-2">Erro ao carregar projeto</h3>
+              <h3 className="text-base font-bold mb-2 text-foreground">Erro ao carregar projeto</h3>
               <p className="text-sm text-muted-foreground mb-6">{error}</p>
               <Button onClick={() => navigate("/dashboard")} className="bg-[#1E3A5F]">Voltar ao Dashboard</Button>
             </div>
@@ -357,7 +357,7 @@ export default function ProjectDetails() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-border">
+                    <div className="w-full bg-muted rounded-full h-3.5 overflow-hidden border border-border">
                       <div className={`h-full rounded-full transition-all duration-500 ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
                     <span className="text-[10px] text-muted-foreground block text-right font-medium">{getMensagemScore()}</span>
@@ -395,11 +395,11 @@ export default function ProjectDetails() {
                       {validacoesPorCategoria.map((v) => (
                         <tr key={v.categoria} className="hover:bg-muted/50 transition-colors">
                           <td className="px-6 py-4 font-medium text-foreground">{v.categoria}</td>
-                          <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
-                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
+                          <td className="px-4 py-4 text-center text-green-700 dark:text-green-400 font-semibold">{v.conformes}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 dark:text-red-400 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
                                 <div className={`h-full rounded-full ${v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${v.percentual}%` }} />
                               </div>
                               <span className="text-xs font-semibold text-foreground/80 w-10 text-right">{v.percentual}%</span>
@@ -421,7 +421,7 @@ export default function ProjectDetails() {
                 {naoconformidades.length === 0 ? (
                   <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
-                    <h3 className="text-base font-semibold">
+                    <h3 className="text-base font-semibold text-foreground">
                       {scoreCalculado === 100 ? "Parabéns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
@@ -430,11 +430,11 @@ export default function ProjectDetails() {
                   </div>
                 ) : (
                   <div className="space-y-5">
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-                      <RefreshCw className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+                      <RefreshCw className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-semibold text-amber-800">Correções necessárias</p>
-                        <p className="text-xs text-amber-700 mt-0.5">Após corrigir o projeto, clique em <strong>Nova Análise</strong> para submeter o projeto corrigido.</p>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Correções necessárias</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Após corrigir o projeto, clique em <strong>Nova Análise</strong> para submeter o projeto corrigido.</p>
                       </div>
                     </div>
                     {naoconformidades.map((nc, idx) => (
@@ -443,7 +443,7 @@ export default function ProjectDetails() {
                           <div className="space-y-1">
                             <span className="text-xs font-mono font-bold text-muted-foreground">{nc.codigo}</span>
                             <h3 className="text-sm font-bold text-foreground">{nc.nome}</h3>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-slate-100 border border-border px-2 py-0.5 rounded">Norma: {nc.norma}</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-muted border border-border px-2 py-0.5 rounded">Norma: {nc.norma}</span>
                           </div>
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
@@ -451,9 +451,9 @@ export default function ProjectDetails() {
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Detalhamento</span>
                           <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg">{nc.descricao}</p>
                         </div>
-                        <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg space-y-1.5">
-                          <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">Referência</span>
-                          <p className="text-xs text-slate-800 font-medium">{nc.sugestao}</p>
+                        <div className="border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 p-4 rounded-lg space-y-1.5">
+                          <span className="text-[10px] font-bold text-[#16A34A] dark:text-green-400 uppercase tracking-wider block">Referência</span>
+                          <p className="text-xs text-foreground font-medium">{nc.sugestao}</p>
                         </div>
                       </div>
                     ))}
@@ -478,7 +478,7 @@ export default function ProjectDetails() {
                       </div>
                       <div className="flex items-center gap-2">
                         {p.status === "Conforme" ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" /> : <Loader2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-                        <span className={`text-sm font-semibold ${p.status === "Conforme" ? "text-green-700" : "text-muted-foreground"}`}>{p.status}</span>
+                        <span className={`text-sm font-semibold ${p.status === "Conforme" ? "text-green-700 dark:text-green-400" : "text-muted-foreground"}`}>{p.status}</span>
                       </div>
                       <p className="text-xs text-foreground/80 leading-relaxed bg-muted border border-border p-3 rounded-lg">{p.observacao}</p>
                     </div>
@@ -492,7 +492,7 @@ export default function ProjectDetails() {
 
       {novaAnaliseOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center gap-3">
               <RefreshCw className="w-5 h-5 text-primary" />
               <h2 className="text-base font-bold text-foreground">Nova Análise Regulatória</h2>
@@ -502,19 +502,19 @@ export default function ProjectDetails() {
               <label className="text-xs font-semibold text-foreground/90 block">Projeto corrigido (PDF / DWG)</label>
               <div className="flex gap-2">
                 <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoNovaAnalise} readOnly
-                  className="flex-1 h-9 px-3 rounded-md border border-input bg-muted text-sm cursor-pointer"
+                  className="flex-1 h-9 px-3 rounded-md border border-input bg-muted text-foreground text-sm cursor-pointer"
                   onClick={() => document.getElementById("nova-analise-file")?.click()} />
-                <button type="button" onClick={() => document.getElementById("nova-analise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-muted">Procurar</button>
+                <button type="button" onClick={() => document.getElementById("nova-analise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground">Procurar</button>
               </div>
               <input id="nova-analise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoNovaAnaliseFile(file); setArquivoNovaAnalise(file.name); } }} />
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
               <strong>Atenção:</strong> Os resultados anteriores serão substituídos.
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setNovaAnaliseOpen(false); setArquivoNovaAnalise(""); }} disabled={rodarNovaAnalise}
-                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
+                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground disabled:opacity-50">Cancelar</button>
               <button onClick={handleNovaAnalise} disabled={rodarNovaAnalise}
                 className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
                 {rodarNovaAnalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Nova Análise</>}
