@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -280,17 +280,17 @@ export default function Analise() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
+    <div className="min-h-screen flex bg-[#F8FAFC] text-foreground">
       <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
-          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">VISAcheck GO</span>
+          <ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><Home className="w-4 h-4" />Dashboard</button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><Folder className="w-4 h-4" />Meus Projetos</button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50"><BookOpen className="w-4 h-4" />Base de Normas</button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-[#1E3A5F]"><ClipboardList className="w-4 h-4" />Nova Análise</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><Home className="w-4 h-4" />Dashboard</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted"><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-primary"><ClipboardList className="w-4 h-4" />Nova Análise</button>
         </nav>
            <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
@@ -302,16 +302,16 @@ export default function Analise() {
       </aside>
 
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-white py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
+        <header className="border-b border-border bg-card py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
           <div>
-            <h1 className="text-xl font-semibold text-[#1E293B]">Nova Análise Regulatória</h1>
+            <h1 className="text-xl font-semibold text-foreground">Nova Análise Regulatória</h1>
             <p className="text-xs text-muted-foreground">Diagnóstico automático por IA — ANVISA e ABNT</p>
           </div>
           <div className="ml-auto flex items-center gap-2">
             {[1, 2].map(p => (
               <div key={p} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-slate-100 text-slate-400"}`}>{p}</div>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-slate-100 text-muted-foreground"}`}>{p}</div>
                 {p < 2 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-slate-200"}`} />}
               </div>
             ))}
@@ -325,12 +325,12 @@ export default function Analise() {
 
           {passo === 1 && (
             <div className="space-y-6">
-              <div className="bg-white border border-border rounded-xl p-8 shadow-sm space-y-6">
+              <div className="bg-card border border-border rounded-xl p-8 shadow-sm space-y-6">
                 <div className="text-center space-y-2">
                   <div className="w-12 h-12 bg-[#1E3A5F]/10 rounded-full flex items-center justify-center mx-auto">
-                    <Zap className="w-6 h-6 text-[#1E3A5F]" />
+                    <Zap className="w-6 h-6 text-primary" />
                   </div>
-                  <h2 className="text-lg font-bold text-[#1E293B]">Análise Automática com IA</h2>
+                  <h2 className="text-lg font-bold text-foreground">Análise Automática com IA</h2>
                   <p className="text-sm text-muted-foreground">Preencha os dados e faça upload do PDF — a IA avalia as regras dos ambientes selecionados</p>
                 </div>
 
@@ -350,7 +350,7 @@ export default function Analise() {
                   {/* SUBMENU DE AMBIENTES */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-[#1E3A5F]" />
+                      <Building2 className="w-4 h-4 text-primary" />
                       <Label>Ambientes a analisar</Label>
                       <span className="text-[10px] text-muted-foreground bg-slate-100 px-2 py-0.5 rounded">
                         {ambientesSelecionados.length === 0 ? "Nenhum selecionado = todos" : `${ambientesSelecionados.length} selecionado(s)`}
@@ -366,7 +366,7 @@ export default function Analise() {
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                             ambientesSelecionados.includes(amb)
                               ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
-                              : "bg-white text-slate-600 border-slate-200 hover:border-[#1E3A5F] hover:text-[#1E3A5F]"
+                              : "bg-white text-foreground/80 border-border hover:border-[#1E3A5F] hover:text-primary"
                           } ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           {amb}
@@ -386,7 +386,7 @@ export default function Analise() {
                     <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={handleArquivo} disabled={emProgresso} />
                     <div
                       onClick={() => { if (!emProgresso) inputRef.current?.click(); }}
-                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50" : "border-slate-200 hover:border-blue-300 hover:bg-blue-50/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors ${arquivoNome ? "border-green-300 bg-green-50/50" : "border-border hover:border-blue-300 hover:bg-blue-50/30"} ${emProgresso ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                     >
                       {arquivoNome ? (
                         <div className="flex items-center justify-center gap-2 text-green-700">
@@ -395,9 +395,9 @@ export default function Analise() {
                         </div>
                       ) : (
                         <div className="space-y-1">
-                          <Upload className="w-6 h-6 text-slate-400 mx-auto" />
-                          <p className="text-sm text-slate-500">Clique para selecionar o PDF</p>
-                          <p className="text-xs text-slate-400">Planta baixa, memorial descritivo, laudo técnico...</p>
+                          <Upload className="w-6 h-6 text-muted-foreground mx-auto" />
+                          <p className="text-sm text-muted-foreground">Clique para selecionar o PDF</p>
+                          <p className="text-xs text-muted-foreground">Planta baixa, memorial descritivo, laudo técnico...</p>
                         </div>
                       )}
                     </div>
@@ -441,7 +441,7 @@ export default function Analise() {
                   }
                 </Button>
 
-                <p className="text-center text-xs text-slate-400">
+                <p className="text-center text-xs text-muted-foreground">
                   Usa OpenRouter (modelo gratuito) — análise por ambientes selecionados
                 </p>
               </div>
@@ -461,7 +461,7 @@ export default function Analise() {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                   <div>
                     <span className={`text-5xl font-extrabold ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{scoreCalculado}%</span>
@@ -473,9 +473,9 @@ export default function Analise() {
                     </span>
                   </div>
                 </div>
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm md:col-span-2">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3">Resumo da Análise</h3>
-                  <p className="text-sm text-slate-700 leading-relaxed">
+                  <p className="text-sm text-foreground/90 leading-relaxed">
                     {resultadoIA?.resumo || (scoreCalculado === 100
                       ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoEstabelecimento}.`
                       : `O diagnóstico de "${nomeProjeto}" (${tipoEstabelecimento}) identificou ${totalNaoConformes} não-conformidades. Score global: ${scoreCalculado}%.`
@@ -484,7 +484,7 @@ export default function Analise() {
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-700"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
                     <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
-                    <div className="flex items-center gap-2 text-slate-500"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalAplicaveis} não aplicáveis</span></div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalAplicaveis} não aplicáveis</span></div>
                   </div>
                 </div>
               </div>
@@ -502,7 +502,7 @@ export default function Analise() {
                         const regrasCat = regras.filter(r => r.categoria === cat);
                         const respondidas = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel").length;
                         return (
-                          <button key={cat} onClick={() => setCategoriaAtiva(cat ?? "")} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}>
+                          <button key={cat} onClick={() => setCategoriaAtiva(cat ?? "")} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-foreground/80 hover:bg-muted"}`}>
                             <span className="block truncate">{cat}</span>
                             <span className={`text-[10px] ${categoriaAtiva === cat ? "text-blue-200" : "text-muted-foreground"}`}>{respondidas}/{regrasCat.length}</span>
                           </button>
@@ -511,19 +511,19 @@ export default function Analise() {
                     </div>
                     <div className="col-span-3 space-y-2 max-h-96 overflow-y-auto pr-1">
                       {regrasPorCategoria.map(regra => (
-                        <div key={regra.id} className={`bg-white border rounded-xl p-3 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 bg-green-50/30" : respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30" : "border-border"}`}>
+                        <div key={regra.id} className={`bg-card border rounded-xl p-3 shadow-sm transition-all ${respostas[regra.id] === "conforme" ? "border-green-200 bg-green-50/30" : respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30" : "border-border"}`}>
                           <div className="flex items-start gap-3">
                             <div className="flex-1 space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-bold text-[#1E3A5F] bg-[#1E3A5F]/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
+                                <span className="text-[10px] font-bold text-primary bg-[#1E3A5F]/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
                                 <span className="text-[10px] font-mono text-muted-foreground">{regra.codigo}</span>
                               </div>
-                              <p className="text-xs text-slate-700 leading-relaxed">{regra.descricao}</p>
+                              <p className="text-xs text-foreground/90 leading-relaxed">{regra.descricao}</p>
                             </div>
                             <div className="flex gap-1 flex-shrink-0">
                               <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "conforme" ? "bg-green-600 text-white border-green-600" : "border-green-300 text-green-700 hover:bg-green-50"}`}>✔</button>
                               <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_conforme" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_conforme" ? "bg-red-600 text-white border-red-600" : "border-red-300 text-red-700 hover:bg-red-50"}`}>✗</button>
-                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-slate-500 text-white border-slate-500" : "border-slate-300 text-slate-500 hover:bg-slate-50"}`}>N/A</button>
+                              <button onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))} className={`px-2 py-1 rounded text-[10px] font-semibold border transition-all ${respostas[regra.id] === "nao_aplicavel" ? "bg-muted0 text-white border-slate-500" : "border-slate-300 text-muted-foreground hover:bg-muted"}`}>N/A</button>
                             </div>
                           </div>
                         </div>
@@ -539,13 +539,13 @@ export default function Analise() {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
+                  <BarChart2 className="w-5 h-5 text-primary" />
                   <h2 className="text-base font-bold">Validações por Categoria</h2>
                 </div>
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-border">
+                      <tr className="bg-muted border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Conformes</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Pendências</th>
@@ -555,10 +555,10 @@ export default function Analise() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {validacoesPorCategoria.filter(v => v.total > 0).map(v => (
-                        <tr key={v.categoria} className="hover:bg-slate-50/50">
+                        <tr key={v.categoria} className="hover:bg-muted/50">
                           <td className="px-6 py-4 font-medium">{v.categoria}</td>
                           <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
-                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-slate-400">0</span>}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-slate-100 rounded-full h-2">
@@ -580,14 +580,14 @@ export default function Analise() {
                   <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
                   <div className="space-y-4">
                     {naoConformidades.map(nc => (
-                      <div key={nc.id} className="bg-white border border-red-200 rounded-xl p-5 shadow-sm">
+                      <div key={nc.id} className="bg-card border border-red-200 rounded-xl p-5 shadow-sm">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-muted-foreground">{nc.codigo}</span>
-                              <span className="text-[10px] font-bold text-[#1E3A5F] bg-slate-100 px-2 py-0.5 rounded">{nc.norma_origem}</span>
+                              <span className="text-[10px] font-bold text-primary bg-slate-100 px-2 py-0.5 rounded">{nc.norma_origem}</span>
                             </div>
-                            <p className="text-sm text-slate-700">{nc.descricao}</p>
+                            <p className="text-sm text-foreground/90">{nc.descricao}</p>
                           </div>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700 border border-red-200 flex-shrink-0">Não conforme</span>
                         </div>

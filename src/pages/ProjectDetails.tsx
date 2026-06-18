@@ -1,4 +1,4 @@
-// @ts-nocheck
+﻿// @ts-nocheck
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -236,7 +236,7 @@ export default function ProjectDetails() {
     const status = getStatusEfetivo(proj);
     switch (status) {
       case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
-      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
+      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-primary border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "reprovado":
       case "parcial": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
       default: return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200"><span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />Pendente</span>;
@@ -280,16 +280,16 @@ export default function ProjectDetails() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
+    <div className="min-h-screen flex bg-[#F8FAFC] text-foreground">
       <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
-          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">VISAcheck GO</span>
+          <ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"><Home className="w-4 h-4" />Dashboard</button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-[#1E3A5F]/5 text-[#1E3A5F]"><Folder className="w-4 h-4" />Meus Projetos</button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-slate-50 hover:text-foreground"><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><Home className="w-4 h-4" />Dashboard</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-[#1E3A5F]/5 text-primary"><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><BookOpen className="w-4 h-4" />Base de Normas</button>
         </nav>
         <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
@@ -301,12 +301,12 @@ export default function ProjectDetails() {
       </aside>
 
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+        <header className="border-b border-border bg-card py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-4">
             <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-xl font-semibold text-[#1E293B]">
+                <h1 className="text-xl font-semibold text-foreground">
                   {loading ? <span className="h-6 w-48 bg-slate-100 animate-pulse rounded block" /> : projeto?.nome_projeto}
                 </h1>
                 {!loading && projeto && getStatusBadge(projeto)}
@@ -319,7 +319,7 @@ export default function ProjectDetails() {
           {!loading && projeto && (
             <div className="flex items-center gap-3">
               {temNaoConformidades && (
-                <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-[#1E3A5F] hover:bg-[#1E3A5F]/5 flex items-center gap-2 text-sm">
+                <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-primary hover:bg-[#1E3A5F]/5 flex items-center gap-2 text-sm">
                   {rodarNovaAnalise ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                   Nova Análise
                 </Button>
@@ -335,11 +335,11 @@ export default function ProjectDetails() {
         <div className="flex-1 p-8 space-y-8 max-w-5xl w-full mx-auto">
           {loading ? (
             <div className="min-h-[400px] flex flex-col justify-center items-center gap-3">
-              <Loader2 className="w-8 h-8 animate-spin text-[#1E3A5F]" />
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
               <p className="text-sm text-muted-foreground">Buscando laudo do projeto...</p>
             </div>
           ) : error ? (
-            <div className="bg-white border border-red-200 rounded-xl p-8 text-center max-w-lg mx-auto shadow-sm">
+            <div className="bg-card border border-red-200 rounded-xl p-8 text-center max-w-lg mx-auto shadow-sm">
               <AlertOctagon className="w-12 h-12 text-[#DC2626] mx-auto mb-4" />
               <h3 className="text-base font-bold mb-2">Erro ao carregar projeto</h3>
               <p className="text-sm text-muted-foreground mb-6">{error}</p>
@@ -348,7 +348,7 @@ export default function ProjectDetails() {
           ) : projeto && (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between md:col-span-1">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between md:col-span-1">
                   <div>
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                     <div className="flex items-baseline gap-1.5 mb-2">
@@ -357,18 +357,18 @@ export default function ProjectDetails() {
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
-                    <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
+                    <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-border">
                       <div className={`h-full rounded-full transition-all duration-500 ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${scoreCalculado}%` }} />
                     </div>
                     <span className="text-[10px] text-muted-foreground block text-right font-medium">{getMensagemScore()}</span>
                   </div>
                 </div>
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2 flex flex-col justify-between">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm md:col-span-2 flex flex-col justify-between">
                   <div className="space-y-2">
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">Resumo Executivo</h3>
-                    <p className="text-sm leading-relaxed text-slate-700">{resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length)}</p>
+                    <p className="text-sm leading-relaxed text-foreground/90">{resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length)}</p>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
                     <span>Análise executada de acordo com as normas da ANVISA e ABNT aplicáveis.</span>
                   </div>
@@ -377,13 +377,13 @@ export default function ProjectDetails() {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
-                  <h2 className="text-base font-bold text-[#1E293B]">Validações por Categoria</h2>
+                  <BarChart2 className="w-5 h-5 text-primary" />
+                  <h2 className="text-base font-bold text-foreground">Validações por Categoria</h2>
                 </div>
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-border">
+                      <tr className="bg-muted border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conformes</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendências</th>
@@ -393,16 +393,16 @@ export default function ProjectDetails() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {validacoesPorCategoria.map((v) => (
-                        <tr key={v.categoria} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 font-medium text-[#1E293B]">{v.categoria}</td>
+                        <tr key={v.categoria} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-6 py-4 font-medium text-foreground">{v.categoria}</td>
                           <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
-                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-slate-400">0</span>}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
                                 <div className={`h-full rounded-full ${v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`} style={{ width: `${v.percentual}%` }} />
                               </div>
-                              <span className="text-xs font-semibold text-slate-600 w-10 text-right">{v.percentual}%</span>
+                              <span className="text-xs font-semibold text-foreground/80 w-10 text-right">{v.percentual}%</span>
                             </div>
                           </td>
                           <td className="px-4 py-4 text-center">{v.naoConformes === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}</td>
@@ -415,11 +415,11 @@ export default function ProjectDetails() {
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-base font-bold text-[#1E293B]">Não-Conformidades ({naoconformidades.length})</h2>
+                  <h2 className="text-base font-bold text-foreground">Não-Conformidades ({naoconformidades.length})</h2>
                   <span className="text-xs text-muted-foreground font-medium">Regulamento: RDC 50/2002 e correlatas</span>
                 </div>
                 {naoconformidades.length === 0 ? (
-                  <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
+                  <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
                     <h3 className="text-base font-semibold">
                       {scoreCalculado === 100 ? "Parabéns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
@@ -438,18 +438,18 @@ export default function ProjectDetails() {
                       </div>
                     </div>
                     {naoconformidades.map((nc, idx) => (
-                      <div key={idx} className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-4">
+                      <div key={idx} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
                         <div className="flex flex-wrap justify-between items-start gap-3">
                           <div className="space-y-1">
                             <span className="text-xs font-mono font-bold text-muted-foreground">{nc.codigo}</span>
-                            <h3 className="text-sm font-bold text-[#1E293B]">{nc.nome}</h3>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1E3A5F] tracking-wide uppercase bg-slate-100 border border-slate-200 px-2 py-0.5 rounded">Norma: {nc.norma}</span>
+                            <h3 className="text-sm font-bold text-foreground">{nc.nome}</h3>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-slate-100 border border-border px-2 py-0.5 rounded">Norma: {nc.norma}</span>
                           </div>
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
                         <div className="space-y-1.5">
                           <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Detalhamento</span>
-                          <p className="text-xs text-slate-600 leading-relaxed bg-slate-50/50 border border-slate-100 p-3 rounded-lg">{nc.descricao}</p>
+                          <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg">{nc.descricao}</p>
                         </div>
                         <div className="border border-green-200 bg-green-50/30 p-4 rounded-lg space-y-1.5">
                           <span className="text-[10px] font-bold text-[#16A34A] uppercase tracking-wider block">Referência</span>
@@ -463,24 +463,24 @@ export default function ProjectDetails() {
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5 text-[#1E3A5F]" />
-                  <h2 className="text-base font-bold text-[#1E293B]">Pareceres Técnicos por Norma</h2>
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <h2 className="text-base font-bold text-foreground">Pareceres Técnicos por Norma</h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pareceres.map((p, idx) => (
-                    <div key={idx} className="bg-white border border-border rounded-xl p-6 shadow-sm space-y-3">
+                    <div key={idx} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-[#1E3A5F] flex-shrink-0" />
-                          <h3 className="text-sm font-bold text-[#1E293B] leading-tight">{p.norma}</h3>
+                          <FileText className="w-4 h-4 text-primary flex-shrink-0" />
+                          <h3 className="text-sm font-bold text-foreground leading-tight">{p.norma}</h3>
                         </div>
                         {getRiscoBadge(p.risco)}
                       </div>
                       <div className="flex items-center gap-2">
-                        {p.status === "Conforme" ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" /> : <Loader2 className="w-4 h-4 text-slate-400 flex-shrink-0" />}
-                        <span className={`text-sm font-semibold ${p.status === "Conforme" ? "text-green-700" : "text-slate-500"}`}>{p.status}</span>
+                        {p.status === "Conforme" ? <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" /> : <Loader2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                        <span className={`text-sm font-semibold ${p.status === "Conforme" ? "text-green-700" : "text-muted-foreground"}`}>{p.status}</span>
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 border border-slate-100 p-3 rounded-lg">{p.observacao}</p>
+                      <p className="text-xs text-foreground/80 leading-relaxed bg-muted border border-border p-3 rounded-lg">{p.observacao}</p>
                     </div>
                   ))}
                 </div>
@@ -494,17 +494,17 @@ export default function ProjectDetails() {
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 text-[#1E3A5F]" />
-              <h2 className="text-base font-bold text-[#1E293B]">Nova Análise Regulatória</h2>
+              <RefreshCw className="w-5 h-5 text-primary" />
+              <h2 className="text-base font-bold text-foreground">Nova Análise Regulatória</h2>
             </div>
-            <p className="text-sm text-slate-600">Anexe o projeto corrigido para substituir o anterior e iniciar nova análise.</p>
+            <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar nova análise.</p>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 block">Projeto corrigido (PDF / DWG)</label>
+              <label className="text-xs font-semibold text-foreground/90 block">Projeto corrigido (PDF / DWG)</label>
               <div className="flex gap-2">
                 <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoNovaAnalise} readOnly
-                  className="flex-1 h-9 px-3 rounded-md border border-input bg-slate-50 text-sm cursor-pointer"
+                  className="flex-1 h-9 px-3 rounded-md border border-input bg-muted text-sm cursor-pointer"
                   onClick={() => document.getElementById("nova-analise-file")?.click()} />
-                <button type="button" onClick={() => document.getElementById("nova-analise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-slate-50">Procurar</button>
+                <button type="button" onClick={() => document.getElementById("nova-analise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-muted">Procurar</button>
               </div>
               <input id="nova-analise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden"
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoNovaAnaliseFile(file); setArquivoNovaAnalise(file.name); } }} />
@@ -514,7 +514,7 @@ export default function ProjectDetails() {
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setNovaAnaliseOpen(false); setArquivoNovaAnalise(""); }} disabled={rodarNovaAnalise}
-                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 disabled:opacity-50">Cancelar</button>
+                className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
               <button onClick={handleNovaAnalise} disabled={rodarNovaAnalise}
                 className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
                 {rodarNovaAnalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Nova Análise</>}

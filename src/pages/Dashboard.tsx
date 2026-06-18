@@ -62,8 +62,6 @@ export default function Dashboard() {
   const [projetosSelecionados, setProjetosSelecionados] = useState<string[]>([]);
   const [deletandoProjetos, setDeletandoProjetos] = useState(false);
   const [confirmarDelete, setConfirmarDelete] = useState(false);
-
-  // NOVO: estado para reanálise
   const [reanaliseOpen, setReanaliseOpen] = useState(false);
   const [arquivoReanalise, setArquivoReanalise] = useState("");
   const [arquivoReanaliseFile, setArquivoReanaliseFile] = useState<File | null>(null);
@@ -137,7 +135,6 @@ export default function Dashboard() {
     }
   };
 
-  // NOVO: handler de reanálise
   const handleReanalise = async () => {
     if (projetosSelecionados.length !== 1) return;
     const projetoId = projetosSelecionados[0];
@@ -248,24 +245,22 @@ export default function Dashboard() {
   const getStatusBadge = (proj: Projeto) => {
     const status = getStatusEfetivo(proj);
     switch (status) {
-      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-[#16A34A] border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO</span>;
-      case "analisando": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-[#1E3A5F] border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
+      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-500/10 text-green-500 border border-green-200"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />Aprovado</span>;
+      case "analisando": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-blue-200"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "parcial": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200"><span className="w-1.5 h-1.5 rounded-full bg-amber-500" />Parcial</span>;
       case "reprovado": return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-[#DC2626] border border-red-200"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
       default: return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-50 text-[#64748B] border border-gray-200"><span className="w-1.5 h-1.5 rounded-full bg-[#64748B]" />Pendente</span>;
     }
   };
 
-  // Barra de ações quando há selecionados
   const BarraAcoes = () => (
     projetosSelecionados.length > 0 ? (
-      <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 gap-3 flex-wrap">
-        <span className="text-sm text-slate-700 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
+      <div className="flex items-center justify-between bg-muted border border-border rounded-lg px-4 py-2.5 gap-3 flex-wrap">
+        <span className="text-sm text-foreground/90 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
         <div className="flex gap-2">
-          {/* NOVO: botão Reanálise aparece só quando 1 projeto selecionado */}
           {projetosSelecionados.length === 1 && (
             <Button onClick={() => setReanaliseOpen(true)} className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2 h-8 text-xs">
-              <RefreshCw className="w-3.5 h-3.5" />Reanálise
+              <RefreshCw className="w-3.5 h-3.5" />Reanalisar
             </Button>
           )}
           <Button onClick={() => setConfirmarDelete(true)} disabled={deletandoProjetos} className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs">
@@ -278,32 +273,33 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
+      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
           <ShieldCheck className="w-6 h-6 text-primary" />
           <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}><Home className="w-4 h-4" />Dashboard</button>
-          <button onClick={() => setActiveTab("projetos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
-          <button onClick={() => setActiveTab("normas")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-slate-50 hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Home className="w-4 h-4" />Dashboard</button>
+          <button onClick={() => setActiveTab("projetos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => setActiveTab("normas")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button onClick={() => navigate("/analise")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><Plus className="w-4 h-4" />Nova Análise</button>
         </nav>
-          <div className="p-4 border-t border-border space-y-3">
+        <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
             <span className="text-xs text-muted-foreground">Tema</span>
             <ThemeToggle />
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-red-50 dark:hover:bg-red-950 transition-all duration-200"><LogOut className="w-4 h-4" />Sair</button>
         </div>
       </aside>
 
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-white py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+        <header className="border-b border-border bg-card py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
           <div>
-            <h1 className="text-xl font-semibold text-[#1E293B]">{loadingUser ? <span className="h-6 w-32 bg-slate-100 animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
+            <h1 className="text-xl font-semibold text-foreground">{loadingUser ? <span className="h-6 w-32 bg-muted animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
           </div>
-          <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm">
+          <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary/90 text-white shadow-sm">
             <Plus className="w-4 h-4" />Novo Projeto
           </Button>
         </header>
@@ -311,15 +307,15 @@ export default function Dashboard() {
         <div className="flex-1 p-8 space-y-8 max-w-7xl w-full mx-auto">
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
-              { label: "Total de Projetos", value: totalProjetos, icon: <Folder className="w-5 h-5" />, bg: "bg-slate-50 text-[#1E3A5F]" },
-              { label: "Aprovados", value: aprovadosCount, icon: <CheckCircle2 className="w-5 h-5" />, bg: "bg-green-50 text-[#16A34A]" },
-              { label: "Em Análise", value: analisandoCount, icon: <Search className="w-5 h-5" />, bg: "bg-blue-50 text-primary" },
-              { label: "Pendentes", value: pendentesCount, icon: <Clock className="w-5 h-5" />, bg: "bg-gray-50 text-slate-600" },
+              { label: "Total de Projetos", value: totalProjetos, icon: <Folder className="w-5 h-5" />, bg: "bg-muted text-primary" },
+              { label: "Aprovados", value: aprovadosCount, icon: <CheckCircle2 className="w-5 h-5" />, bg: "bg-green-500/10 text-green-500" },
+              { label: "Em Análise", value: analisandoCount, icon: <Search className="w-5 h-5" />, bg: "bg-primary/10 text-primary" },
+              { label: "Pendentes", value: pendentesCount, icon: <Clock className="w-5 h-5" />, bg: "bg-muted text-foreground/80" },
             ].map(({ label, value, icon, bg }) => (
-              <div key={label} className="bg-white border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
+              <div key={label} className="bg-card border border-border p-6 rounded-xl shadow-sm flex items-center justify-between">
                 <div className="space-y-1">
                   <span className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{label}</span>
-                  <p className="text-2xl font-bold text-[#1E293B]">{loadingProjetos ? <Loader2 className="w-6 h-6 animate-spin text-primary" /> : value}</p>
+                  <p className="text-2xl font-bold text-foreground">{loadingProjetos ? <Loader2 className="w-6 h-6 animate-spin text-primary" /> : value}</p>
                 </div>
                 <div className={`p-3 ${bg} rounded-lg`}>{icon}</div>
               </div>
@@ -329,28 +325,28 @@ export default function Dashboard() {
           {activeTab === "dashboard" && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
-                <h2 className="text-lg font-bold text-[#1E293B]">Projetos Recentes</h2>
+                <h2 className="text-lg font-bold text-foreground">Projetos Recentes</h2>
                 {projetos.length > 5 && <button onClick={() => setActiveTab("projetos")} className="text-xs font-semibold text-primary hover:underline">Ver todos ({projetos.length})</button>}
               </div>
               {loadingProjetos ? (
-                <div className="bg-white border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                <div className="bg-card border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
               ) : projetos.length === 0 ? (
-                <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
+                <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
                   <div className="max-w-md mx-auto space-y-4">
-                    <div className="w-12 h-12 bg-slate-50 text-muted-foreground rounded-full flex items-center justify-center mx-auto"><Folder className="w-6 h-6" /></div>
+                    <div className="w-12 h-12 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto"><Folder className="w-6 h-6" /></div>
                     <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
                     <p className="text-sm text-muted-foreground">Clique em + Novo Projeto para começar.</p>
-                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-4 h-4" />Começar agora</Button>
+                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary/90 text-white gap-2"><Plus className="w-4 h-4" />Começar agora</Button>
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <BarraAcoes />
-                  <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-border bg-slate-50/50">
-                          <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosRecentes.length > 0 && projetosRecentes.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosRecentes)} /></th>
+                        <tr className="border-b border-border bg-muted/50">
+                          <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosRecentes.length > 0 && projetosRecentes.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosRecentes)} /></th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Tipo de Estabelecimento</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
@@ -359,10 +355,10 @@ export default function Dashboard() {
                       </thead>
                       <tbody className="divide-y divide-border">
                         {projetosRecentes.map((proj) => (
-                          <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
-                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
-                            <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_estabelecimento || "Não informado"}</td>
+                          <tr key={proj.id} className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
+                            <td className="px-6 py-4"><span className="font-semibold text-sm text-foreground block">{proj.nome_projeto}</span></td>
+                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">{getStatusBadge(proj)}</td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR")}</td>
                           </tr>
@@ -378,13 +374,13 @@ export default function Dashboard() {
           {activeTab === "projetos" && (
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-                <h2 className="text-lg font-bold text-[#1E293B]">Lista Geral de Projetos</h2>
+                <h2 className="text-lg font-bold text-foreground">Lista Geral de Projetos</h2>
                 <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                   <div className="relative flex-1 sm:w-64 min-w-[200px]">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Pesquisar pelo nome..." value={filtroNomeProjeto} onChange={(e) => setFiltroNomeProjeto(e.target.value)} className="pl-9" />
                   </div>
-                  <select value={filtroStatusProjeto} onChange={(e) => setFiltroStatusProjeto(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                  <select value={filtroStatusProjeto} onChange={(e) => setFiltroStatusProjeto(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-card text-foreground text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todos">Todos os Status</option>
                     <option value="aprovado">Aprovado</option>
                     <option value="analisando">Em análise</option>
@@ -395,9 +391,9 @@ export default function Dashboard() {
                 </div>
               </div>
               {loadingProjetos ? (
-                <div className="bg-white border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                <div className="bg-card border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
               ) : projetosFiltrados.length === 0 ? (
-                <div className="bg-white border border-border rounded-xl p-12 text-center shadow-sm">
+                <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
                   <Info className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <h3 className="text-base font-semibold">Nenhum projeto encontrado</h3>
                   <Button variant="outline" onClick={() => { setFiltroNomeProjeto(""); setFiltroStatusProjeto("todos"); }} className="mt-3">Limpar Filtros</Button>
@@ -405,11 +401,11 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   <BarraAcoes />
-                  <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="border-b border-border bg-slate-50/50">
-                          <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosFiltrados)} /></th>
+                        <tr className="border-b border-border bg-muted/50">
+                          <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosFiltrados)} /></th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome do Projeto</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Estabelecimento</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Pontuação</th>
@@ -419,14 +415,14 @@ export default function Dashboard() {
                       </thead>
                       <tbody className="divide-y divide-border">
                         {projetosFiltrados.map((proj) => (
-                          <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
-                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
-                            <td className="px-6 py-4"><span className="font-semibold text-sm text-[#1E293B] block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-slate-600">{proj.tipo_estabelecimento || "Não informado"}</td>
+                          <tr key={proj.id} className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
+                            <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
+                            <td className="px-6 py-4"><span className="font-semibold text-sm text-foreground block">{proj.nome_projeto}</span></td>
+                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 <span className={`text-sm font-semibold ${proj.score_conformidade >= 80 ? "text-green-600" : proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"}`}>{proj.score_conformidade ?? 0}%</span>
-                                <div className="w-16 bg-slate-100 rounded-full h-1.5">
+                                <div className="w-16 bg-muted rounded-full h-1.5">
                                   <div className={`h-1.5 rounded-full ${proj.score_conformidade >= 80 ? "bg-green-600" : proj.score_conformidade >= 50 ? "bg-amber-500" : "bg-red-500"}`} style={{ width: `${proj.score_conformidade ?? 0}%` }} />
                                 </div>
                               </div>
@@ -447,7 +443,7 @@ export default function Dashboard() {
             <div className="space-y-6">
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                 <div>
-                  <h2 className="text-lg font-bold text-[#1E293B]">Base de Regras e Normas</h2>
+                  <h2 className="text-lg font-bold text-foreground">Base de Regras e Normas</h2>
                   <p className="text-xs text-muted-foreground mt-0.5">Consulte as diretrizes regulatórias utilizadas na análise.</p>
                 </div>
                 <div className="flex flex-wrap gap-3 w-full sm:w-auto">
@@ -455,31 +451,31 @@ export default function Dashboard() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Buscar regra..." value={filtroBuscaRegra} onChange={(e) => setFiltroBuscaRegra(e.target.value)} className="pl-9" />
                   </div>
-                  <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                  <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-card text-foreground text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todas">Todas as Normas</option>
                     {normasDisponiveis.map((n) => (<option key={n} value={n}>{n}</option>))}
                   </select>
                 </div>
               </div>
               {loadingRegras ? (
-                <div className="bg-white border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+                <div className="bg-card border border-border rounded-xl p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
               ) : regrasFiltradas.length === 0 ? (
-                <div className="bg-white border border-border rounded-xl p-12 text-center">
+                <div className="bg-card border border-border rounded-xl p-12 text-center">
                   <HelpCircle className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
                   <h3 className="text-base font-semibold">Nenhuma regra encontrada</h3>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {regrasFiltradas.map((r) => (
-                    <div key={r.id} className="bg-white border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
+                    <div key={r.id} className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <div className="space-y-1">
                           <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">{r.norma_origem}</span>
                           <span className="text-xs text-muted-foreground block font-mono">{r.codigo}</span>
                         </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100">{r.categoria}</span>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800">{r.categoria}</span>
                       </div>
-                      <p className="text-xs text-slate-600 line-clamp-3">{r.descricao}</p>
+                      <p className="text-xs text-foreground/80 line-clamp-3">{r.descricao}</p>
                       {r.subcategoria && <p className="text-[10px] text-muted-foreground mt-2">{r.subcategoria}</p>}
                     </div>
                   ))}
@@ -492,7 +488,7 @@ export default function Dashboard() {
 
       {/* MODAL NOVO PROJETO */}
       <Dialog open={novoProjetoOpen} onOpenChange={setNovoProjetoOpen}>
-        <DialogContent className="sm:max-w-md bg-white">
+        <DialogContent className="sm:max-w-md bg-card">
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2"><FileText className="w-5 h-5" />Novo Diagnóstico Regulatório</DialogTitle>
             <DialogDescription>Insira os dados do projeto para iniciar a análise automatizada.</DialogDescription>
@@ -504,7 +500,7 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="establishment-type">Tipo de Estabelecimento</Label>
-              <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+              <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-card text-foreground text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                 <option value="Hospital Geral">Hospital Geral</option>
                 <option value="Clínica Médica">Clínica Médica / Ambulatório</option>
                 <option value="Consultório">Consultório Individual</option>
@@ -517,16 +513,16 @@ export default function Dashboard() {
             <div className="space-y-2">
               <Label htmlFor="proj-file">Anexar Prancha Arquitetônica (PDF / DWG)</Label>
               <div className="flex gap-2">
-                <Input id="proj-file-dummy" type="text" placeholder="Selecione um arquivo..." value={arquivoName} readOnly className="bg-slate-50 cursor-pointer flex-1" onClick={() => document.getElementById("real-file-input")?.click()} />
+                <Input id="proj-file-dummy" type="text" placeholder="Selecione um arquivo..." value={arquivoName} readOnly className="bg-muted cursor-pointer flex-1" onClick={() => document.getElementById("real-file-input")?.click()} />
                 <Button type="button" variant="outline" onClick={() => document.getElementById("real-file-input")?.click()}>Procurar</Button>
               </div>
               <input id="real-file-input" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoSelecionado(file); setArquivoName(file.name); } }} />
               <p className="text-[10px] text-muted-foreground">Arquivos suportados: PDF ou DWG até 50MB.</p>
             </div>
-            {erroCriar && <div className="bg-red-50 text-[#DC2626] border border-red-100 rounded-lg p-3 flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span className="text-xs">{erroCriar}</span></div>}
+            {erroCriar && <div className="bg-red-50 dark:bg-red-950 text-[#DC2626] border border-red-100 rounded-lg p-3 flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span className="text-xs">{erroCriar}</span></div>}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setNovoProjetoOpen(false)} disabled={criandoProjeto}>Cancelar</Button>
-              <Button type="submit" className="bg-primary hover:bg-primary-hover text-white gap-2" disabled={criandoProjeto}>
+              <Button type="submit" className="bg-primary hover:bg-primary/90 text-white gap-2" disabled={criandoProjeto}>
                 {criandoProjeto ? <><Loader2 className="w-4 h-4 animate-spin" />Criando...</> : <>Iniciar Análise<Plus className="w-4 h-4" /></>}
               </Button>
             </DialogFooter>
@@ -534,28 +530,28 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* MODAL REANÁLISE */}
+      {/* MODAL REANALISE */}
       {reanaliseOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 text-[#1E3A5F]" />
-              <h2 className="text-base font-bold text-[#1E293B]">Reanálise Regulatória</h2>
+              <RefreshCw className="w-5 h-5 text-primary" />
+              <h2 className="text-base font-bold text-foreground">Reanálise Regulatória</h2>
             </div>
-            <p className="text-sm text-slate-600">Anexe o projeto corrigido para substituir o anterior e iniciar uma nova análise completa.</p>
+            <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar uma nova análise completa.</p>
             <div className="space-y-2">
-              <label className="text-xs font-semibold text-slate-700 block">Projeto corrigido (PDF / DWG)</label>
+              <label className="text-xs font-semibold text-foreground/90 block">Projeto corrigido (PDF / DWG)</label>
               <div className="flex gap-2">
-                <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoReanalise} readOnly className="flex-1 h-9 px-3 rounded-md border border-input bg-slate-50 text-sm cursor-pointer" onClick={() => document.getElementById("reanalise-file")?.click()} />
-                <button type="button" onClick={() => document.getElementById("reanalise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-slate-50">Procurar</button>
+                <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoReanalise} readOnly className="flex-1 h-9 px-3 rounded-md border border-input bg-muted text-foreground text-sm cursor-pointer" onClick={() => document.getElementById("reanalise-file")?.click()} />
+                <button type="button" onClick={() => document.getElementById("reanalise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground">Procurar</button>
               </div>
               <input id="reanalise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoReanaliseFile(file); setArquivoReanalise(file.name); } }} />
             </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
+            <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
               <strong>Atenção:</strong> Os resultados anteriores serão substituídos completamente.
             </div>
             <div className="flex gap-3">
-              <button onClick={() => { setReanaliseOpen(false); setArquivoReanalise(""); setArquivoReanaliseFile(null); }} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 disabled:opacity-50">Cancelar</button>
+              <button onClick={() => { setReanaliseOpen(false); setArquivoReanalise(""); setArquivoReanaliseFile(null); }} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground disabled:opacity-50">Cancelar</button>
               <button onClick={handleReanalise} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
                 {rodandoReanalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Reanálise</>}
               </button>
@@ -564,20 +560,20 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL CONFIRMAR DELEÇÃO */}
+      {/* MODAL CONFIRMAR DELETAR */}
       {confirmarDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-600" /></div>
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-950 rounded-full flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-600" /></div>
               <div>
-                <h2 className="text-base font-bold text-[#1E293B]">Excluir projetos</h2>
+                <h2 className="text-base font-bold text-foreground">Excluir projetos</h2>
                 <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600">Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados serão removidos permanentemente.</p>
+            <p className="text-sm text-foreground/80">Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados serão removidos permanentemente.</p>
             <div className="flex gap-3">
-              <button onClick={() => setConfirmarDelete(false)} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-slate-50 disabled:opacity-50">Cancelar</button>
+              <button onClick={() => setConfirmarDelete(false)} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground disabled:opacity-50">Cancelar</button>
               <button onClick={handleDeletarSelecionados} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
                 {deletandoProjetos ? <><Loader2 className="w-4 h-4 animate-spin" />Excluindo...</> : <><Trash2 className="w-4 h-4" />Confirmar</>}
               </button>
@@ -588,4 +584,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
