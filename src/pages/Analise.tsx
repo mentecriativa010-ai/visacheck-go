@@ -290,30 +290,30 @@ export default function Analise() {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen flex bg-[#F8FAFC] text-[#1E293B]">
+    <div className="min-h-screen flex bg-background text-foreground">
 
       {/* SIDEBAR */}
-      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
+      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
         <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-[#1E3A5F]" />
-          <span className="text-xl font-bold tracking-tight text-[#1E3A5F]">VISAcheck GO</span>
+          <ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50">
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50">
             <Home className="w-4 h-4" />Dashboard
           </button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50">
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50">
             <Folder className="w-4 h-4" />Meus Projetos
           </button>
-          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-slate-50">
+          <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50">
             <BookOpen className="w-4 h-4" />Base de Normas
           </button>
-          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-[#1E3A5F]/5 text-[#1E3A5F]">
+          <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium bg-primary/5 text-primary">
             <ClipboardList className="w-4 h-4" />Nova Análise
           </button>
         </nav>
         <div className="p-4 border-t border-border">
-          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-[#DC2626] hover:bg-red-50">
+          <button onClick={handleLogout} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-destructive/10">
             <LogOut className="w-4 h-4" />Sair
           </button>
         </div>
@@ -322,22 +322,22 @@ export default function Analise() {
       <main className="flex-1 pl-64 min-h-screen flex flex-col">
 
         {/* HEADER */}
-        <header className="border-b border-border bg-white py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
+        <header className="border-b border-border bg-card py-5 px-8 flex items-center gap-4 sticky top-0 z-10 shadow-sm">
           <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
-            <h1 className="text-xl font-semibold text-[#1E293B]">Nova Análise Regulatória</h1>
+            <h1 className="text-xl font-semibold text-foreground">Nova Análise Regulatória</h1>
             <p className="text-xs text-muted-foreground">Diagnóstico baseado nas normas ANVISA e ABNT</p>
           </div>
           {/* INDICADOR DE PASSOS */}
           <div className="ml-auto flex items-center gap-2">
             {[1, 2, 3].map(p => (
               <div key={p} className="flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-[#1E3A5F] text-white" : "bg-slate-100 text-slate-400"}`}>
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${passo >= p ? "bg-primary text-white" : "bg-muted text-muted-foreground/60"}`}>
                   {p}
                 </div>
-                {p < 3 && <div className={`w-8 h-0.5 ${passo > p ? "bg-[#1E3A5F]" : "bg-slate-200"}`} />}
+                {p < 3 && <div className={`w-8 h-0.5 ${passo > p ? "bg-primary" : "bg-border"}`} />}
               </div>
             ))}
             <div className="ml-3 text-xs text-muted-foreground">
@@ -351,12 +351,12 @@ export default function Analise() {
           {/* ── PASSO 1: DADOS DO PROJETO ── */}
           {passo === 1 && (
             <div className="max-w-lg mx-auto space-y-6">
-              <div className="bg-white border border-border rounded-xl p-8 shadow-sm space-y-6">
+              <div className="bg-card border border-border rounded-xl p-8 shadow-sm space-y-6">
                 <div className="text-center space-y-2">
-                  <div className="w-12 h-12 bg-[#1E3A5F]/10 rounded-full flex items-center justify-center mx-auto">
-                    <ClipboardList className="w-6 h-6 text-[#1E3A5F]" />
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+                    <ClipboardList className="w-6 h-6 text-primary" />
                   </div>
-                  <h2 className="text-lg font-bold text-[#1E293B]">Dados do Projeto</h2>
+                  <h2 className="text-lg font-bold text-foreground">Dados do Projeto</h2>
                   <p className="text-sm text-muted-foreground">Preencha as informações básicas para iniciar o diagnóstico</p>
                 </div>
 
@@ -379,19 +379,19 @@ export default function Analise() {
                       <button
                         type="button"
                         onClick={() => setDropdownAberto(prev => !prev)}
-                        className="w-full h-9 px-3 rounded-md border border-input bg-white text-sm text-left flex items-center justify-between shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                        className="w-full h-9 px-3 rounded-md border border-input bg-card text-sm text-left flex items-center justify-between shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                       >
-                        <span className={tipoSelecionado ? "text-[#1E293B]" : "text-muted-foreground"}>
+                        <span className={tipoSelecionado ? "text-foreground" : "text-muted-foreground"}>
                           {tipoSelecionado || "Selecione o tipo de ambiente..."}
                         </span>
                         <ChevronDown className="w-4 h-4 text-muted-foreground" />
                       </button>
 
                       {dropdownAberto && (
-                        <div className="absolute z-50 mt-1 w-full bg-white border border-border rounded-lg shadow-lg max-h-72 overflow-y-auto">
+                        <div className="absolute z-50 mt-1 w-full bg-card border border-border rounded-lg shadow-lg max-h-72 overflow-y-auto">
                           {GRUPOS_AMBIENTE.map(grupo => (
                             <div key={grupo.grupo}>
-                              <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-slate-50 sticky top-0">
+                              <div className="px-3 py-2 text-[10px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50 sticky top-0">
                                 {grupo.grupo}
                               </div>
                               {grupo.itens.map(item => (
@@ -399,7 +399,7 @@ export default function Analise() {
                                   key={item}
                                   type="button"
                                   onClick={() => selecionarTipo(item)}
-                                  className={`w-full text-left px-4 py-2 text-sm hover:bg-[#1E3A5F]/5 transition-colors ${tipoSelecionado === item ? "bg-[#1E3A5F]/10 text-[#1E3A5F] font-semibold" : "text-[#1E293B]"}`}
+                                  className={`w-full text-left px-4 py-2 text-sm hover:bg-primary/5 transition-colors ${tipoSelecionado === item ? "bg-primary/10 text-primary font-semibold" : "text-foreground"}`}
                                 >
                                   {item}
                                 </button>
@@ -414,7 +414,7 @@ export default function Analise() {
                     {tipoSelecionado && (
                       <div className="flex flex-wrap gap-1.5 pt-1">
                         {(AMBIENTE_PARA_TIPOS[tipoSelecionado] ?? []).map(t => (
-                          <span key={t} className="text-[10px] font-semibold px-2 py-0.5 rounded bg-[#1E3A5F]/10 text-[#1E3A5F]">
+                          <span key={t} className="text-[10px] font-semibold px-2 py-0.5 rounded bg-primary/10 text-primary">
                             {t}
                           </span>
                         ))}
@@ -433,7 +433,7 @@ export default function Analise() {
                 <Button
                   onClick={avancarPasso1}
                   disabled={!nomeProjeto.trim() || !tipoSelecionado || loadingRegras}
-                  className="w-full bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2"
+                  className="w-full bg-primary hover:bg-primary/90 text-white gap-2"
                 >
                   {loadingRegras
                     ? <><Loader2 className="w-4 h-4 animate-spin" />Carregando regras...</>
@@ -455,24 +455,24 @@ export default function Analise() {
           {passo === 2 && (
             <div className="space-y-6">
               {/* BARRA DE PROGRESSO */}
-              <div className="bg-white border border-border rounded-xl p-5 shadow-sm">
+              <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h2 className="text-sm font-bold text-[#1E293B]">{nomeProjeto}</h2>
+                    <h2 className="text-sm font-bold text-foreground">{nomeProjeto}</h2>
                     <p className="text-xs text-muted-foreground">
                       {tipoSelecionado} · {regras.length} regras
                     </p>
                   </div>
                   <div className="text-right">
                     <p className="text-xs text-muted-foreground">Respondidas</p>
-                    <p className="text-lg font-bold text-[#1E3A5F]">
+                    <p className="text-lg font-bold text-primary">
                       {totalRespondidas}<span className="text-sm font-normal text-muted-foreground">/{regras.length}</span>
                     </p>
                   </div>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
+                <div className="w-full bg-muted rounded-full h-2">
                   <div
-                    className="h-2 rounded-full bg-[#1E3A5F] transition-all duration-300"
+                    className="h-2 rounded-full bg-primary transition-all duration-300"
                     style={{ width: `${regras.length > 0 ? (totalRespondidas / regras.length) * 100 : 0}%` }}
                   />
                 </div>
@@ -489,7 +489,7 @@ export default function Analise() {
                       <button
                         key={cat}
                         onClick={() => setCategoriaAtiva(cat)}
-                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-[#1E3A5F] text-white font-semibold" : "text-slate-600 hover:bg-slate-100"}`}
+                        className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${categoriaAtiva === cat ? "bg-primary text-white font-semibold" : "text-muted-foreground hover:bg-muted"}`}
                       >
                         <span className="block truncate">{cat}</span>
                         <span className={`text-[10px] ${categoriaAtiva === cat ? "text-blue-200" : "text-muted-foreground"}`}>
@@ -503,14 +503,14 @@ export default function Analise() {
                 {/* REGRAS DA CATEGORIA ATIVA */}
                 <div className="col-span-3 space-y-3">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-base font-bold text-[#1E293B]">{categoriaAtiva}</h3>
+                    <h3 className="text-base font-bold text-foreground">{categoriaAtiva}</h3>
                     <span className="text-xs text-muted-foreground">{regrasPorCategoria.length} regras</span>
                   </div>
 
                   {regrasPorCategoria.map(regra => (
                     <div
                       key={regra.id}
-                      className={`bg-white border rounded-xl p-4 shadow-sm transition-all ${
+                      className={`bg-card border rounded-xl p-4 shadow-sm transition-all ${
                         respostas[regra.id] === "conforme"     ? "border-green-200 bg-green-50/30" :
                         respostas[regra.id] === "nao_conforme" ? "border-red-200 bg-red-50/30"   :
                         "border-border"
@@ -519,7 +519,7 @@ export default function Analise() {
                       <div className="flex items-start gap-3">
                         <div className="flex-1 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] font-bold text-[#1E3A5F] bg-[#1E3A5F]/10 px-2 py-0.5 rounded">
+                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">
                               {regra.norma_origem}
                             </span>
                             <span className="text-[10px] font-mono text-muted-foreground">{regra.codigo}</span>
@@ -529,7 +529,7 @@ export default function Analise() {
                               </span>
                             )}
                           </div>
-                          <p className="text-xs text-slate-700 leading-relaxed">{regra.descricao}</p>
+                          <p className="text-xs text-foreground leading-relaxed">{regra.descricao}</p>
                           {regra.artigo_referencia && (
                             <p className="text-[10px] text-muted-foreground">Ref: {regra.artigo_referencia}</p>
                           )}
@@ -557,15 +557,15 @@ export default function Analise() {
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                               respostas[regra.id] === "nao_conforme"
                                 ? "bg-red-600 text-white border-red-600"
-                                : "border-red-300 text-red-700 hover:bg-red-50"
+                                : "border-red-300 text-red-700 hover:bg-destructive/10"
                             }`}
                           >✗ Não conforme</button>
                           <button
                             onClick={() => setRespostas(prev => ({ ...prev, [regra.id]: "nao_aplicavel" }))}
                             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                               respostas[regra.id] === "nao_aplicavel"
-                                ? "bg-slate-500 text-white border-slate-500"
-                                : "border-slate-300 text-slate-500 hover:bg-slate-50"
+                                ? "bg-muted/500 text-white border-slate-500"
+                                : "border-slate-300 text-muted-foreground hover:bg-muted/50"
                             }`}
                           >— N/A</button>
                         </div>
@@ -579,7 +579,7 @@ export default function Analise() {
                           </Label>
                           <textarea
                             rows={2}
-                            className="w-full text-xs border border-input rounded-md px-3 py-2 bg-white resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                            className="w-full text-xs border border-input rounded-md px-3 py-2 bg-card resize-none focus:outline-none focus:ring-1 focus:ring-ring"
                             placeholder="Ex: Corredor com 1,0 m — mínimo exigido é 1,5 m (RDC 50)"
                             value={observacoes[regra.id] ?? ""}
                             onChange={e => setObservacoes(prev => ({ ...prev, [regra.id]: e.target.value }))}
@@ -609,7 +609,7 @@ export default function Analise() {
                           const i = categorias.indexOf(categoriaAtiva);
                           setCategoriaAtiva(categorias[i + 1]);
                         }}
-                        className="bg-[#1E3A5F] text-white gap-2"
+                        className="bg-primary text-white gap-2"
                       >
                         Próxima categoria<ChevronRight className="w-4 h-4" />
                       </Button>
@@ -636,15 +636,15 @@ export default function Analise() {
             <div className="space-y-8">
               {/* SCORE */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm flex flex-col justify-between">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                   <div>
-                    <span className={`text-5xl font-extrabold ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>
+                    <span className={`text-5xl font-extrabold ${scoreCalculado >= 80 ? "text-green-600" : scoreCalculado >= 50 ? "text-amber-600" : "text-destructive"}`}>
                       {scoreCalculado}%
                     </span>
-                    <div className="mt-4 w-full bg-slate-100 rounded-full h-3">
+                    <div className="mt-4 w-full bg-muted rounded-full h-3">
                       <div
-                        className={`h-3 rounded-full ${scoreCalculado >= 80 ? "bg-[#16A34A]" : scoreCalculado >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`}
+                        className={`h-3 rounded-full ${scoreCalculado >= 80 ? "bg-green-600" : scoreCalculado >= 50 ? "bg-amber-500" : "bg-destructive"}`}
                         style={{ width: `${scoreCalculado}%` }}
                       />
                     </div>
@@ -654,9 +654,9 @@ export default function Analise() {
                   </div>
                 </div>
 
-                <div className="bg-white border border-border p-6 rounded-xl shadow-sm md:col-span-2">
+                <div className="bg-card border border-border p-6 rounded-xl shadow-sm md:col-span-2">
                   <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-3">Resumo da Análise</h3>
-                  <p className="text-sm text-slate-700 leading-relaxed">
+                  <p className="text-sm text-foreground leading-relaxed">
                     {scoreCalculado === 100
                       ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoSelecionado}.`
                       : `O diagnóstico de "${nomeProjeto}" (${tipoSelecionado}) identificou ${totalNaoConformes} não-conformidades entre ${totalRespondidas} itens verificados. Score: ${scoreCalculado}%.`
@@ -669,7 +669,7 @@ export default function Analise() {
                     <div className="flex items-center gap-2 text-red-600">
                       <AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span>
                     </div>
-                    <div className="flex items-center gap-2 text-slate-500">
+                    <div className="flex items-center gap-2 text-muted-foreground">
                       <AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalRespondidas} não aplicáveis</span>
                     </div>
                   </div>
@@ -679,13 +679,13 @@ export default function Analise() {
               {/* VALIDAÇÕES POR CATEGORIA */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
-                  <BarChart2 className="w-5 h-5 text-[#1E3A5F]" />
+                  <BarChart2 className="w-5 h-5 text-primary" />
                   <h2 className="text-base font-bold">Validações por Categoria</h2>
                 </div>
-                <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
+                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="bg-slate-50 border-b border-border">
+                      <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Conformes</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Pendências</th>
@@ -695,20 +695,20 @@ export default function Analise() {
                     </thead>
                     <tbody className="divide-y divide-border">
                       {validacoesPorCategoria.filter(v => v.total > 0).map(v => (
-                        <tr key={v.categoria} className="hover:bg-slate-50/50">
+                        <tr key={v.categoria} className="hover:bg-muted/50">
                           <td className="px-6 py-4 font-medium">{v.categoria}</td>
                           <td className="px-4 py-4 text-center text-green-700 font-semibold">{v.conformes}</td>
                           <td className="px-4 py-4 text-center">
                             {v.naoConformes > 0
                               ? <span className="text-red-600 font-semibold">{v.naoConformes}</span>
-                              : <span className="text-slate-400">0</span>
+                              : <span className="text-muted-foreground/60">0</span>
                             }
                           </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
-                              <div className="flex-1 bg-slate-100 rounded-full h-2">
+                              <div className="flex-1 bg-muted rounded-full h-2">
                                 <div
-                                  className={`h-2 rounded-full ${v.percentual >= 80 ? "bg-[#16A34A]" : v.percentual >= 50 ? "bg-[#D97706]" : "bg-[#DC2626]"}`}
+                                  className={`h-2 rounded-full ${v.percentual >= 80 ? "bg-green-600" : v.percentual >= 50 ? "bg-amber-500" : "bg-destructive"}`}
                                   style={{ width: `${v.percentual}%` }}
                                 />
                               </div>
@@ -734,16 +734,16 @@ export default function Analise() {
                   <h2 className="text-base font-bold">Não-Conformidades ({naoConformidades.length})</h2>
                   <div className="space-y-4">
                     {naoConformidades.map(nc => (
-                      <div key={nc.id} className="bg-white border border-red-200 rounded-xl p-5 shadow-sm space-y-2">
+                      <div key={nc.id} className="bg-card border border-red-200 rounded-xl p-5 shadow-sm space-y-2">
                         <div className="flex items-start justify-between gap-3">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-muted-foreground">{nc.codigo}</span>
-                              <span className="text-[10px] font-bold text-[#1E3A5F] bg-slate-100 px-2 py-0.5 rounded">{nc.norma_origem}</span>
+                              <span className="text-[10px] font-bold text-primary bg-muted px-2 py-0.5 rounded">{nc.norma_origem}</span>
                             </div>
-                            <p className="text-sm text-slate-700">{nc.descricao}</p>
+                            <p className="text-sm text-foreground">{nc.descricao}</p>
                             {observacoes[nc.id] && (
-                              <p className="text-xs text-slate-500 mt-1 italic">"{observacoes[nc.id]}"</p>
+                              <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[nc.id]}"</p>
                             )}
                           </div>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 text-red-700 border border-red-200 flex-shrink-0">
@@ -762,7 +762,7 @@ export default function Analise() {
                   <Download className="w-4 h-4" />Exportar Relatório
                 </Button>
                 {projetoSalvoId && (
-                  <Button onClick={() => navigate(`/projetos/${projetoSalvoId}`)} className="bg-[#1E3A5F] text-white gap-2">
+                  <Button onClick={() => navigate(`/projetos/${projetoSalvoId}`)} className="bg-primary text-white gap-2">
                     Ver Laudo Completo<ChevronRight className="w-4 h-4" />
                   </Button>
                 )}
