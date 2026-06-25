@@ -117,29 +117,46 @@ export default function Analise() {
     } catch { return null; }
   };
 
+  // ─── Extrai texto real do PDF usando pdf.js (via CDN) ───────────────────────
+  const extrairTextoPDF = async (file) => {
+    // Carrega pdf.js dinamicamente (evita precisar adicionar dependência ao projeto)
+    if (!window.pdfjsLib) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+        script.onload = resolve;
+        script.onerror = () => reject(new Error("Falha ao carregar leitor de PDF"));
+        document.head.appendChild(script);
+      });
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+    let textoCompleto = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const conteudo = await page.getTextContent();
+      const textoPagina = conteudo.items.map(item => item.str).join(" ");
+      textoCompleto += textoPagina + "\n";
+    }
+
+    return textoCompleto.trim();
+  };
+
   // ─── Análise por IA — via openrouter.ts ─────────────────────────────────────
   const analisarComIA = async (file, regrasCarregadas) => {
     if (!regrasCarregadas.length) return;
     setAnalisandoIA(true);
     setIaStatus("Lendo o PDF do projeto...");
     try {
-      // Extrai texto do PDF como string (funciona para PDFs com texto embutido)
-      const textoPDF = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          // Tenta decodificar como texto; PDFs com camada de texto retornam conteúdo legível
-          const bytes = new Uint8Array(reader.result);
-          let text = "";
-          for (let i = 0; i < bytes.length; i++) {
-            const c = bytes[i];
-            if (c >= 32 && c < 127) text += String.fromCharCode(c);
-            else if (c === 10 || c === 13) text += " ";
-          }
-          resolve(text);
-        };
-        reader.onerror = reject;
-        reader.readAsArrayBuffer(file);
-      });
+      const textoPDF = await extrairTextoPDF(file);
+
+      if (!textoPDF || textoPDF.length < 30) {
+        throw new Error("Não foi possível extrair texto do PDF (pode ser um PDF escaneado/imagem, sem camada de texto).");
+      }
 
       setIaStatus("IA analisando o projeto arquitetônico...");
 
@@ -164,26 +181,26 @@ export default function Analise() {
       setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — revise e ajuste conforme necessário`);
     } catch (err) {
       console.error("Erro IA:", err);
-      setIaStatus("⚠ Não foi possível analisar com IA. Prossiga com o checklist manual.");
+      setIaStatus(`⚠ Não foi possível analisar com IA (${err.message || "erro desconhecido"}). Prossiga com o checklist manual.`);
     } finally {
       setAnalisandoIA(false);
     }
   };
 
-    const avancarPasso1 = async () => {
+  const avancarPasso1 = async () => {
     if (!nomeProjeto.trim() || !tipoSelecionado || !pdfFile) return;
     if (pdfFile) uploadPDF(pdfFile); // fire-and-forget para storage
     setPasso(2);
-    // Aguarda regras e dispara IA
+
+    // Aguarda as regras carregarem de fato, lendo o estado mais recente a cada checagem
+    // (em vez de depender da variável `regras` capturada no closure, que fica congelada)
     if (pdfFile) {
-      const regrasFrescas = await new Promise(resolve => {
-        let tentativas = 0;
-        const check = setInterval(() => {
-          tentativas++;
-          const r = regras;
-          if (r.length > 0 || tentativas > 30) { clearInterval(check); resolve(r); }
-        }, 300);
-      });
+      let regrasFrescas = [];
+      for (let tentativas = 0; tentativas < 30; tentativas++) {
+        if (regras.length > 0) { regrasFrescas = regras; break; }
+        await new Promise(r => setTimeout(r, 300));
+      }
+      if (regrasFrescas.length === 0 && regras.length > 0) regrasFrescas = regras;
       if (regrasFrescas.length > 0) await analisarComIA(pdfFile, regrasFrescas);
     }
   };
