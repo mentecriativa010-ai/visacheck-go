@@ -125,13 +125,10 @@ export default function Analise() {
     setIaStatus("Lendo o PDF do projeto...");
 
     try {
-      // Converte PDF para base64 via FileReader (sem pdfjs-dist)
-      const base64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+      // Extrai texto do PDF via openrouter helper (sem base64)
+      // Extrai texto do PDF via openrouter helper
+      const { extractTextFromPDF } = await import("@/lib/openrouter");
+      const textoPDF = await extractTextFromPDF(file);
 
       const listaRegras = regrasCarregadas.map(r =>
         `ID:${r.id} | ${r.codigo} | ${r.descricao}` +
@@ -143,7 +140,7 @@ export default function Analise() {
 
       const prompt = `Você é especialista em vigilância sanitária e análise de projetos arquitetônicos para estabelecimentos de saúde no Brasil.
 
-Analise o projeto arquitetônico em PDF e verifique cada regra regulatória.
+Analise o conteúdo do projeto arquitetônico abaixo e verifique cada regra regulatória.
 Para cada regra, responda APENAS com JSON array:
 [{"id":"<ID>","resultado":"conforme"|"nao_conforme"|"nao_aplicavel","obs":"<observação se não conforme, senão vazio>"}]
 
@@ -151,6 +148,9 @@ Tipo: ${tipoSelecionado} | Projeto: ${nomeProjeto}
 
 REGRAS:
 ${listaRegras}
+
+CONTEÚDO DO PROJETO:
+${textoPDF.slice(0, 12000)}
 
 - "conforme": projeto atende claramente
 - "nao_conforme": projeto não atende ou há indício
@@ -170,10 +170,7 @@ Responda SOMENTE com o JSON array, sem texto antes ou depois.`;
           max_tokens: 4096,
           messages: [{
             role: "user",
-            content: [
-              { type: "image_url", image_url: { url: `data:application/pdf;base64,${base64}` } },
-              { type: "text", text: prompt },
-            ],
+            content: prompt,
           }],
         }),
       });

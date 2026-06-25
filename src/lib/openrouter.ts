@@ -1,4 +1,6 @@
-// A chave fica APENAS no Vercel (VITE_OPENROUTER_API_KEY) — nunca no código
+// Integração com OpenRouter — VISAcheck GO
+// A chave fica APENAS no Vercel (VITE_OPENROUTER_API_KEY), nunca no código
+
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "google/gemini-2.0-flash-exp:free";
 
@@ -19,31 +21,34 @@ export async function analisarProjetoComIA(
   regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>
 ): Promise<RespostaAnalise> {
   const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string;
-  if (!apiKey) throw new Error("VITE_OPENROUTER_API_KEY não configurada no Vercel");
+  if (!apiKey) throw new Error("VITE_OPENROUTER_API_KEY nao configurada no Vercel");
 
-  const listaRegras = regras.map(r =>
-    `- ID: ${r.id} | Código: ${r.codigo} | Norma: ${r.norma_origem ?? "—"} | Descrição: ${r.descricao}`
-  ).join("\n");
+  const listaRegras = regras
+    .map(r => `- ID: ${r.id} | Codigo: ${r.codigo} | Norma: ${r.norma_origem ?? "-"} | Descricao: ${r.descricao}`)
+    .join("\n");
 
-  const prompt = `Você é especialista em vigilância sanitária e normas ANVISA/ABNT.
+  // Limita o texto do PDF para caber no contexto do modelo free
+  const textoLimitado = textoPDF.slice(0, 12000);
 
-Analise o projeto arquitetônico abaixo para: **${tipoAmbiente}**
+  const prompt = `Voce e especialista em vigilancia sanitaria e normas ANVISA/ABNT para estabelecimentos de saude.
 
-TEXTO DO PROJETO:
-${textoPDF.slice(0, 8000)}
+Analise o projeto arquitetonico abaixo para o tipo de ambiente: ${tipoAmbiente}
 
-REGRAS A VERIFICAR:
+TEXTO EXTRAIDO DO PROJETO (PDF):
+${textoLimitado}
+
+REGRAS REGULATORIAS A VERIFICAR:
 ${listaRegras}
 
-Responda APENAS com JSON válido, sem texto adicional:
-{
-  "resultados": [
-    { "id": "uuid", "status": "conforme" | "nao_conforme" | "nao_aplicavel", "justificativa": "breve explicação" }
-  ],
-  "resumo": "resumo em 2-3 frases"
-}
+INSTRUCOES:
+- Analise cada regra contra o texto do projeto
+- Marque "conforme" APENAS se o projeto mencionar explicitamente o atendimento ao requisito
+- Marque "nao_conforme" se o projeto claramente nao atende
+- Marque "nao_aplicavel" se nao ha informacao suficiente para avaliar
+- A justificativa deve ser breve (1 frase) e baseada no texto do projeto
 
-Marque "conforme" só se o projeto mencionar explicitamente o atendimento. Se não houver informação suficiente, marque "nao_aplicavel".`;
+Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
+{"resultados":[{"id":"uuid-da-regra","status":"conforme","justificativa":"explicacao breve"}],"resumo":"resumo geral em 2-3 frases"}`;
 
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
@@ -62,16 +67,23 @@ Marque "conforme" só se o projeto mencionar explicitamente o atendimento. Se n�
   });
 
   if (!response.ok) {
-    throw new Error(`Erro OpenRouter: ${response.status}`);
+    const erro = await response.text();
+    throw new Error(`Erro OpenRouter ${response.status}: ${erro.slice(0, 200)}`);
   }
 
   const data = await response.json();
-  const conteudo = data.choices?.[0]?.message?.content ?? "";
-  const jsonLimpo = conteudo.replace(/```json/gi, "").replace(/```/g, "").trim();
+  const conteudo: string = data.choices?.[0]?.message?.content ?? "";
+
+  // Remove markdown fences se o modelo insistir em adicionar
+  const jsonLimpo = conteudo
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
 
   try {
     return JSON.parse(jsonLimpo) as RespostaAnalise;
   } catch {
-    throw new Error(`Resposta inválida da IA: ${conteudo.slice(0, 200)}`);
+    throw new Error(`IA retornou resposta invalida: ${conteudo.slice(0, 300)}`);
   }
 }
