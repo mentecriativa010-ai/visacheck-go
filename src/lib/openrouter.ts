@@ -2,9 +2,20 @@
 // A chave fica APENAS no Vercel (VITE_OPENROUTER_API_KEY), nunca no código
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-// google/gemini-2.0-flash-exp:free foi descontinuado pelo OpenRouter (404).
-// Gemma 3 27B é o modelo gratuito do Google atualmente ativo no catálogo.
-const MODEL = "google/gemma-3-27b-it:free";
+
+// ─────────────────────────────────────────────────────────────────────────
+// LISTA DE FALLBACK — modelos gratuitos do catálogo OpenRouter (jun/2026)
+// Histórico de descontinuação: gemini-2.0-flash-exp:free (404) -> gemma-3-27b-it:free (404)
+// Por isso agora usamos uma LISTA, não um único modelo: se o primeiro cair
+// (404 = removido, 429 = rate limit esgotado), o código tenta o próximo
+// automaticamente, sem quebrar a análise do usuário.
+// Verifique a disponibilidade atual em: https://openrouter.ai/collections/free-models
+const MODELOS_FALLBACK = [
+  "google/gemma-4-31b-it:free",   // sucessor direto do gemma-3-27b, mesma faixa de qualidade
+  "z-ai/glm-4.5-air:free",        // bom em seguir instruções/JSON estruturado
+  "openai/gpt-oss-120b:free",     // forte em raciocínio e formato estruturado
+  "moonshotai/kimi-k2.6:free",    // alternativa de outro provedor (reduz risco correlato)
+];
 
 export interface ResultadoRegra {
   id: string;
@@ -17,14 +28,11 @@ export interface RespostaAnalise {
   resumo: string;
 }
 
-export async function analisarProjetoComIA(
+function montarPrompt(
   textoPDF: string,
   tipoAmbiente: string,
   regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>
-): Promise<RespostaAnalise> {
-  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string;
-  if (!apiKey) throw new Error("VITE_OPENROUTER_API_KEY nao configurada no Vercel");
-
+): string {
   const listaRegras = regras
     .map(r => `- ID: ${r.id} | Codigo: ${r.codigo} | Norma: ${r.norma_origem ?? "-"} | Descricao: ${r.descricao}`)
     .join("\n");
@@ -32,7 +40,7 @@ export async function analisarProjetoComIA(
   // Limita o texto do PDF para caber no contexto do modelo free
   const textoLimitado = textoPDF.slice(0, 12000);
 
-  const prompt = `Voce e especialista em vigilancia sanitaria e normas ANVISA/ABNT para estabelecimentos de saude.
+  return `Voce e especialista em vigilancia sanitaria e normas ANVISA/ABNT para estabelecimentos de saude.
 
 Analise o projeto arquitetonico abaixo para o tipo de ambiente: ${tipoAmbiente}
 
@@ -51,7 +59,25 @@ INSTRUCOES:
 
 Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
 {"resultados":[{"id":"uuid-da-regra","status":"conforme","justificativa":"explicacao breve"}],"resumo":"resumo geral em 2-3 frases"}`;
+}
 
+function limparJSON(conteudo: string): string {
+  return conteudo
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
+/**
+ * Tenta chamar um modelo específico no OpenRouter.
+ * Lança erro com `.status` (quando vier de HTTP) para o chamador decidir se tenta o próximo modelo.
+ */
+async function chamarModelo(
+  modelo: string,
+  prompt: string,
+  apiKey: string
+): Promise<RespostaAnalise> {
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -61,7 +87,7 @@ Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
       "X-Title": "VISAcheck GO",
     },
     body: JSON.stringify({
-      model: MODEL,
+      model: modelo,
       messages: [{ role: "user", content: prompt }],
       temperature: 0.1,
       max_tokens: 4000,
@@ -70,28 +96,50 @@ Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
 
   if (!response.ok) {
     const erro = await response.text();
-    if (response.status === 429) {
-      throw new Error("Limite de uso do modelo gratuito atingido (rate limit). Aguarde alguns minutos e tente novamente.");
-    }
-    if (response.status === 404) {
-      throw new Error(`Modelo "${MODEL}" indisponível no OpenRouter (pode ter sido descontinuado). Verifique openrouter.ai/models.`);
-    }
-    throw new Error(`Erro OpenRouter ${response.status}: ${erro.slice(0, 200)}`);
+    const e: any = new Error(`Erro OpenRouter ${response.status} (${modelo}): ${erro.slice(0, 200)}`);
+    e.status = response.status;
+    throw e;
   }
 
   const data = await response.json();
   const conteudo: string = data.choices?.[0]?.message?.content ?? "";
-
-  // Remove markdown fences se o modelo insistir em adicionar
-  const jsonLimpo = conteudo
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/i, "")
-    .trim();
+  const jsonLimpo = limparJSON(conteudo);
 
   try {
     return JSON.parse(jsonLimpo) as RespostaAnalise;
   } catch {
-    throw new Error(`IA retornou resposta invalida: ${conteudo.slice(0, 300)}`);
+    const e: any = new Error(`IA retornou resposta invalida (${modelo}): ${conteudo.slice(0, 300)}`);
+    e.status = "invalid_json";
+    throw e;
   }
+}
+
+export async function analisarProjetoComIA(
+  textoPDF: string,
+  tipoAmbiente: string,
+  regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>
+): Promise<RespostaAnalise> {
+  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string;
+  if (!apiKey) throw new Error("VITE_OPENROUTER_API_KEY nao configurada no Vercel");
+
+  const prompt = montarPrompt(textoPDF, tipoAmbiente, regras);
+
+  const erros: string[] = [];
+
+  for (const modelo of MODELOS_FALLBACK) {
+    try {
+      return await chamarModelo(modelo, prompt, apiKey);
+    } catch (err: any) {
+      // 404 = modelo descontinuado/renomeado, 429 = rate limit, 5xx = indisponibilidade temporária
+      // Em qualquer um desses casos vale tentar o próximo modelo da lista.
+      erros.push(`${modelo}: ${err.message}`);
+      console.warn(`[OpenRouter] Falhou com ${modelo}, tentando próximo da lista...`, err);
+      continue;
+    }
+  }
+
+  // Todos os modelos da lista falharam
+  throw new Error(
+    `Todos os modelos gratuitos configurados falharam. Verifique openrouter.ai/models (catálogo pode ter mudado) ou se o limite de uso gratuito foi atingido.\nDetalhes:\n${erros.join("\n")}`
+  );
 }
