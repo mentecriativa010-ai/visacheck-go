@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { analisarProjetoComIA } from "@/lib/openrouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,83 +117,51 @@ export default function Analise() {
     } catch { return null; }
   };
 
-  // ─── Análise por IA — Gemini 2.0 Flash via OpenRouter ─────────────────────
+  // ─── Análise por IA — via openrouter.ts ─────────────────────────────────────
   const analisarComIA = async (file, regrasCarregadas) => {
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-    if (!apiKey || !regrasCarregadas.length) return;
-
+    if (!regrasCarregadas.length) return;
     setAnalisandoIA(true);
     setIaStatus("Lendo o PDF do projeto...");
-
     try {
-      // Extrai texto do PDF via openrouter helper (sem base64)
-      // Extrai texto do PDF via openrouter helper
-      const { extractTextFromPDF } = await import("@/lib/openrouter");
-      const textoPDF = await extractTextFromPDF(file);
-
-      const listaRegras = regrasCarregadas.map(r =>
-        `ID:${r.id} | ${r.codigo} | ${r.descricao}` +
-        (r.valor_minimo != null ? ` (mín: ${r.valor_minimo}${r.unidade ?? ""})` : "") +
-        (r.valor_maximo != null ? ` (máx: ${r.valor_maximo}${r.unidade ?? ""})` : "")
-      ).join("\n");
+      // Extrai texto do PDF como string (funciona para PDFs com texto embutido)
+      const textoPDF = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          // Tenta decodificar como texto; PDFs com camada de texto retornam conteúdo legível
+          const bytes = new Uint8Array(reader.result);
+          let text = "";
+          for (let i = 0; i < bytes.length; i++) {
+            const c = bytes[i];
+            if (c >= 32 && c < 127) text += String.fromCharCode(c);
+            else if (c === 10 || c === 13) text += " ";
+          }
+          resolve(text);
+        };
+        reader.onerror = reject;
+        reader.readAsArrayBuffer(file);
+      });
 
       setIaStatus("IA analisando o projeto arquitetônico...");
 
-      const prompt = `Você é especialista em vigilância sanitária e análise de projetos arquitetônicos para estabelecimentos de saúde no Brasil.
+      const regrasMapeadas = regrasCarregadas.map(r => ({
+        id: String(r.id),
+        codigo: r.codigo ?? "",
+        descricao: r.descricao ?? "",
+        norma_origem: r.norma_origem ?? null,
+      }));
 
-Analise o conteúdo do projeto arquitetônico abaixo e verifique cada regra regulatória.
-Para cada regra, responda APENAS com JSON array:
-[{"id":"<ID>","resultado":"conforme"|"nao_conforme"|"nao_aplicavel","obs":"<observação se não conforme, senão vazio>"}]
+      const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas);
 
-Tipo: ${tipoSelecionado} | Projeto: ${nomeProjeto}
-
-REGRAS:
-${listaRegras}
-
-CONTEÚDO DO PROJETO:
-${textoPDF.slice(0, 12000)}
-
-- "conforme": projeto atende claramente
-- "nao_conforme": projeto não atende ou há indício
-- "nao_aplicavel": não se aplica ou não é possível verificar
-Responda SOMENTE com o JSON array, sem texto antes ou depois.`;
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://visacheck-go.vercel.app",
-          "X-Title": "VISAcheck GO",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.0-flash-exp:free",
-          max_tokens: 4096,
-          messages: [{
-            role: "user",
-            content: prompt,
-          }],
-        }),
-      });
-
-      if (!response.ok) throw new Error(`OpenRouter: ${response.status}`);
-      const data = await response.json();
-      const texto = data.choices?.[0]?.message?.content ?? "";
-      const jsonMatch = texto.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("IA não retornou JSON válido");
-
-      const resultados = JSON.parse(jsonMatch[0]);
       const novasRespostas = {};
       const novasObs = {};
-      resultados.forEach(r => {
-        if (["conforme","nao_conforme","nao_aplicavel"].includes(r.resultado)) {
-          novasRespostas[r.id] = r.resultado;
-        }
-        if (r.obs) novasObs[r.id] = r.obs;
+      resultado.resultados.forEach(r => {
+        const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
+        if (statusMap[r.status]) novasRespostas[r.id] = statusMap[r.status];
+        if (r.justificativa) novasObs[r.id] = r.justificativa;
       });
       setRespostas(prev => ({ ...prev, ...novasRespostas }));
       setObservacoes(prev => ({ ...prev, ...novasObs }));
-      setIaStatus(`✓ IA analisou ${resultados.length} regras — revise e ajuste conforme necessário`);
+      setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — revise e ajuste conforme necessário`);
     } catch (err) {
       console.error("Erro IA:", err);
       setIaStatus("⚠ Não foi possível analisar com IA. Prossiga com o checklist manual.");
@@ -201,8 +170,8 @@ Responda SOMENTE com o JSON array, sem texto antes ou depois.`;
     }
   };
 
-  const avancarPasso1 = async () => {
-    if (!nomeProjeto.trim() || !tipoSelecionado) return;
+    const avancarPasso1 = async () => {
+    if (!nomeProjeto.trim() || !tipoSelecionado || !pdfFile) return;
     if (pdfFile) uploadPDF(pdfFile); // fire-and-forget para storage
     setPasso(2);
     // Aguarda regras e dispara IA
@@ -430,7 +399,7 @@ Responda SOMENTE com o JSON array, sem texto antes ou depois.`;
 
                   {/* Upload PDF */}
                   <div className="space-y-2">
-                    <Label>Projeto Arquitetônico (PDF) — opcional</Label>
+                    <Label>Projeto Arquitetônico (PDF) — obrigatório</Label>
                     <div
                       className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${pdfFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"}`}
                       onClick={() => document.getElementById("pdf-input").click()}
@@ -476,14 +445,12 @@ Responda SOMENTE com o JSON array, sem texto antes ou depois.`;
 
                 <Button
                   onClick={avancarPasso1}
-                  disabled={!nomeProjeto.trim() || !tipoSelecionado || loadingRegras}
+                  disabled={!nomeProjeto.trim() || !tipoSelecionado || !pdfFile || loadingRegras}
                   className="w-full gap-2"
                 >
                   {loadingRegras
                     ? <><Loader2 className="w-4 h-4 animate-spin" />Carregando regras...</>
-                    : pdfFile
-                      ? <><Sparkles className="w-4 h-4" />Iniciar com Análise IA</>
-                      : <>Iniciar Checklist<ChevronRight className="w-4 h-4" /></>
+                    : <><Sparkles className="w-4 h-4" />Iniciar com Análise IA</>
                   }
                 </Button>
 
