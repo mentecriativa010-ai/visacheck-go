@@ -90,7 +90,7 @@ export default function Dashboard() {
       if (profile?.nome) {
         setUserName(profile.nome);
       } else {
-        setUserName(user.email?.split("@")[0] || "Usu�rio");
+        setUserName(user.email?.split("@")[0] || "Usuário");
       }
       setLoadingUser(false);
 
@@ -259,13 +259,13 @@ export default function Dashboard() {
     }
   };
 
-  // Barra de a��es quando h� selecionados
+  // Barra de ações quando há selecionados
   const BarraAcoes = () => (
     projetosSelecionados.length > 0 ? (
       <div className="flex items-center justify-between bg-muted border border-border rounded-lg px-4 py-2.5 gap-3 flex-wrap">
         <span className="text-sm text-foreground/90 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
         <div className="flex gap-2">
-          {/* NOVO: bot�o ReANÁLISE aparece s� quando 1 projeto selecionado */}
+          {/* NOVO: botão ReANÁLISE aparece só quando 1 projeto selecionado */}
           {projetosSelecionados.length === 1 && (
             <Button onClick={() => setReanaliseOpen(true)} className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2 h-8 text-xs">
               <RefreshCw className="w-3.5 h-3.5" />ReANÁLISE
@@ -342,8 +342,8 @@ export default function Dashboard() {
                   <div className="max-w-md mx-auto space-y-4">
                     <div className="w-12 h-12 bg-muted text-muted-foreground rounded-full flex items-center justify-center mx-auto"><Folder className="w-6 h-6" /></div>
                     <h3 className="text-base font-semibold">Nenhum projeto cadastrado</h3>
-                    <p className="text-sm text-muted-foreground">Clique em + Novo Projeto para come�ar.</p>
-                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-4 h-4" />Come�ar agora</Button>
+                    <p className="text-sm text-muted-foreground">Clique em + Novo Projeto para começar.</p>
+                    <Button onClick={() => navigate("/analise")} className="bg-primary hover:bg-primary-hover text-white gap-2"><Plus className="w-4 h-4" />Começar agora</Button>
                   </div>
                 </div>
               ) : (
@@ -365,7 +365,7 @@ export default function Dashboard() {
                           <tr key={proj.id} className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
                             <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
                             <td className="px-6 py-4"><span className="font-semibold text-sm text-foreground block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "N�o informado"}</td>
+                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">{getStatusBadge(proj)}</td>
                             <td className="px-6 py-4 text-sm text-muted-foreground">{new Date(proj.created_at).toLocaleDateString("pt-BR")}</td>
                           </tr>
@@ -415,7 +415,7 @@ export default function Dashboard() {
                           <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosFiltrados)} /></th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Nome do Projeto</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Estabelecimento</th>
-                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Pontua��o</th>
+                          <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Pontuação</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Status</th>
                           <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase">Criado em</th>
                         </tr>
@@ -425,7 +425,7 @@ export default function Dashboard() {
                           <tr key={proj.id} className="hover:bg-muted/50 transition-colors duration-150 cursor-pointer" onClick={() => navigate(`/projetos/${proj.id}`)}>
                             <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}><input type="checkbox" className="w-4 h-4 rounded border-gray-300 cursor-pointer" checked={projetosSelecionados.includes(proj.id)} onChange={(e) => toggleSelecionado(proj.id, e as any)} /></td>
                             <td className="px-6 py-4"><span className="font-semibold text-sm text-foreground block">{proj.nome_projeto}</span></td>
-                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "N�o informado"}</td>
+                            <td className="px-6 py-4 text-sm text-foreground/80">{proj.tipo_estabelecimento || "Não informado"}</td>
                             <td className="px-6 py-4">
                               <div className="flex items-center gap-2">
                                 <span className={`text-sm font-semibold ${proj.score_conformidade >= 80 ? "text-green-600" : proj.score_conformidade >= 50 ? "text-amber-600" : "text-red-600"}`}>{proj.score_conformidade ?? 0}%</span>
@@ -451,7 +451,7 @@ export default function Dashboard() {
               <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
                 <div>
                   <h2 className="text-lg font-bold text-foreground">Base de Regras e Normas</h2>
-                  <p className="text-xs text-muted-foreground mt-0.5">Consulte as diretrizes regulat�rias utilizadas na ANÁLISE.</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Consulte as diretrizes regulatórias utilizadas na ANÁLISE.</p>
                 </div>
                 <div className="flex flex-wrap gap-3 w-full sm:w-auto">
                   <div className="relative flex-1 sm:w-64 min-w-[200px]">
@@ -497,34 +497,34 @@ export default function Dashboard() {
       <Dialog open={novoProjetoOpen} onOpenChange={setNovoProjetoOpen}>
         <DialogContent className="sm:max-w-md bg-white">
           <DialogHeader>
-            <DialogTitle className="text-primary flex items-center gap-2"><FileText className="w-5 h-5" />Novo Diagn�stico Regulat�rio</DialogTitle>
+            <DialogTitle className="text-primary flex items-center gap-2"><FileText className="w-5 h-5" />Novo Diagnóstico Regulatório</DialogTitle>
             <DialogDescription>Insira os dados do projeto para iniciar a ANÁLISE automatizada.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateProject} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="proj-name">Nome do Projeto</Label>
-              <Input id="proj-name" value={nomeProjeto} onChange={(e) => setNomeProjeto(e.target.value)} placeholder="Ex: Cl�nicas Reunidas - Bloco A" required />
+              <Input id="proj-name" value={nomeProjeto} onChange={(e) => setNomeProjeto(e.target.value)} placeholder="Ex: Clínicas Reunidas - Bloco A" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="establishment-type">Tipo de Estabelecimento</Label>
               <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                 <option value="Hospital Geral">Hospital Geral</option>
-                <option value="Cl�nica M�dica">Cl�nica M�dica / Ambulat�rio</option>
-                <option value="Consult�rio">Consult�rio Individual</option>
+                <option value="Clínica Médica">Clínica Médica / Ambulatório</option>
+                <option value="Consultório">Consultório Individual</option>
                 <option value="CME">CME (Central de Materiais)</option>
-                <option value="Laborat�rio">Laborat�rio de ANÁLISEs</option>
-                <option value="Distribuidora">Distribuidora de Produtos de Sa�de</option>
-                <option value="Outro">Outro Estabelecimento de Sa�de</option>
+                <option value="Laboratório">Laboratório de ANÁLISEs</option>
+                <option value="Distribuidora">Distribuidora de Produtos de Saúde</option>
+                <option value="Outro">Outro Estabelecimento de Saúde</option>
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="proj-file">Anexar Prancha Arquitet�nica (PDF / DWG)</Label>
+              <Label htmlFor="proj-file">Anexar Prancha Arquitetônica (PDF / DWG)</Label>
               <div className="flex gap-2">
                 <Input id="proj-file-dummy" type="text" placeholder="Selecione um arquivo..." value={arquivoName} readOnly className="bg-muted cursor-pointer flex-1" onClick={() => document.getElementById("real-file-input")?.click()} />
                 <Button type="button" variant="outline" onClick={() => document.getElementById("real-file-input")?.click()}>Procurar</Button>
               </div>
               <input id="real-file-input" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoSelecionado(file); setArquivoName(file.name); } }} />
-              <p className="text-[10px] text-muted-foreground">Arquivos suportados: PDF ou DWG at� 50MB.</p>
+              <p className="text-[10px] text-muted-foreground">Arquivos suportados: PDF ou DWG até 50MB.</p>
             </div>
             {erroCriar && <div className="bg-red-50 text-[#DC2626] border border-red-100 rounded-lg p-3 flex items-start gap-2"><AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /><span className="text-xs">{erroCriar}</span></div>}
             <DialogFooter>
@@ -543,7 +543,7 @@ export default function Dashboard() {
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center gap-3">
               <RefreshCw className="w-5 h-5 text-primary" />
-              <h2 className="text-base font-bold text-foreground">ReANÁLISE Regulat�ria</h2>
+              <h2 className="text-base font-bold text-foreground">ReANÁLISE Regulatória</h2>
             </div>
             <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar uma nova ANÁLISE completa.</p>
             <div className="space-y-2">
@@ -555,7 +555,7 @@ export default function Dashboard() {
               <input id="reanalise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoReanaliseFile(file); setArquivoReanalise(file.name); } }} />
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-              <strong>Aten��o:</strong> Os resultados anteriores ser�o substitu�dos completamente.
+              <strong>Atenção:</strong> Os resultados anteriores serão substituídos completamente.
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setReanaliseOpen(false); setArquivoReanalise(""); setArquivoReanaliseFile(null); }} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
@@ -567,7 +567,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* MODAL CONFIRMAR DELE��O */}
+      {/* MODAL CONFIRMAR DELEÇÃO */}
       {confirmarDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
@@ -575,10 +575,10 @@ export default function Dashboard() {
               <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center"><Trash2 className="w-5 h-5 text-red-600" /></div>
               <div>
                 <h2 className="text-base font-bold text-foreground">Excluir projetos</h2>
-                <p className="text-xs text-muted-foreground">Esta a��o n�o pode ser desfeita</p>
+                <p className="text-xs text-muted-foreground">Esta ação não pode ser desfeita</p>
               </div>
             </div>
-            <p className="text-sm text-foreground/80">Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados ser�o removidos permanentemente.</p>
+            <p className="text-sm text-foreground/80">Tem certeza que deseja excluir <strong>{projetosSelecionados.length} projeto(s)</strong>? Todos os dados serão removidos permanentemente.</p>
             <div className="flex gap-3">
               <button onClick={() => setConfirmarDelete(false)} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
               <button onClick={handleDeletarSelecionados} disabled={deletandoProjetos} className="flex-1 h-9 rounded-md bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
