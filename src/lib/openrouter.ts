@@ -2,7 +2,9 @@
 // A chave fica APENAS no Vercel (VITE_OPENROUTER_API_KEY), nunca no código
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "google/gemini-2.0-flash-exp:free";
+// google/gemini-2.0-flash-exp:free foi descontinuado pelo OpenRouter (404).
+// Gemma 3 27B é o modelo gratuito do Google atualmente ativo no catálogo.
+const MODEL = "google/gemma-3-27b-it:free";
 
 export interface ResultadoRegra {
   id: string;
@@ -68,6 +70,12 @@ Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
 
   if (!response.ok) {
     const erro = await response.text();
+    if (response.status === 429) {
+      throw new Error("Limite de uso do modelo gratuito atingido (rate limit). Aguarde alguns minutos e tente novamente.");
+    }
+    if (response.status === 404) {
+      throw new Error(`Modelo "${MODEL}" indisponível no OpenRouter (pode ter sido descontinuado). Verifique openrouter.ai/models.`);
+    }
     throw new Error(`Erro OpenRouter ${response.status}: ${erro.slice(0, 200)}`);
   }
 
