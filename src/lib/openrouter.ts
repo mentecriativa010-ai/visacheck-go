@@ -4,18 +4,41 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─────────────────────────────────────────────────────────────────────────
-// LISTA DE FALLBACK — modelos gratuitos do catálogo OpenRouter (jun/2026)
-// Histórico de descontinuação: gemini-2.0-flash-exp:free (404) -> gemma-3-27b-it:free (404)
-// Por isso agora usamos uma LISTA, não um único modelo: se o primeiro cair
-// (404 = removido, 429 = rate limit esgotado), o código tenta o próximo
-// automaticamente, sem quebrar a análise do usuário.
-// Verifique a disponibilidade atual em: https://openrouter.ai/collections/free-models
+// MODO 100% GRATUITO (decisão deliberada: app ainda em fase de testes,
+// investimento em modelos pagos só depois que a análise estiver validada)
+//
+// Histórico de instabilidade observado: gemini-2.0-flash-exp:free (404) ->
+// gemma-3-27b-it:free (404) -> glm-4.5-air:free (404, mesmo listado como
+// "free" no catálogo — a listagem do site fica desatualizada em relação à
+// API real) -> kimi-k2.6:free (mesmo problema) + 429 esporádico em vários
+// outros (sobrecarga compartilhada entre todos os usuários do OpenRouter).
+//
+// Estratégia adotada para maximizar robustez SEM custo:
+//   1) Lista ampla e diversificada (7 modelos, 4 provedores diferentes)
+//      — reduz a chance de todos caírem ao mesmo tempo.
+//   2) Em caso de 429 (rate-limit temporário), espera ~3s e tenta o MESMO
+//      modelo de novo 1x antes de desistir dele e ir pro próximo da lista
+//      — já que o próprio erro da OpenRouter diz que é "temporário".
+//
+// TODO (quando o app estiver validado e pronto pra produção real):
+// adicionar 1-2 modelos pagos baratos (~$0,05-0,20/M tokens) como última
+// rede de segurança. Histórico dessa decisão: conversa de jun/2026.
+//
+// Verifique disponibilidade atual em: https://openrouter.ai/models
+// (mas lembre: a listagem do site pode estar desatualizada — o teste real
+// é a resposta da API)
 const MODELOS_FALLBACK = [
-  "google/gemma-4-31b-it:free",   // sucessor direto do gemma-3-27b, mesma faixa de qualidade
-  "z-ai/glm-4.5-air:free",        // bom em seguir instruções/JSON estruturado
-  "openai/gpt-oss-120b:free",     // forte em raciocínio e formato estruturado
-  "moonshotai/kimi-k2.6:free",    // alternativa de outro provedor (reduz risco correlato)
+  "openrouter/owl-alpha",                    // modelo da própria OpenRouter, contexto 1M
+  "google/gemma-4-31b-it:free",
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "openai/gpt-oss-20b:free",                 // variante menor da OpenAI, pool de cota separado
+  "google/gemma-4-26b-a4b-it:free",          // variante menor do Gemma, pool de cota separado
+  "nvidia/nemotron-3-nano-30b-a3b:free",
 ];
+
+const ESPERA_RETRY_429_MS = 3000;
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 export interface ResultadoRegra {
   id: string;
@@ -130,16 +153,28 @@ export async function analisarProjetoComIA(
     try {
       return await chamarModelo(modelo, prompt, apiKey);
     } catch (err: any) {
-      // 404 = modelo descontinuado/renomeado, 429 = rate limit, 5xx = indisponibilidade temporária
-      // Em qualquer um desses casos vale tentar o próximo modelo da lista.
+      // 429 = rate limit temporário -> vale a pena tentar o MESMO modelo
+      // de novo uma vez após uma pequena espera, antes de desistir dele.
+      if (err.status === 429) {
+        console.warn(`[OpenRouter] 429 em ${modelo}, aguardando ${ESPERA_RETRY_429_MS}ms e tentando de novo...`);
+        await sleep(ESPERA_RETRY_429_MS);
+        try {
+          return await chamarModelo(modelo, prompt, apiKey);
+        } catch (err2: any) {
+          erros.push(`${modelo} (após retry): ${err2.message}`);
+          console.warn(`[OpenRouter] Retry de ${modelo} também falhou, tentando próximo da lista...`, err2);
+          continue;
+        }
+      }
+      // 404 = modelo descontinuado/renomeado, 5xx = indisponibilidade temporária
       erros.push(`${modelo}: ${err.message}`);
       console.warn(`[OpenRouter] Falhou com ${modelo}, tentando próximo da lista...`, err);
       continue;
     }
   }
 
-  // Todos os modelos da lista falharam
+  // Todos os modelos gratuitos da lista falharam
   throw new Error(
-    `Todos os modelos gratuitos configurados falharam. Verifique openrouter.ai/models (catálogo pode ter mudado) ou se o limite de uso gratuito foi atingido.\nDetalhes:\n${erros.join("\n")}`
+    `Todos os modelos gratuitos configurados falharam (incluindo retry em rate-limits). Catálogo gratuito do OpenRouter pode ter mudado — verifique openrouter.ai/models, ou tente novamente em alguns minutos (a sobrecarga upstream costuma ser passageira).\nDetalhes:\n${erros.join("\n")}`
   );
 }
