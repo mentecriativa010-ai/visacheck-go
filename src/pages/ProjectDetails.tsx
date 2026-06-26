@@ -96,19 +96,12 @@ export default function ProjectDetails() {
         .limit(1)
         .maybeSingle();
 
-      if (parecerData) {
-        setResumoExecutivo(parecerData.parecer || "");
-        setPareceres([
-          { norma: "NBR 9050:2020 — Acessibilidade", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de rampas, corredores, sanitários e sinalização tátil.", risco: parecerData.nivel_risco || "baixo" },
-          { norma: "RDC ANVISA 1.002/2025 — Boas Práticas", status: parecerData.nivel_risco === "baixo" ? "Conforme" : "Requer atenção", observacao: "Verificação de fluxos, revestimentos, ventilação e gestão de resíduos.", risco: parecerData.nivel_risco || "baixo" },
-        ]);
-      } else {
-        setResumoExecutivo("");
-        setPareceres([
-          { norma: "NBR 9050:2020 — Acessibilidade", status: "Aguardando análise", observacao: "Análise pendente — faça upload do PDF do projeto.", risco: "indefinido" },
-          { norma: "RDC ANVISA 1.002/2025 — Boas Práticas", status: "Aguardando análise", observacao: "Análise pendente — faça upload do PDF do projeto.", risco: "indefinido" },
-        ]);
-      }
+      // OBS: "pareceres" (por norma) NÃO é mais derivado daqui — esse registro
+      // só guarda o resumo executivo em texto livre gerado pela IA. Os pareceres
+      // por norma são calculados abaixo, a partir das validações reais (valData),
+      // agrupadas por norma_origem. Isso evita exibir normas fixas/erradas que
+      // não têm relação com o tipo de estabelecimento analisado.
+      setResumoExecutivo(parecerData?.parecer || "");
 
       const { data: valData } = await supabase
         .from("validacoes")
@@ -141,9 +134,34 @@ export default function ProjectDetails() {
           categoria: cat, total: val.total, conformes: val.conformes, naoConformes: val.naoConformes,
           percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
         })));
+
+        // ── Pareceres por norma (dinâmico) ──────────────────────────────
+        // Agrupa as validações reais pela norma de origem de cada regra
+        // (ex: "RDC-50-2002", "NBR-9050-2020"), em vez de exibir normas
+        // fixas que não têm relação com o tipo de estabelecimento avaliado.
+        const normaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
+        valData.forEach((v: any) => {
+          const norma = v.regras_regulatorias?.norma_origem || "Norma não identificada";
+          if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0 };
+          normaMap[norma].total++;
+          if (v.status === "aprovado") normaMap[norma].conformes++;
+          else if (v.status === "reprovado") normaMap[norma].naoConformes++;
+        });
+        const pareceresDinamicos: Parecer[] = Object.entries(normaMap)
+          .map(([norma, dados]) => {
+            const semNaoConformes = dados.naoConformes === 0;
+            const risco = semNaoConformes ? "baixo" : dados.naoConformes <= 2 ? "medio" : "alto";
+            const observacao = semNaoConformes
+              ? `${dados.total} item(ns) verificado(s) nesta norma — todos conformes.`
+              : `${dados.naoConformes} de ${dados.total} item(ns) não conforme(s) nesta norma.`;
+            return { norma, status: semNaoConformes ? "Conforme" : "Requer atenção", observacao, risco };
+          })
+          .sort((a, b) => a.norma.localeCompare(b.norma));
+        setPareceres(pareceresDinamicos);
       } else {
         setTemValidacoesReais(false);
         setNaoConformidades([]);
+        setPareceres([]);
         setValidacoesPorCategoria([
           { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
           { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
@@ -466,6 +484,12 @@ export default function ProjectDetails() {
                   <ClipboardList className="w-5 h-5 text-primary" />
                   <h2 className="text-base font-bold text-foreground">Pareceres Técnicos por Norma</h2>
                 </div>
+                {pareceres.length === 0 ? (
+                  <div className="bg-card border border-border rounded-xl p-8 text-center shadow-sm">
+                    <ClipboardList className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">Aguardando análise — os pareceres por norma aparecem aqui após a validação do projeto.</p>
+                  </div>
+                ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {pareceres.map((p, idx) => (
                     <div key={idx} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
@@ -484,6 +508,7 @@ export default function ProjectDetails() {
                     </div>
                   ))}
                 </div>
+                )}
               </div>
             </div>
           )}
