@@ -19,6 +19,7 @@ const AMBIENTE_PARA_TIPOS = {
   "UTI Neonatal":                  ["base", "hospital_uti"],
   "CME":                           ["base", "hospital_cme"],
   "Centro Cirúrgico":              ["base", "hospital_cc"],
+  "Centro Cirúrgico Ambulatorial": ["base", "hospital_cca"],
   "Radiologia":                    ["base", "hospital_radiologia"],
   "Hospital Geral":                ["base", "hospital_uti", "hospital_cme", "hospital_radiologia"],
   "Internação":                    ["base"],
@@ -35,7 +36,7 @@ const AMBIENTE_PARA_TIPOS = {
 };
 
 const GRUPOS_AMBIENTE = [
-  { grupo: "Hospitalar", itens: ["UTI Adulto","UTI Pediátrica","UTI Neonatal","CME","Centro Cirúrgico","Radiologia","Hospital Geral","Internação","Pronto Socorro","Ambulatório"] },
+  { grupo: "Hospitalar", itens: ["UTI Adulto","UTI Pediátrica","UTI Neonatal","CME","Centro Cirúrgico","Centro Cirúrgico Ambulatorial","Radiologia","Hospital Geral","Internação","Pronto Socorro","Ambulatório"] },
   { grupo: "Odontologia", itens: ["Consultório Odontológico","Centro Cirúrgico Odontológico","Laboratório de Prótese"] },
   { grupo: "Farmácias / Distribuidoras", itens: ["Drogaria","Farmácia de Manipulação","Distribuidora"] },
   { grupo: "Outros", itens: ["Clínica Médica","Laboratório"] },
