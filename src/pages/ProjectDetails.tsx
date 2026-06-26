@@ -238,10 +238,14 @@ export default function ProjectDetails() {
     } finally { setExportando(false); }
   };
 
-  const scoreCalculado = validacoesPorCategoria.length > 0
-    ? Math.round(validacoesPorCategoria.reduce((sum, v) => sum + v.percentual, 0) / validacoesPorCategoria.length)
-    : projeto?.status === "aprovado" ? 100
-    : projeto?.score_conformidade ?? 0;
+  // Usa SEMPRE o score persistido em score_conformidade (calculado no Analise.tsx
+  // como conformes/aplicáveis, item a item — peso igual para cada item).
+  // Antes esse valor era recalculado aqui como média dos percentuais por
+  // categoria, o que dava um número DIFERENTE do que está salvo no banco
+  // (ex: categoria "Gestão" com 1 item pesava igual a "Infraestrutura" com
+  // 32 itens, distorcendo a média). Resultado: a mesma análise mostrava
+  // 95% em uma tela e 96% em outra. Agora as duas telas leem o mesmo valor.
+  const scoreCalculado = projeto?.score_conformidade ?? (projeto?.status === "aprovado" ? 100 : 0);
 
   const getStatusEfetivo = (proj: Projeto) => {
     if (scoreCalculado === 100 || proj.status === "aprovado") return "aprovado";
