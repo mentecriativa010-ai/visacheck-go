@@ -34,6 +34,9 @@ export default function Signup() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  // LGPD — consentimento específico para transferência internacional de dados
+  const [aceiteLGPD, setAceiteLGPD] = useState(false);
+  const VERSAO_TERMOS = "2026-06-29"; // deve bater com ULTIMA_ATUALIZACAO em Termos.tsx/Privacidade.tsx
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +50,10 @@ export default function Signup() {
       setError("As senhas não coincidem.");
       return;
     }
+    if (!aceiteLGPD) {
+      setError("É necessário aceitar os Termos de Uso e a Política de Privacidade para continuar.");
+      return;
+    }
     setLoading(true);
     const metadata =
       tab === "profissional"
@@ -54,12 +61,21 @@ export default function Signup() {
             tipo_usuario: "profissional",
             nome,
             crea_cau: conselho.trim(),
+            // Evidência de consentimento LGPD (Art. 33, VIII) — registrado no
+            // momento do cadastro, com timestamp e versão dos Termos aceitos,
+            // para servir de comprovação em caso de auditoria/fiscalização.
+            consentimento_lgpd: true,
+            consentimento_lgpd_data: new Date().toISOString(),
+            consentimento_lgpd_versao: VERSAO_TERMOS,
           }
         : {
             tipo_usuario: "empresa",
             razao_social: razaoSocial,
             cnpj: cnpj.trim(),
             responsavel_tecnico: responsavel,
+            consentimento_lgpd: true,
+            consentimento_lgpd_data: new Date().toISOString(),
+            consentimento_lgpd_versao: VERSAO_TERMOS,
           };
 
     const { error: signUpError } = await supabase.auth.signUp({
@@ -212,6 +228,32 @@ export default function Signup() {
               />
             </div>
 
+            {/* Consentimento LGPD — específico, em destaque, mencionando a
+                transferência internacional de dados (Art. 33, VIII da LGPD) */}
+            <div className="flex items-start gap-3 bg-muted border border-border rounded-lg p-3.5">
+              <input
+                id="aceiteLGPD"
+                type="checkbox"
+                checked={aceiteLGPD}
+                onChange={(e) => setAceiteLGPD(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary flex-shrink-0 cursor-pointer"
+              />
+              <Label htmlFor="aceiteLGPD" className="text-xs font-normal leading-relaxed text-muted-foreground cursor-pointer">
+                Li e aceito os{" "}
+                <Link to="/termos" target="_blank" className="text-primary hover:underline">
+                  Termos de Uso
+                </Link>{" "}
+                e a{" "}
+                <Link to="/privacidade" target="_blank" className="text-primary hover:underline">
+                  Política de Privacidade
+                </Link>
+                , e estou ciente de que dados do meu projeto podem ser{" "}
+                <strong className="text-foreground/80">transferidos para servidores
+                fora do Brasil</strong> (incluindo provedores de inteligência
+                artificial) para a realização da análise regulatória.
+              </Label>
+            </div>
+
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>
             )}
@@ -223,7 +265,7 @@ export default function Signup() {
               type="submit"
               className="w-full gap-2"
               variant="default"
-              disabled={loading}
+              disabled={loading || !aceiteLGPD}
             >
               {loading ? "Criando..." : "Criar conta"}
               <ArrowRight className="w-4 h-4" />

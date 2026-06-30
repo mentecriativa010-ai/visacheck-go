@@ -9,6 +9,8 @@ const ResetPassword  = lazy(() => import("./pages/ResetPassword"));
 const Dashboard      = lazy(() => import("./pages/Dashboard"));
 const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
 const Analise        = lazy(() => import("./pages/Analise"));
+const Privacidade    = lazy(() => import("./pages/Privacidade"));
+const Termos         = lazy(() => import("./pages/Termos"));
 
 // Fallback simples enquanto o chunk carrega
 function PageLoader() {
@@ -30,6 +32,8 @@ function App() {
           <Route path="/dashboard"      element={<Dashboard />} />
           <Route path="/projetos/:id"   element={<ProjectDetails />} />
           <Route path="/analise"        element={<Analise />} />
+          <Route path="/privacidade"    element={<Privacidade />} />
+          <Route path="/termos"         element={<Termos />} />
           <Route path="*"               element={<Login />} />
         </Routes>
       </Suspense>
