@@ -87,7 +87,12 @@ export default function Login() {
       }
       return;
     }
-    navigate("/dashboard");
+    // Verifica se o usuário já aceitou os Termos/Política (LGPD)
+    // Usuários cadastrados antes da implementação do consentimento são
+    // redirecionados para /consentimento antes de acessar o Dashboard.
+    const { data: { user: loggedUser } } = await supabase.auth.getUser();
+    const temConsentimento = loggedUser?.user_metadata?.consentimento_lgpd === true;
+    navigate(temConsentimento ? "/dashboard" : "/consentimento");
   };
 
   const handleReset = async (e: React.FormEvent) => {
@@ -120,7 +125,10 @@ export default function Login() {
       return;
     }
     setFallbackOpen(false);
-    navigate("/dashboard");
+    // Mesma verificação de consentimento do fluxo principal
+    const { data: { user: loggedUser } } = await supabase.auth.getUser();
+    const temConsentimento = loggedUser?.user_metadata?.consentimento_lgpd === true;
+    navigate(temConsentimento ? "/dashboard" : "/consentimento");
   };
 
 
