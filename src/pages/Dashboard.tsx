@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, Plus, CheckCircle2, Clock,
-  Search, Loader2, AlertCircle, FileText, HelpCircle, Info, Trash2, RefreshCw,
+  Search, Loader2, AlertCircle, FileText, HelpCircle, Info, Trash2, RefreshCw, User,
 } from "lucide-react";
 
 interface Projeto {
@@ -290,6 +290,7 @@ export default function Dashboard() {
           <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Home className="w-4 h-4" />Dashboard</button>
           <button onClick={() => setActiveTab("projetos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
           <button onClick={() => setActiveTab("normas")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/5 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button onClick={() => navigate("/minha-conta")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><User className="w-4 h-4" />Minha Conta</button>
         </nav>
           <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
