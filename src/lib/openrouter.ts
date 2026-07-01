@@ -1,34 +1,19 @@
-// Integração com OpenRouter — VISAcheck GO
-// A chave fica APENAS no Vercel (VITE_OPENROUTER_API_KEY), nunca no código
+// Integração com API da Anthropic — VISAcheck GO
+// Migrado do OpenRouter para API nativa da Anthropic em jul/2026.
+// Motivo: modelos gratuitos do OpenRouter eram instáveis (404/429 constantes
+// e respostas inválidas). A API da Anthropic é mais confiável e o custo
+// com Haiku 4.5 é irrisório (~$0,001 por análise).
+//
+// A chave fica APENAS no Vercel (VITE_ANTHROPIC_API_KEY), nunca no código.
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
 
-// ─────────────────────────────────────────────────────────────────────────
-// ESTRATÉGIA ATUALIZADA (jul/2026)
-//
-// Problema anterior: lista hardcoded de modelos ":free" que quebravam
-// constantemente (404 = modelo removido do catálogo, 429 = rate limit
-// compartilhado, "resposta inválida" = modelo não seguindo instrução JSON).
-//
-// Solução: usar o "Free Models Router" oficial do OpenRouter (openrouter/free)
-// como PRIMEIRO da lista. Esse router seleciona automaticamente um modelo
-// gratuito disponível no momento, filtrando os que suportam a requisição.
-// O próprio OpenRouter mantém o catálogo atualizado — não precisamos mais
-// gerenciar slugs que mudam toda semana.
-//
-// Mantemos 2 modelos específicos como fallback caso o router falhe:
-//   - google/gemma-4-31b-it:free  (confirmado ativo, bom em JSON)
-//   - openai/gpt-oss-120b:free    (quando disponível, qualidade alta)
-//
-// Ref: https://openrouter.ai/openrouter/free
-const MODELOS_FALLBACK = [
-  "openrouter/free",           // router automático do OpenRouter — sempre atualizado
-  "google/gemma-4-31b-it:free",
-  "openai/gpt-oss-120b:free",
-];
-
-const ESPERA_RETRY_429_MS = 3000;
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// claude-haiku-4-5: modelo mais rápido e barato da Anthropic.
+// $1/M tokens de entrada + $5/M tokens de saída.
+// Cada análise usa ~5-8k tokens → custo < R$ 0,01 por análise.
+// Segue instruções de JSON de forma muito mais confiável que modelos free.
+const MODEL = "claude-haiku-4-5";
 
 export interface ResultadoRegra {
   id: string;
@@ -50,12 +35,11 @@ function montarPrompt(
     .map(r => `- ID: ${r.id} | Codigo: ${r.codigo} | Norma: ${r.norma_origem ?? "-"} | Descricao: ${r.descricao}`)
     .join("\n");
 
-  // Limita o texto do PDF para caber no contexto do modelo free
+  // Limita o texto do PDF para caber no contexto (Haiku 4.5 tem 200k tokens,
+  // mas limitamos a 12000 chars pra manter custo baixo e resposta focada)
   const textoLimitado = textoPDF.slice(0, 12000);
 
-  return `Voce e especialista em vigilancia sanitaria e normas ANVISA/ABNT para estabelecimentos de saude.
-
-Analise o projeto arquitetonico abaixo para o tipo de ambiente: ${tipoAmbiente}
+  return `Analise o projeto arquitetonico abaixo para o tipo de ambiente: ${tipoAmbiente}
 
 TEXTO EXTRAIDO DO PROJETO (PDF):
 ${textoLimitado}
@@ -85,89 +69,63 @@ function limparJSON(conteudo: string): string {
     .trim();
 }
 
-/**
- * Tenta chamar um modelo específico no OpenRouter.
- * Lança erro com `.status` (quando vier de HTTP) para o chamador decidir se tenta o próximo modelo.
- */
-async function chamarModelo(
-  modelo: string,
-  prompt: string,
-  apiKey: string
-): Promise<RespostaAnalise> {
-  const response = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://visacheck-go.vercel.app",
-      "X-Title": "VISAcheck GO",
-    },
-    body: JSON.stringify({
-      model: modelo,
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.1,
-      max_tokens: 4000,
-    }),
-  });
-
-  if (!response.ok) {
-    const erro = await response.text();
-    const e: any = new Error(`Erro OpenRouter ${response.status} (${modelo}): ${erro.slice(0, 200)}`);
-    e.status = response.status;
-    throw e;
-  }
-
-  const data = await response.json();
-  const conteudo: string = data.choices?.[0]?.message?.content ?? "";
-  const jsonLimpo = limparJSON(conteudo);
-
-  try {
-    return JSON.parse(jsonLimpo) as RespostaAnalise;
-  } catch {
-    const e: any = new Error(`IA retornou resposta invalida (${modelo}): ${conteudo.slice(0, 300)}`);
-    e.status = "invalid_json";
-    throw e;
-  }
-}
-
 export async function analisarProjetoComIA(
   textoPDF: string,
   tipoAmbiente: string,
   regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>
 ): Promise<RespostaAnalise> {
-  const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY as string;
-  if (!apiKey) throw new Error("VITE_OPENROUTER_API_KEY nao configurada no Vercel");
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY as string;
+  if (!apiKey) throw new Error("VITE_ANTHROPIC_API_KEY nao configurada no Vercel");
 
   const prompt = montarPrompt(textoPDF, tipoAmbiente, regras);
 
-  const erros: string[] = [];
+  const response = await fetch(ANTHROPIC_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+      // Permite que o Anthropic saiba que essa chamada vem de um app externo
+      "anthropic-beta": "prompt-caching-2024-07-31",
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 4000,
+      system: "Voce e especialista em vigilancia sanitaria e normas ANVISA/ABNT para estabelecimentos de saude. Responda SEMPRE em JSON valido e nada mais.",
+      messages: [
+        { role: "user", content: prompt }
+      ],
+    }),
+  });
 
-  for (const modelo of MODELOS_FALLBACK) {
-    try {
-      return await chamarModelo(modelo, prompt, apiKey);
-    } catch (err: any) {
-      // 429 = rate limit temporário -> vale a pena tentar o MESMO modelo
-      // de novo uma vez após uma pequena espera, antes de desistir dele.
-      if (err.status === 429) {
-        console.warn(`[OpenRouter] 429 em ${modelo}, aguardando ${ESPERA_RETRY_429_MS}ms e tentando de novo...`);
-        await sleep(ESPERA_RETRY_429_MS);
-        try {
-          return await chamarModelo(modelo, prompt, apiKey);
-        } catch (err2: any) {
-          erros.push(`${modelo} (após retry): ${err2.message}`);
-          console.warn(`[OpenRouter] Retry de ${modelo} também falhou, tentando próximo da lista...`, err2);
-          continue;
-        }
-      }
-      // 404 = modelo descontinuado/renomeado, 5xx = indisponibilidade temporária
-      erros.push(`${modelo}: ${err.message}`);
-      console.warn(`[OpenRouter] Falhou com ${modelo}, tentando próximo da lista...`, err);
-      continue;
+  if (!response.ok) {
+    const erro = await response.text();
+    if (response.status === 401) {
+      throw new Error("Chave da API Anthropic invalida ou expirada. Verifique a variavel VITE_ANTHROPIC_API_KEY no Vercel.");
     }
+    if (response.status === 429) {
+      throw new Error("Limite de uso da API Anthropic atingido. Aguarde alguns minutos ou verifique seus creditos em platform.claude.com.");
+    }
+    if (response.status === 529) {
+      throw new Error("API Anthropic temporariamente sobrecarregada. Tente novamente em alguns instantes.");
+    }
+    throw new Error(`Erro API Anthropic ${response.status}: ${erro.slice(0, 200)}`);
   }
 
-  // Todos os modelos gratuitos da lista falharam
-  throw new Error(
-    `Todos os modelos gratuitos configurados falharam (incluindo retry em rate-limits). Catálogo gratuito do OpenRouter pode ter mudado — verifique openrouter.ai/models, ou tente novamente em alguns minutos (a sobrecarga upstream costuma ser passageira).\nDetalhes:\n${erros.join("\n")}`
-  );
+  const data = await response.json();
+
+  // Formato da resposta da API Anthropic: data.content[0].text
+  const conteudo: string = data.content?.[0]?.text ?? "";
+
+  if (!conteudo) {
+    throw new Error("API Anthropic retornou resposta vazia.");
+  }
+
+  const jsonLimpo = limparJSON(conteudo);
+
+  try {
+    return JSON.parse(jsonLimpo) as RespostaAnalise;
+  } catch {
+    throw new Error(`IA retornou resposta invalida: ${conteudo.slice(0, 300)}`);
+  }
 }
