@@ -4,37 +4,27 @@
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // ─────────────────────────────────────────────────────────────────────────
-// MODO 100% GRATUITO (decisão deliberada: app ainda em fase de testes,
-// investimento em modelos pagos só depois que a análise estiver validada)
+// ESTRATÉGIA ATUALIZADA (jul/2026)
 //
-// Histórico de instabilidade observado: gemini-2.0-flash-exp:free (404) ->
-// gemma-3-27b-it:free (404) -> glm-4.5-air:free (404, mesmo listado como
-// "free" no catálogo — a listagem do site fica desatualizada em relação à
-// API real) -> kimi-k2.6:free (mesmo problema) + 429 esporádico em vários
-// outros (sobrecarga compartilhada entre todos os usuários do OpenRouter).
+// Problema anterior: lista hardcoded de modelos ":free" que quebravam
+// constantemente (404 = modelo removido do catálogo, 429 = rate limit
+// compartilhado, "resposta inválida" = modelo não seguindo instrução JSON).
 //
-// Estratégia adotada para maximizar robustez SEM custo:
-//   1) Lista ampla e diversificada (7 modelos, 4 provedores diferentes)
-//      — reduz a chance de todos caírem ao mesmo tempo.
-//   2) Em caso de 429 (rate-limit temporário), espera ~3s e tenta o MESMO
-//      modelo de novo 1x antes de desistir dele e ir pro próximo da lista
-//      — já que o próprio erro da OpenRouter diz que é "temporário".
+// Solução: usar o "Free Models Router" oficial do OpenRouter (openrouter/free)
+// como PRIMEIRO da lista. Esse router seleciona automaticamente um modelo
+// gratuito disponível no momento, filtrando os que suportam a requisição.
+// O próprio OpenRouter mantém o catálogo atualizado — não precisamos mais
+// gerenciar slugs que mudam toda semana.
 //
-// TODO (quando o app estiver validado e pronto pra produção real):
-// adicionar 1-2 modelos pagos baratos (~$0,05-0,20/M tokens) como última
-// rede de segurança. Histórico dessa decisão: conversa de jun/2026.
+// Mantemos 2 modelos específicos como fallback caso o router falhe:
+//   - google/gemma-4-31b-it:free  (confirmado ativo, bom em JSON)
+//   - openai/gpt-oss-120b:free    (quando disponível, qualidade alta)
 //
-// Verifique disponibilidade atual em: https://openrouter.ai/models
-// (mas lembre: a listagem do site pode estar desatualizada — o teste real
-// é a resposta da API)
+// Ref: https://openrouter.ai/openrouter/free
 const MODELOS_FALLBACK = [
-  "openrouter/owl-alpha",                    // modelo da própria OpenRouter, contexto 1M
+  "openrouter/free",           // router automático do OpenRouter — sempre atualizado
   "google/gemma-4-31b-it:free",
   "openai/gpt-oss-120b:free",
-  "nvidia/nemotron-3-super-120b-a12b:free",
-  "openai/gpt-oss-20b:free",                 // variante menor da OpenAI, pool de cota separado
-  "google/gemma-4-26b-a4b-it:free",          // variante menor do Gemma, pool de cota separado
-  "nvidia/nemotron-3-nano-30b-a3b:free",
 ];
 
 const ESPERA_RETRY_429_MS = 3000;
@@ -80,7 +70,10 @@ INSTRUCOES:
 - Marque "nao_aplicavel" se nao ha informacao suficiente para avaliar
 - A justificativa deve ser breve (1 frase) e baseada no texto do projeto
 
-Responda APENAS com JSON valido, sem texto adicional, markdown ou backticks:
+FORMATO DE RESPOSTA — OBRIGATORIO:
+Responda SOMENTE com o objeto JSON abaixo. Nao escreva nenhum texto antes ou depois.
+Nao use markdown, nao use blocos de codigo, nao use backticks, nao escreva explicacoes.
+APENAS o JSON puro, comecando com { e terminando com }:
 {"resultados":[{"id":"uuid-da-regra","status":"conforme","justificativa":"explicacao breve"}],"resumo":"resumo geral em 2-3 frases"}`;
 }
 
