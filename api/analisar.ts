@@ -30,7 +30,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end();
   }
 
-  const apiKey = process.env.VITE_ANTHROPIC_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: "VITE_ANTHROPIC_API_KEY não configurada no Vercel." });
   }
@@ -86,7 +86,7 @@ APENAS o JSON puro, comecando com { e terminando com }:
     if (!response.ok) {
       const erro = await response.text();
       if (response.status === 401) {
-        return res.status(401).json({ error: "Chave da API Anthropic inválida. Verifique VITE_ANTHROPIC_API_KEY no Vercel." });
+        return res.status(401).json({ error: "Chave da API Anthropic inválida. Verifique ANTHROPIC_API_KEY no Vercel." });
       }
       if (response.status === 429) {
         return res.status(429).json({ error: "Limite de uso da API Anthropic atingido. Aguarde ou verifique créditos em platform.claude.com." });
