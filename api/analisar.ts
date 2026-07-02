@@ -14,6 +14,8 @@ export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return res.status(405).json({ error: "Metodo nao permitido." });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
+  console.log("[DEBUG] ANTHROPIC_API_KEY existe?", !!apiKey);
+  console.log("[DEBUG] Variaveis disponiveis:", Object.keys(process.env).filter(k => k.includes("ANTHROPIC") || k.includes("API")).join(", "));
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
 
   const { textoPDF, tipoAmbiente, regras } = req.body ?? {};
