@@ -14,8 +14,6 @@ export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return res.status(405).json({ error: "Metodo nao permitido." });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  console.log("[DEBUG] ANTHROPIC_API_KEY existe?", !!apiKey);
-  console.log("[DEBUG] Variaveis disponiveis:", Object.keys(process.env).filter(k => k.includes("ANTHROPIC") || k.includes("API")).join(", "));
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
 
   const { textoPDF, tipoAmbiente, regras } = req.body ?? {};
@@ -36,7 +34,7 @@ export default async function handler(req: any, res: any) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
       body: JSON.stringify({
-        model: MODEL, max_tokens: 4000,
+        model: MODEL, max_tokens: 8000,
         system: "Especialista em vigilancia sanitaria ANVISA/ABNT. Responda SEMPRE em JSON valido.",
         messages: [{ role: "user", content: prompt }],
       }),
@@ -51,7 +49,11 @@ export default async function handler(req: any, res: any) {
     const conteudo: string = data.content?.[0]?.text ?? "";
     if (!conteudo) return res.status(500).json({ error: "API Anthropic retornou resposta vazia." });
 
-    const jsonLimpo = conteudo.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+    const primeiroChave = conteudo.indexOf("{");
+    const ultimoChave = conteudo.lastIndexOf("}");
+    const jsonLimpo = primeiroChave !== -1 && ultimoChave !== -1
+      ? conteudo.slice(primeiroChave, ultimoChave + 1)
+      : conteudo.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
     try {
       return res.status(200).json(JSON.parse(jsonLimpo));
     } catch {
