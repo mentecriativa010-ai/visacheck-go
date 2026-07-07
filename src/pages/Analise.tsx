@@ -148,8 +148,10 @@ export default function Analise() {
   };
 
   // ─── Análise por IA — via openrouter.ts ─────────────────────────────────────
+  // Ao concluir com sucesso, salva direto no banco e já leva para a página de
+  // resultado (passo 3), sem exigir clique manual categoria por categoria.
   const analisarComIA = async (file, regrasCarregadas) => {
-    if (!regrasCarregadas.length) return;
+    if (!regrasCarregadas.length) return false;
     setAnalisandoIA(true);
     setIaStatus("Lendo o PDF do projeto...");
     try {
@@ -170,19 +172,28 @@ export default function Analise() {
 
       const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas);
 
-      const novasRespostas = {};
-      const novasObs = {};
+      // Monta o objeto de respostas completo aqui mesmo (não depende do estado
+      // React, que ainda não foi re-renderizado neste ponto da execução).
+      const respostasFinal = {};
+      regrasCarregadas.forEach(r => { respostasFinal[r.id] = "nao_aplicavel"; });
+      const obsFinal = {};
       resultado.resultados.forEach(r => {
         const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
-        if (statusMap[r.status]) novasRespostas[r.id] = statusMap[r.status];
-        if (r.justificativa) novasObs[r.id] = r.justificativa;
+        if (statusMap[r.status]) respostasFinal[r.id] = statusMap[r.status];
+        if (r.justificativa) obsFinal[r.id] = r.justificativa;
       });
-      setRespostas(prev => ({ ...prev, ...novasRespostas }));
-      setObservacoes(prev => ({ ...prev, ...novasObs }));
-      setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — revise e ajuste conforme necessário`);
+
+      setRespostas(prev => ({ ...prev, ...respostasFinal }));
+      setObservacoes(prev => ({ ...prev, ...obsFinal }));
+      setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — gerando relatório...`);
+
+      // Vai direto para a última página (resultado/relatório), sem passar pelo checklist manual.
+      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal);
+      return true;
     } catch (err) {
       console.error("Erro IA:", err);
       setIaStatus(`⚠ Não foi possível analisar com IA (${err.message || "erro desconhecido"}). Prossiga com o checklist manual.`);
+      return false;
     } finally {
       setAnalisandoIA(false);
     }
@@ -202,6 +213,8 @@ export default function Analise() {
         await new Promise(r => setTimeout(r, 300));
       }
       if (regrasFrescas.length === 0 && regras.length > 0) regrasFrescas = regras;
+      // Se a IA analisar com sucesso, ela mesma já leva o usuário até o passo 3.
+      // Se falhar, o usuário permanece no passo 2 para preencher manualmente.
       if (regrasFrescas.length > 0) await analisarComIA(pdfFile, regrasFrescas);
     }
   };
@@ -232,7 +245,20 @@ export default function Analise() {
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
 
   // ─── Salvar no banco ───────────────────────────────────────────────────────
-  const salvarNoBanco = async () => {
+  // Aceita dados explícitos (regras/respostas/observações) como parâmetros opcionais.
+  // Isso permite que a análise por IA chame esta função diretamente com os dados
+  // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
+  // direto para o passo 3 (resultado) em vez de exigir clique categoria por categoria.
+  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam) => {
+    const regrasUsar = regrasParam ?? regras;
+    const respostasUsar = respostasParam ?? respostas;
+    const observacoesUsar = observacoesParam ?? observacoes;
+
+    const totalConformesCalc = Object.values(respostasUsar).filter(v => v === "conforme").length;
+    const totalNaoConformesCalc = Object.values(respostasUsar).filter(v => v === "nao_conforme").length;
+    const totalAplicaveisCalc = Object.values(respostasUsar).filter(v => v !== "nao_aplicavel").length;
+    const scoreCalc = totalAplicaveisCalc > 0 ? Math.round((totalConformesCalc / totalAplicaveisCalc) * 100) : 0;
+
     setSalvando(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -243,29 +269,29 @@ export default function Analise() {
           nome_projeto: nomeProjeto,
           tipo_estabelecimento: tipoSelecionado,
           user_id: user.id,
-          status: scoreCalculado === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente",
-          score_conformidade: scoreCalculado,
+          status: scoreCalc === 100 ? "aprovado" : totalNaoConformesCalc > 0 ? "reprovado" : "pendente",
+          score_conformidade: scoreCalc,
         })
         .select("id").single();
       if (projError || !proj) throw projError;
 
-      const validacoes = regras
-        .filter(r => respostas[r.id] !== "nao_aplicavel")
+      const validacoes = regrasUsar
+        .filter(r => respostasUsar[r.id] !== "nao_aplicavel")
         .map(r => ({
           projeto_id: proj.id, regra_id: r.id,
-          status: respostas[r.id] === "conforme" ? "aprovado" : "reprovado",
-          observacao: respostas[r.id] === "nao_conforme"
-            ? (observacoes[r.id] || "Não conformidade identificada")
+          status: respostasUsar[r.id] === "conforme" ? "aprovado" : "reprovado",
+          observacao: respostasUsar[r.id] === "nao_conforme"
+            ? (observacoesUsar[r.id] || "Não conformidade identificada")
             : "Conforme verificação",
         }));
       if (validacoes.length > 0) await supabase.from("validacoes").insert(validacoes);
 
-      const resumo = scoreCalculado === 100
+      const resumo = scoreCalc === 100
         ? `O projeto "${nomeProjeto}" atende a todas as especificações para ${tipoSelecionado}.`
-        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformes} não-conformidades. Score: ${scoreCalculado}%.`;
+        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformesCalc} não-conformidades. Score: ${scoreCalc}%.`;
       await supabase.from("pareceres").insert({
         projeto_id: proj.id, parecer: resumo,
-        nivel_risco: scoreCalculado === 100 ? "baixo" : scoreCalculado >= 70 ? "medio" : "alto",
+        nivel_risco: scoreCalc === 100 ? "baixo" : scoreCalc >= 70 ? "medio" : "alto",
       });
 
       setProjetoSalvoId(proj.id);
@@ -595,7 +621,7 @@ export default function Analise() {
                       Próxima categoria<ChevronRight className="w-4 h-4" />
                     </Button>
                   ) : (
-                    <Button onClick={salvarNoBanco} disabled={salvando} className="bg-green-600 hover:bg-green-700 text-white gap-2">
+                    <Button onClick={() => salvarNoBanco()} disabled={salvando} className="bg-green-600 hover:bg-green-700 text-white gap-2">
                       {salvando
                         ? <><Loader2 className="w-4 h-4 animate-spin" />Salvando...</>
                         : <>Finalizar e ver resultado<ChevronRight className="w-4 h-4" /></>
