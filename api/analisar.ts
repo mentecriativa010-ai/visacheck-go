@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
