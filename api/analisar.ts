@@ -40,13 +40,30 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "(ex: \"Fora do escopo deste projeto, que trata apenas do(a) " + tipoAmbiente + "\").\n\n" +
     "TEXTO DO PROJETO:\n" + textoLimitado + "\n\n" +
     "REGRAS A VERIFICAR (" + regras.length + " regras):\n" + listaRegras + "\n\n" +
-    "INSTRUCOES:\n" +
-    "- Marque conforme APENAS se o projeto mencionar explicitamente o requisito, dentro do escopo do \"" + tipoAmbiente + "\"\n" +
-    "- Marque nao_conforme se claramente nao atende, dentro do escopo do \"" + tipoAmbiente + "\"\n" +
-    "- Marque nao_aplicavel se nao ha informacao suficiente OU se o item estiver fora do escopo do projeto\n" +
+    "COMO DECIDIR O STATUS DE CADA REGRA — SIGA ESTA ORDEM EXATA:\n" +
+    "1) O elemento/ambiente a que a regra se refere EXISTE no projeto (dentro do escopo do \"" + tipoAmbiente + "\")?\n" +
+    "   - NAO existe no projeto (ex: a regra fala de um ambiente que este projeto simplesmente nao tem, como " +
+    "\"berçario\" num projeto que so tem centro cirurgico) -> status = nao_aplicavel. Justificativa: diga que o " +
+    "elemento nao existe/nao se aplica a este projeto.\n" +
+    "   - SIM existe -> va para o passo 2.\n" +
+    "2) O texto do projeto informa o dado necessario para julgar essa regra (medida, presenca de elemento, " +
+    "caracteristica descrita)?\n" +
+    "   - NAO informa (o elemento existe mas o dado especifico da regra nao aparece no texto, ex: existe rampa mas " +
+    "a inclinacao dela nao foi informada) -> status = nao_aplicavel. Justificativa: diga exatamente qual dado " +
+    "especifico faltou no texto do projeto.\n" +
+    "   - SIM informa -> va para o passo 3.\n" +
+    "3) O dado informado atende ao requisito da regra?\n" +
+    "   - Atende -> status = conforme.\n" +
+    "   - Nao atende -> status = nao_conforme.\n\n" +
+    "REGRA DE OURO PARA EVITAR AMBIGUIDADE: se voce encontrou no texto um numero, medida ou caracteristica que " +
+    "permite comparar diretamente com o criterio da regra (ex: a regra pede \"minimo X\" e o texto informa um " +
+    "valor), NUNCA marque como nao_aplicavel — marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
+    "unidade ou formato, contanto que seja possivel comparar.\n\n" +
+    "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito no texto do projeto, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
-    "- Justificativa em 1 frase curta\n\n" +
+    "- TODA regra, inclusive as marcadas como nao_aplicavel, precisa de uma justificativa objetiva de 1 frase " +
+    "explicando o motivo (nunca deixe justificativa vazia ou generica)\n\n" +
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
     "{\"resultados\":[{\"id\":\"uuid\",\"status\":\"conforme\",\"justificativa\":\"frase\"}],\"resumo\":\"resumo 1 frase\"}";
 
