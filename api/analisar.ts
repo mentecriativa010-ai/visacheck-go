@@ -1,3 +1,6 @@
+import crypto from "crypto";
+import { createClient } from "@supabase/supabase-js";
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MODEL = "claude-haiku-4-5";
@@ -7,6 +10,7 @@ const TAMANHO_LOTE = 30;
 // específicos do projeto (ex: Centro Cirúrgico Ambulatorial), deixando só a
 // implantação geral (estacionamento, outros setores do hospital) visível para a IA.
 const LIMITE_CARACTERES_PDF = 30000;
+const TABELA_CACHE = "analises_ia_cache";
 
 function extrairJSON(texto) {
   const inicio = texto.indexOf("{");
@@ -15,6 +19,28 @@ function extrairJSON(texto) {
     throw new Error("JSON nao encontrado: " + texto.slice(0, 200));
   }
   return JSON.parse(texto.slice(inicio, fim + 1));
+}
+
+// ─── Cache de análises ────────────────────────────────────────────────────
+// Calcula uma "impressao digital" (hash) unica a partir do texto do PDF (exatamente
+// como e enviado ao modelo, ja truncado), do tipo de ambiente e das regras avaliadas.
+// Mesmo PDF + mesmo ambiente + mesmas regras => mesmo hash => mesmo resultado sempre,
+// mesmo que o modelo de IA nao seja 100% deterministico entre chamadas.
+function calcularHashAnalise(textoPDF, tipoAmbiente, regras) {
+  const textoConsiderado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
+  const regrasOrdenadas = [...regras]
+    .map(r => r.id + "|" + r.codigo + "|" + r.descricao + "|" + (r.norma_origem ?? ""))
+    .sort()
+    .join("\n");
+  const base = "v1\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado;
+  return crypto.createHash("sha256").update(base).digest("hex");
+}
+
+function obterClienteSupabase() {
+  const url = process.env.SUPABASE_URL;
+  const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !chave) return null; // cache fica desligado se as env vars nao estiverem configuradas
+  return createClient(url, chave);
 }
 
 async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes) {
@@ -102,7 +128,27 @@ export default async function handler(req, res) {
   if (!textoPDF || !tipoAmbiente || !regras || !Array.isArray(regras)) {
     return res.status(400).json({ error: "Parametros obrigatorios ausentes." });
   }
+
+  const supabase = obterClienteSupabase();
+  const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras);
+
   try {
+    // 1) Tenta reaproveitar uma analise identica ja feita antes (mesmo PDF, mesmo
+    // ambiente, mesmas regras) — garante resultado sempre igual e evita gastar
+    // chamadas de API repetindo a mesma analise.
+    if (supabase) {
+      const { data: cacheHit, error: erroCache } = await supabase
+        .from(TABELA_CACHE)
+        .select("resultados, resumo")
+        .eq("hash", hash)
+        .maybeSingle();
+      if (erroCache) console.error("Erro ao consultar cache de analise:", erroCache.message);
+      if (cacheHit) {
+        return res.status(200).json({ resultados: cacheHit.resultados, resumo: cacheHit.resumo, deCache: true });
+      }
+    }
+
+    // 2) Sem cache — roda a analise normalmente via IA, em lotes
     const lotes = [];
     for (let i = 0; i < regras.length; i += TAMANHO_LOTE) lotes.push(regras.slice(i, i + TAMANHO_LOTE));
     const todosResultados = [];
@@ -112,7 +158,16 @@ export default async function handler(req, res) {
       todosResultados.push(...(resultado.resultados ?? []));
       if (i === lotes.length - 1) ultimoResumo = resultado.resumo ?? "";
     }
-    return res.status(200).json({ resultados: todosResultados, resumo: ultimoResumo });
+
+    // 3) Salva no cache para que a proxima analise do mesmo PDF seja instantanea e identica
+    if (supabase) {
+      const { error: erroSalvar } = await supabase.from(TABELA_CACHE).upsert({
+        hash, tipo_ambiente: tipoAmbiente, resultados: todosResultados, resumo: ultimoResumo,
+      });
+      if (erroSalvar) console.error("Erro ao salvar cache de analise:", erroSalvar.message);
+    }
+
+    return res.status(200).json({ resultados: todosResultados, resumo: ultimoResumo, deCache: false });
   } catch (err) {
     return res.status(500).json({ error: err.message ?? "Erro interno." });
   }
