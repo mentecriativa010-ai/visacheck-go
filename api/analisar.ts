@@ -132,6 +132,12 @@ export default async function handler(req, res) {
   const supabase = obterClienteSupabase();
   const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras);
 
+  // LOG DE DIAGNOSTICO — remover depois de confirmar que o cache funciona.
+  console.log("[cache-diagnostico] SUPABASE_URL presente:", Boolean(process.env.SUPABASE_URL));
+  console.log("[cache-diagnostico] SUPABASE_SERVICE_ROLE_KEY presente:", Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY));
+  console.log("[cache-diagnostico] cliente supabase criado:", Boolean(supabase));
+  console.log("[cache-diagnostico] hash calculado:", hash);
+
   try {
     // 1) Tenta reaproveitar uma analise identica ja feita antes (mesmo PDF, mesmo
     // ambiente, mesmas regras) — garante resultado sempre igual e evita gastar
@@ -142,10 +148,13 @@ export default async function handler(req, res) {
         .select("resultados, resumo")
         .eq("hash", hash)
         .maybeSingle();
-      if (erroCache) console.error("Erro ao consultar cache de analise:", erroCache.message);
+      if (erroCache) console.error("[cache-diagnostico] Erro ao CONSULTAR cache:", JSON.stringify(erroCache));
+      console.log("[cache-diagnostico] cache encontrado?", Boolean(cacheHit));
       if (cacheHit) {
         return res.status(200).json({ resultados: cacheHit.resultados, resumo: cacheHit.resumo, deCache: true });
       }
+    } else {
+      console.log("[cache-diagnostico] cliente supabase NULO — cache desligado nesta chamada.");
     }
 
     // 2) Sem cache — roda a analise normalmente via IA, em lotes
@@ -164,7 +173,11 @@ export default async function handler(req, res) {
       const { error: erroSalvar } = await supabase.from(TABELA_CACHE).upsert({
         hash, tipo_ambiente: tipoAmbiente, resultados: todosResultados, resumo: ultimoResumo,
       });
-      if (erroSalvar) console.error("Erro ao salvar cache de analise:", erroSalvar.message);
+      if (erroSalvar) {
+        console.error("[cache-diagnostico] Erro ao SALVAR cache:", JSON.stringify(erroSalvar));
+      } else {
+        console.log("[cache-diagnostico] cache salvo com sucesso, hash:", hash);
+      }
     }
 
     return res.status(200).json({ resultados: todosResultados, resumo: ultimoResumo, deCache: false });
