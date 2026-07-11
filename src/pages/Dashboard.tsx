@@ -66,12 +66,6 @@ export default function Dashboard() {
   const [deletandoProjetos, setDeletandoProjetos] = useState(false);
   const [confirmarDelete, setConfirmarDelete] = useState(false);
 
-  // NOVO: estado para reANÁLISE
-  const [reanaliseOpen, setReanaliseOpen] = useState(false);
-  const [arquivoReanalise, setArquivoReanalise] = useState("");
-  const [arquivoReanaliseFile, setArquivoReanaliseFile] = useState<File | null>(null);
-  const [rodandoReanalise, setRodandoReanalise] = useState(false);
-
   useEffect(() => { fetchUserDataAndProjects(); }, []);
 
   useEffect(() => {
@@ -137,37 +131,6 @@ export default function Dashboard() {
       console.error("Erro ao deletar projetos:", err);
     } finally {
       setDeletandoProjetos(false);
-    }
-  };
-
-  // NOVO: handler de reANÁLISE
-  const handleReanalise = async () => {
-    if (projetosSelecionados.length !== 1) return;
-    const projetoId = projetosSelecionados[0];
-    try {
-      setRodandoReanalise(true);
-      if (arquivoReanaliseFile) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const fileExt = arquivoReanaliseFile.name.split('.').pop();
-          const filePath = `${user.id}/${Date.now()}.${fileExt}`;
-          await supabase.storage.from("projetos-pdf").upload(filePath, arquivoReanaliseFile);
-          await supabase.from("projetos").update({ pdf_path: filePath, pdf_nome: arquivoReanaliseFile.name }).eq("id", projetoId);
-        }
-      }
-      await supabase.from("validacoes").delete().eq("projeto_id", projetoId);
-      await supabase.from("pareceres").delete().eq("projeto_id", projetoId);
-      await supabase.from("projetos").update({ status: "pendente", score_conformidade: 0 }).eq("id", projetoId);
-      setReanaliseOpen(false);
-      setArquivoReanalise("");
-      setArquivoReanaliseFile(null);
-      setProjetosSelecionados([]);
-      fetchUserDataAndProjects();
-      navigate(`/projetos/${projetoId}`);
-    } catch (err) {
-      console.error("Erro ao rodar reANÁLISE:", err);
-    } finally {
-      setRodandoReanalise(false);
     }
   };
 
@@ -265,12 +228,6 @@ export default function Dashboard() {
       <div className="flex items-center justify-between bg-muted border border-border rounded-lg px-4 py-2.5 gap-3 flex-wrap">
         <span className="text-sm text-foreground/90 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
         <div className="flex gap-2">
-          {/* NOVO: botão ReANÁLISE aparece só quando 1 projeto selecionado */}
-          {projetosSelecionados.length === 1 && (
-            <Button onClick={() => setReanaliseOpen(true)} className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white gap-2 h-8 text-xs">
-              <RefreshCw className="w-3.5 h-3.5" />ReANÁLISE
-            </Button>
-          )}
           <Button onClick={() => setConfirmarDelete(true)} disabled={deletandoProjetos} className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs">
             <Trash2 className="w-3.5 h-3.5" />Excluir selecionados
           </Button>
@@ -537,36 +494,6 @@ export default function Dashboard() {
           </form>
         </DialogContent>
       </Dialog>
-
-      {/* MODAL REANÁLISE */}
-      {reanaliseOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
-            <div className="flex items-center gap-3">
-              <RefreshCw className="w-5 h-5 text-primary" />
-              <h2 className="text-base font-bold text-foreground">ReANÁLISE Regulatória</h2>
-            </div>
-            <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar uma nova ANÁLISE completa.</p>
-            <div className="space-y-2">
-              <label className="text-xs font-semibold text-foreground/90 block">Projeto corrigido (PDF / DWG)</label>
-              <div className="flex gap-2">
-                <input type="text" placeholder="Selecione o arquivo corrigido..." value={arquivoReanalise} readOnly className="flex-1 h-9 px-3 rounded-md border border-input bg-muted text-sm cursor-pointer" onClick={() => document.getElementById("reanalise-file")?.click()} />
-                <button type="button" onClick={() => document.getElementById("reanalise-file")?.click()} className="px-3 h-9 rounded-md border border-input text-sm hover:bg-muted">Procurar</button>
-              </div>
-              <input id="reanalise-file" type="file" accept=".pdf,.dwg,.dxf" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoReanaliseFile(file); setArquivoReanalise(file.name); } }} />
-            </div>
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-              <strong>Atenção:</strong> Os resultados anteriores serão substituídos completamente.
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => { setReanaliseOpen(false); setArquivoReanalise(""); setArquivoReanaliseFile(null); }} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted disabled:opacity-50">Cancelar</button>
-              <button onClick={handleReanalise} disabled={rodandoReanalise} className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
-                {rodandoReanalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar ReANÁLISE</>}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* MODAL CONFIRMAR DELEÇÃO */}
       {confirmarDelete && (
