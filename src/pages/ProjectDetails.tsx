@@ -43,6 +43,13 @@ interface Parecer {
   risco: string;
 }
 
+interface Pendencia {
+  codigo: string;
+  nome: string;
+  norma: string;
+  observacao: string;
+}
+
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -54,6 +61,7 @@ export default function ProjectDetails() {
   const [resumoExecutivo, setResumoExecutivo] = useState("");
   const [validacoesPorCategoria, setValidacoesPorCategoria] = useState<ValidacaoCategoria[]>([]);
   const [pareceres, setPareceres] = useState<Parecer[]>([]);
+  const [pendenciasInformacao, setPendenciasInformacao] = useState<Pendencia[]>([]);
   const [exportando, setExportando] = useState(false);
   const [novaAnaliseOpen, setNovaAnaliseOpen] = useState(false);
   const [arquivoNovaAnalise, setArquivoNovaAnalise] = useState("");
@@ -122,8 +130,27 @@ export default function ProjectDetails() {
             sugestao: regra?.artigo_referencia || "Consulte a norma vigente."
           };
         }));
+        setPendenciasInformacao(
+          valData
+            .filter((v: any) => v.status === "nao_aplicavel")
+            .map((v: any) => {
+              const regra = v.regras_regulatorias;
+              return {
+                codigo: regra?.codigo || v.id,
+                nome: regra?.descricao?.slice(0, 60) || "Regra Regulatória",
+                norma: regra?.norma_origem || "Norma não identificada",
+                observacao: v.observacao || "Não aplicável ao projeto/ambiente analisado.",
+              };
+            })
+        );
+
+        // Apenas itens aplicáveis (aprovado/reprovado) entram no total de cada
+        // categoria — "não_aplicável" não conta nem a favor nem contra, senão
+        // infla o total e distorce o percentual de conformidade (mesmo bug que
+        // já corrigimos no cálculo do score geral).
         const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
         valData.forEach((v: any) => {
+          if (v.status === "nao_aplicavel") return;
           const cat = v.regras_regulatorias?.categoria || "Geral";
           if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0 };
           categoriaMap[cat].total++;
@@ -141,6 +168,7 @@ export default function ProjectDetails() {
         // fixas que não têm relação com o tipo de estabelecimento avaliado.
         const normaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
         valData.forEach((v: any) => {
+          if (v.status === "nao_aplicavel") return;
           const norma = v.regras_regulatorias?.norma_origem || "Norma não identificada";
           if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0 };
           normaMap[norma].total++;
@@ -162,6 +190,7 @@ export default function ProjectDetails() {
         setTemValidacoesReais(false);
         setNaoConformidades([]);
         setPareceres([]);
+        setPendenciasInformacao([]);
         setValidacoesPorCategoria([
           { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
           { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
@@ -224,6 +253,8 @@ export default function ProjectDetails() {
         ...validacoesPorCategoria.map(v => `  • ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
         ``, `NÃO-CONFORMIDADES (${naoconformidades.length})`,
         ...naoconformidades.map(nc => `  [${nc.severidade.toUpperCase()}] ${nc.codigo}\n  Norma: ${nc.norma}\n  ${nc.descricao}`),
+        ``, `OBSERVAÇÕES / PENDÊNCIAS DE INFORMAÇÃO (${pendenciasInformacao.length})`,
+        ...pendenciasInformacao.map(p => `  ${p.codigo}\n  Norma: ${p.norma}\n  ${p.nome}\n  Obs: ${p.observacao}`),
         ``, `PARECERES TÉCNICOS`,
         ...pareceres.map(p => `  • ${p.norma}\n    Status: ${p.status}\n    ${p.observacao}`),
         ``, `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
@@ -482,6 +513,33 @@ export default function ProjectDetails() {
                   </div>
                 )}
               </div>
+
+              {pendenciasInformacao.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h2 className="text-base font-bold text-foreground">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
+                    <span className="text-xs text-muted-foreground font-medium">Itens não aplicáveis ou sem informação suficiente</span>
+                  </div>
+                  <div className="space-y-4">
+                    {pendenciasInformacao.map((p, idx) => (
+                      <div key={idx} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
+                        <div className="flex flex-wrap justify-between items-start gap-3">
+                          <div className="space-y-1">
+                            <span className="text-xs font-mono font-bold text-muted-foreground">{p.codigo}</span>
+                            <h3 className="text-sm font-bold text-foreground">{p.nome}</h3>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-muted border border-border px-2 py-0.5 rounded">Norma: {p.norma}</span>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
+                        </div>
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Justificativa</span>
+                          <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg italic">{p.observacao}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div className="flex items-center gap-2">

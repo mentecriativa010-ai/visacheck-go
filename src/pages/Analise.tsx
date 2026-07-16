@@ -243,6 +243,7 @@ export default function Analise() {
   });
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
+  const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel");
 
   // ─── Salvar no banco ───────────────────────────────────────────────────────
   // Aceita dados explícitos (regras/respostas/observações) como parâmetros opcionais.
@@ -275,15 +276,21 @@ export default function Analise() {
         .select("id").single();
       if (projError || !proj) throw projError;
 
-      const validacoes = regrasUsar
-        .filter(r => respostasUsar[r.id] !== "nao_aplicavel")
-        .map(r => ({
-          projeto_id: proj.id, regra_id: r.id,
-          status: respostasUsar[r.id] === "conforme" ? "aprovado" : "reprovado",
-          observacao: respostasUsar[r.id] === "nao_conforme"
-            ? (observacoesUsar[r.id] || "Não conformidade identificada")
-            : "Conforme verificação",
-        }));
+      // Antes, itens "não_aplicável" eram descartados aqui (nunca chegavam a
+      // ser inseridos em `validacoes`), o que fazia o relatório perder a
+      // justificativa da IA sobre por que o item não se aplica ou o que falta
+      // de informação no projeto para avaliá-lo. Agora TODAS as regras viram
+      // uma linha em `validacoes` — inclusive as N/A — para alimentar a seção
+      // "Observações / Pendências de Informação" nas telas de resultado.
+      const validacoes = regrasUsar.map(r => {
+        const resp = respostasUsar[r.id];
+        const status = resp === "conforme" ? "aprovado" : resp === "nao_conforme" ? "reprovado" : "nao_aplicavel";
+        const observacao =
+          resp === "conforme" ? "Conforme verificação" :
+          resp === "nao_conforme" ? (observacoesUsar[r.id] || "Não conformidade identificada") :
+          (observacoesUsar[r.id] || "Não aplicável ao projeto/ambiente analisado.");
+        return { projeto_id: proj.id, regra_id: r.id, status, observacao };
+      });
       if (validacoes.length > 0) await supabase.from("validacoes").insert(validacoes);
 
       const resumo = scoreCalc === 100
@@ -314,6 +321,11 @@ export default function Analise() {
       ...naoConformidades.map(nc =>
         `  [${nc.norma_origem}] ${nc.codigo}\n  ${nc.descricao}` +
         (observacoes[nc.id] ? `\n  Obs: ${observacoes[nc.id]}` : "")
+      ),
+      "", `OBSERVAÇÕES / PENDÊNCIAS DE INFORMAÇÃO (${pendenciasInformacao.length})`,
+      ...pendenciasInformacao.map(p =>
+        `  [${p.norma_origem}] ${p.codigo}\n  ${p.descricao}` +
+        (observacoes[p.id] ? `\n  Obs: ${observacoes[p.id]}` : "")
       ),
       "", `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
     ];
@@ -731,6 +743,37 @@ export default function Analise() {
                             {observacoes[nc.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[nc.id]}"</p>}
                           </div>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-destructive/10 text-destructive border border-destructive/20 flex-shrink-0">Não conforme</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Observações / Pendências de Informação */}
+              {pendenciasInformacao.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-base font-bold">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
+                    <span className="text-xs text-muted-foreground">Itens marcados como não aplicáveis</span>
+                  </div>
+                  <div className="space-y-4">
+                    {pendenciasInformacao.map(p => (
+                      <div key={p.id} className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-mono text-muted-foreground">{p.codigo}</span>
+                              {p.norma_origem && (
+                                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{p.norma_origem}</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground">{p.descricao}</p>
+                            <p className="text-xs text-muted-foreground mt-1 italic">
+                              {observacoes[p.id] || "Não aplicável ao projeto/ambiente analisado."}
+                            </p>
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
                         </div>
                       </div>
                     ))}
