@@ -64,6 +64,7 @@ export default function Analise() {
   const [projetoSalvoId, setProjetoSalvoId] = useState(null);
   const [categoriaAtiva, setCategoriaAtiva] = useState("");
   const [erro, setErro] = useState("");
+  const [gruposAbertos, setGruposAbertos] = useState({});
 
   // ─── Carregar regras do Supabase ──────────────────────────────────────────
   const carregarRegras = async (tipo) => {
@@ -244,6 +245,13 @@ export default function Analise() {
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
   const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel");
+  const pendenciasPorNorma = pendenciasInformacao.reduce((acc, r) => {
+    const norma = r.norma_origem || "Norma não identificada";
+    if (!acc[norma]) acc[norma] = [];
+    acc[norma].push(r);
+    return acc;
+  }, {});
+  const toggleGrupo = (norma) => setGruposAbertos(prev => ({ ...prev, [norma]: !prev[norma] }));
 
   // ─── Salvar no banco ───────────────────────────────────────────────────────
   // Aceita dados explícitos (regras/respostas/observações) como parâmetros opcionais.
@@ -755,28 +763,43 @@ export default function Analise() {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-base font-bold">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
-                    <span className="text-xs text-muted-foreground">Itens marcados como não aplicáveis</span>
+                    <span className="text-xs text-muted-foreground">Agrupado por norma — clique para expandir</span>
                   </div>
-                  <div className="space-y-4">
-                    {pendenciasInformacao.map(p => (
-                      <div key={p.id} className="bg-card border border-border rounded-xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-muted-foreground">{p.codigo}</span>
-                              {p.norma_origem && (
-                                <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{p.norma_origem}</span>
-                              )}
+                  <div className="space-y-3">
+                    {Object.entries(pendenciasPorNorma).map(([norma, itens]) => {
+                      const aberto = !!gruposAbertos[norma];
+                      return (
+                        <div key={norma} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => toggleGrupo(norma)}
+                            className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              {aberto ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{norma}</span>
                             </div>
-                            <p className="text-sm text-foreground">{p.descricao}</p>
-                            <p className="text-xs text-muted-foreground mt-1 italic">
-                              {observacoes[p.id] || "Não aplicável ao projeto/ambiente analisado."}
-                            </p>
-                          </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
+                            <span className="text-xs font-semibold text-muted-foreground">{itens.length} item(ns)</span>
+                          </button>
+                          {aberto && (
+                            <div className="border-t border-border divide-y divide-border">
+                              {itens.map(p => (
+                                <div key={p.id} className="px-5 py-4 space-y-1.5">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs font-mono text-muted-foreground">{p.codigo}</span>
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
+                                  </div>
+                                  <p className="text-sm text-foreground">{p.descricao}</p>
+                                  <p className="text-xs text-muted-foreground italic">
+                                    {observacoes[p.id] || "Não aplicável ao projeto/ambiente analisado."}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

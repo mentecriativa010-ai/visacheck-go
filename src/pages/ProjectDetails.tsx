@@ -8,6 +8,7 @@ import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   Loader2, AlertTriangle, CheckCircle, AlertOctagon, Info,
   FileText, Download, ClipboardList, BarChart2, RefreshCw,
+  ChevronDown, ChevronRight,
 } from "lucide-react";
 
 interface Projeto {
@@ -62,6 +63,7 @@ export default function ProjectDetails() {
   const [validacoesPorCategoria, setValidacoesPorCategoria] = useState<ValidacaoCategoria[]>([]);
   const [pareceres, setPareceres] = useState<Parecer[]>([]);
   const [pendenciasInformacao, setPendenciasInformacao] = useState<Pendencia[]>([]);
+  const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
   const [exportando, setExportando] = useState(false);
   const [novaAnaliseOpen, setNovaAnaliseOpen] = useState(false);
   const [arquivoNovaAnalise, setArquivoNovaAnalise] = useState("");
@@ -277,6 +279,14 @@ export default function ProjectDetails() {
   // 32 itens, distorcendo a média). Resultado: a mesma análise mostrava
   // 95% em uma tela e 96% em outra. Agora as duas telas leem o mesmo valor.
   const scoreCalculado = projeto?.score_conformidade ?? (projeto?.status === "aprovado" ? 100 : 0);
+
+  const pendenciasPorNorma = pendenciasInformacao.reduce((acc: Record<string, Pendencia[]>, p) => {
+    const norma = p.norma || "Norma não identificada";
+    if (!acc[norma]) acc[norma] = [];
+    acc[norma].push(p);
+    return acc;
+  }, {});
+  const toggleGrupo = (norma: string) => setGruposAbertos(prev => ({ ...prev, [norma]: !prev[norma] }));
 
   const getStatusEfetivo = (proj: Projeto) => {
     if (scoreCalculado === 100 || proj.status === "aprovado") return "aprovado";
@@ -518,25 +528,41 @@ export default function ProjectDetails() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h2 className="text-base font-bold text-foreground">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
-                    <span className="text-xs text-muted-foreground font-medium">Itens não aplicáveis ou sem informação suficiente</span>
+                    <span className="text-xs text-muted-foreground font-medium">Agrupado por norma — clique para expandir</span>
                   </div>
-                  <div className="space-y-4">
-                    {pendenciasInformacao.map((p, idx) => (
-                      <div key={idx} className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-3">
-                        <div className="flex flex-wrap justify-between items-start gap-3">
-                          <div className="space-y-1">
-                            <span className="text-xs font-mono font-bold text-muted-foreground">{p.codigo}</span>
-                            <h3 className="text-sm font-bold text-foreground">{p.nome}</h3>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-muted border border-border px-2 py-0.5 rounded">Norma: {p.norma}</span>
-                          </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
+                  <div className="space-y-3">
+                    {Object.entries(pendenciasPorNorma).map(([norma, itens]) => {
+                      const aberto = !!gruposAbertos[norma];
+                      return (
+                        <div key={norma} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
+                          <button
+                            type="button"
+                            onClick={() => toggleGrupo(norma)}
+                            className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              {aberto ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
+                              <span className="text-[10px] font-bold text-primary tracking-wide uppercase bg-primary/10 px-2 py-0.5 rounded">{norma}</span>
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground">{itens.length} item(ns)</span>
+                          </button>
+                          {aberto && (
+                            <div className="border-t border-border divide-y divide-border">
+                              {itens.map((p, idx) => (
+                                <div key={idx} className="px-6 py-4 space-y-1.5">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <span className="text-xs font-mono font-bold text-muted-foreground">{p.codigo}</span>
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
+                                  </div>
+                                  <h3 className="text-sm font-bold text-foreground">{p.nome}</h3>
+                                  <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg italic">{p.observacao}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block">Justificativa</span>
-                          <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg italic">{p.observacao}</p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

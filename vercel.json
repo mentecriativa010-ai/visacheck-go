@@ -1,5 +1,5 @@
 {
   "rewrites": [
-    { "source": "/((?!api/).*)", "destination": "/" }
+    { "source": "/((?!api/|@vite|@react-refresh|@fs|src/|node_modules/|.*\\.[a-zA-Z0-9]+$).*)", "destination": "/" }
   ]
 }
