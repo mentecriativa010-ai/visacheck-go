@@ -1,6 +1,7 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { reanalisarProjeto } from "@/lib/reanalise";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useSidebar } from "@/hooks/useSidebar";
@@ -65,6 +66,15 @@ export default function Dashboard() {
   const [projetosSelecionados, setProjetosSelecionados] = useState<string[]>([]);
   const [deletandoProjetos, setDeletandoProjetos] = useState(false);
   const [confirmarDelete, setConfirmarDelete] = useState(false);
+
+  // ─── Re-análise ───────────────────────────────────────────────────────
+  const [reanaliseOpen, setReanaliseOpen] = useState(false);
+  const [projetoReanalise, setProjetoReanalise] = useState<Projeto | null>(null);
+  const [pdfReanalise, setPdfReanalise] = useState<File | null>(null);
+  const [pdfReanaliseNome, setPdfReanaliseNome] = useState("");
+  const [reanalisando, setReanalisando] = useState(false);
+  const [statusReanalise, setStatusReanalise] = useState("");
+  const [erroReanalise, setErroReanalise] = useState("");
 
   useEffect(() => { fetchUserDataAndProjects(); }, []);
 
@@ -189,6 +199,41 @@ export default function Dashboard() {
     }
   };
 
+  // ─── Re-análise: abrir modal e executar ───────────────────────────────
+  const abrirReanalise = () => {
+    if (projetosSelecionados.length !== 1) return;
+    const proj = projetos.find(p => p.id === projetosSelecionados[0]);
+    if (!proj) return;
+    setProjetoReanalise(proj);
+    setPdfReanalise(null);
+    setPdfReanaliseNome("");
+    setStatusReanalise("");
+    setErroReanalise("");
+    setReanaliseOpen(true);
+  };
+
+  const handleReanalisar = async () => {
+    if (!projetoReanalise || !pdfReanalise) return;
+    try {
+      setReanalisando(true);
+      setErroReanalise("");
+      await reanalisarProjeto(
+        projetoReanalise.id,
+        projetoReanalise.tipo_estabelecimento,
+        pdfReanalise,
+        (msg) => setStatusReanalise(msg)
+      );
+      setReanaliseOpen(false);
+      setProjetosSelecionados([]);
+      fetchUserDataAndProjects();
+    } catch (err: any) {
+      console.error("Erro na re-análise:", err);
+      setErroReanalise(err.message || "Ocorreu um erro ao reanalisar o projeto.");
+    } finally {
+      setReanalisando(false);
+    }
+  };
+
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/login"); };
 
   const totalProjetos = projetos.length;
@@ -228,6 +273,11 @@ export default function Dashboard() {
       <div className="flex items-center justify-between bg-muted border border-border rounded-lg px-4 py-2.5 gap-3 flex-wrap">
         <span className="text-sm text-foreground/90 font-medium">{projetosSelecionados.length} projeto(s) selecionado(s)</span>
         <div className="flex gap-2">
+          {projetosSelecionados.length === 1 && (
+            <Button onClick={abrirReanalise} className="bg-primary hover:bg-primary-hover text-white gap-2 h-8 text-xs">
+              <RefreshCw className="w-3.5 h-3.5" />Re-Análise
+            </Button>
+          )}
           <Button onClick={() => setConfirmarDelete(true)} disabled={deletandoProjetos} className="bg-red-600 hover:bg-red-700 text-white gap-2 h-8 text-xs">
             <Trash2 className="w-3.5 h-3.5" />Excluir selecionados
           </Button>
@@ -495,6 +545,80 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
+      {/* MODAL RE-ANÁLISE */}
+      <Dialog open={reanaliseOpen} onOpenChange={(open) => { if (!reanalisando) setReanaliseOpen(open); }}>
+        <DialogContent className="sm:max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-primary flex items-center gap-2">
+              <RefreshCw className="w-5 h-5" />Re-Análise do Projeto
+            </DialogTitle>
+            <DialogDescription>
+              Envie o PDF corrigido de <strong>{projetoReanalise?.nome_projeto}</strong>. A IA vai
+              analisar o novo arquivo e substituir o laudo anterior deste mesmo projeto.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="reanalise-file">Prancha Arquitetônica Corrigida (PDF)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="reanalise-file-dummy"
+                  type="text"
+                  placeholder="Selecione um arquivo..."
+                  value={pdfReanaliseNome}
+                  readOnly
+                  className="bg-muted cursor-pointer flex-1"
+                  onClick={() => document.getElementById("reanalise-file-input")?.click()}
+                />
+                <Button type="button" variant="outline" onClick={() => document.getElementById("reanalise-file-input")?.click()}>
+                  Procurar
+                </Button>
+              </div>
+              <input
+                id="reanalise-file-input"
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) { setPdfReanalise(file); setPdfReanaliseNome(file.name); }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">Apenas PDF com camada de texto (não escaneado).</p>
+            </div>
+
+            {reanalisando && statusReanalise && (
+              <div className="bg-primary/5 text-primary border border-primary/20 rounded-lg p-3 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                <span className="text-xs">{statusReanalise}</span>
+              </div>
+            )}
+
+            {erroReanalise && (
+              <div className="bg-red-50 text-[#DC2626] border border-red-100 rounded-lg p-3 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span className="text-xs">{erroReanalise}</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setReanaliseOpen(false)} disabled={reanalisando}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleReanalisar}
+              disabled={!pdfReanalise || reanalisando}
+              className="bg-primary hover:bg-primary-hover text-white gap-2"
+            >
+              {reanalisando ? <><Loader2 className="w-4 h-4 animate-spin" />Reanalisando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Re-Análise</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* MODAL CONFIRMAR DELEÇÃO */}
       {confirmarDelete && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
@@ -519,4 +643,3 @@ export default function Dashboard() {
     </div>
   );
 }
-
