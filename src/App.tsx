@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom";
 // Carregamento lazy — cada página vira um chunk separado no build
 // Reduz o bundle inicial de ~540KB para ~150KB
 const Home            = lazy(() => import("./pages/marketing/Home"));
+const ComoFunciona    = lazy(() => import("./pages/marketing/ComoFunciona"));
 const ComingSoon       = lazy(() => import("./pages/marketing/ComingSoon"));
 const Login           = lazy(() => import("./pages/Login"));
 const Signup          = lazy(() => import("./pages/Signup"));
@@ -31,15 +32,7 @@ function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/"               element={<Home />} />
-          <Route
-            path="/como-funciona"
-            element={
-              <ComingSoon
-                title="Como funciona"
-                seoDescription="Entenda como o VISAcheck GO verifica a conformidade do seu projeto de arquitetura de saúde com as normas da ANVISA."
-              />
-            }
-          />
+          <Route path="/como-funciona"  element={<ComoFunciona />} />
           <Route
             path="/normas"
             element={
