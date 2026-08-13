@@ -1,14 +1,10 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const MODEL = "claude-haiku-4-5";
 const TAMANHO_LOTE = 30;
-// Limite de caracteres do texto do PDF enviado por lote. Aumentado de 10000 para 30000
-// porque o corte anterior estava cortando o texto ANTES de chegar aos ambientes
-// específicos do projeto (ex: Centro Cirúrgico Ambulatorial), deixando só a
-// implantação geral (estacionamento, outros setores do hospital) visível para a IA.
 const LIMITE_CARACTERES_PDF = 30000;
 const TABELA_CACHE = "analises_ia_cache";
 
@@ -21,11 +17,6 @@ function extrairJSON(texto) {
   return JSON.parse(texto.slice(inicio, fim + 1));
 }
 
-// ─── Cache de análises ────────────────────────────────────────────────────
-// Calcula uma "impressao digital" (hash) unica a partir do texto do PDF (exatamente
-// como e enviado ao modelo, ja truncado), do tipo de ambiente e das regras avaliadas.
-// Mesmo PDF + mesmo ambiente + mesmas regras => mesmo hash => mesmo resultado sempre,
-// mesmo que o modelo de IA nao seja 100% deterministico entre chamadas.
 function calcularHashAnalise(textoPDF, tipoAmbiente, regras) {
   const textoConsiderado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
   const regrasOrdenadas = [...regras]
@@ -39,8 +30,27 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras) {
 function obterClienteSupabase() {
   const url = process.env.SUPABASE_URL;
   const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !chave) return null; // cache fica desligado se as env vars nao estiverem configuradas
+  if (!url || !chave) return null;
   return createClient(url, chave);
+}
+
+async function obterUsuarioAutenticado(req) {
+  const cabecalho = req.headers.authorization ?? req.headers.Authorization;
+  if (!cabecalho || !cabecalho.startsWith("Bearer ")) return null;
+  const token = cabecalho.slice("Bearer ".length).trim();
+  if (!token) return null;
+
+  const url = process.env.SUPABASE_URL;
+  const chave = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !chave) {
+    console.error("[auth] SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY ausentes - negando acesso.");
+    return null;
+  }
+
+  const supabase = createClient(url, chave);
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data?.user) return null;
+  return data.user;
 }
 
 async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes) {
@@ -50,7 +60,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
   const textoLimitado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
 
   const prompt = "Analise o projeto para o ambiente: " + tipoAmbiente + " (lote " + numeroLote + "/" + totalLotes + ")\n\n" +
-    "ESCOPO DA ANALISE — LEIA COM ATENCAO:\n" +
+    "ESCOPO DA ANALISE - LEIA COM ATENCAO:\n" +
     "Este projeto arquitetonico pode conter, alem do ambiente analisado, a representacao de OUTRAS areas do " +
     "hospital/edificio (ex: estacionamento, outros setores, apartamentos, ambulatorio, setor de imagem, circulacoes " +
     "gerais de acesso) que aparecem apenas como CONTEXTO DE IMPLANTACAO/LOCALIZACAO, mas que NAO fazem parte do " +
@@ -66,7 +76,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "(ex: \"Fora do escopo deste projeto, que trata apenas do(a) " + tipoAmbiente + "\").\n\n" +
     "TEXTO DO PROJETO:\n" + textoLimitado + "\n\n" +
     "REGRAS A VERIFICAR (" + regras.length + " regras):\n" + listaRegras + "\n\n" +
-    "COMO DECIDIR O STATUS DE CADA REGRA — SIGA ESTA ORDEM EXATA:\n" +
+    "COMO DECIDIR O STATUS DE CADA REGRA - SIGA ESTA ORDEM EXATA:\n" +
     "1) O elemento/ambiente a que a regra se refere EXISTE no projeto (dentro do escopo do \"" + tipoAmbiente + "\")?\n" +
     "   - NAO existe no projeto (ex: a regra fala de um ambiente que este projeto simplesmente nao tem, como " +
     "\"berçario\" num projeto que so tem centro cirurgico) -> status = nao_aplicavel. Justificativa: diga que o " +
@@ -83,7 +93,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "   - Nao atende -> status = nao_conforme.\n\n" +
     "REGRA DE OURO PARA EVITAR AMBIGUIDADE: se voce encontrou no texto um numero, medida ou caracteristica que " +
     "permite comparar diretamente com o criterio da regra (ex: a regra pede \"minimo X\" e o texto informa um " +
-    "valor), NUNCA marque como nao_aplicavel — marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
+    "valor), NUNCA marque como nao_aplicavel - marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
     "unidade ou formato, contanto que seja possivel comparar.\n\n" +
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito no texto do projeto, sem " +
@@ -99,8 +109,6 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     body: JSON.stringify({
       model: MODEL,
       max_tokens: 4096,
-      // temperature 0 = resposta deterministica. Sem isso, o padrao da API (1.0)
-      // fazia a mesma analise mudar a cada execucao, mesmo com o mesmo PDF e regras.
       temperature: 0,
       system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown. Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao.",
       messages: [{ role: "user", content: prompt }],
@@ -117,11 +125,17 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
 }
 
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", "https://visacheck-go.vercel.app");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Metodo nao permitido." });
+
+  const usuario = await obterUsuarioAutenticado(req);
+  if (!usuario) {
+    return res.status(401).json({ error: "Nao autenticado. Faca login para rodar uma analise." });
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
   const { textoPDF, tipoAmbiente, regras } = req.body ?? {};
@@ -132,32 +146,19 @@ export default async function handler(req, res) {
   const supabase = obterClienteSupabase();
   const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras);
 
-  // LOG DE DIAGNOSTICO — remover depois de confirmar que o cache funciona.
-  console.log("[cache-diagnostico] SUPABASE_URL presente:", Boolean(process.env.SUPABASE_URL));
-  console.log("[cache-diagnostico] SUPABASE_SERVICE_ROLE_KEY presente:", Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY));
-  console.log("[cache-diagnostico] cliente supabase criado:", Boolean(supabase));
-  console.log("[cache-diagnostico] hash calculado:", hash);
-
   try {
-    // 1) Tenta reaproveitar uma analise identica ja feita antes (mesmo PDF, mesmo
-    // ambiente, mesmas regras) — garante resultado sempre igual e evita gastar
-    // chamadas de API repetindo a mesma analise.
     if (supabase) {
       const { data: cacheHit, error: erroCache } = await supabase
         .from(TABELA_CACHE)
         .select("resultados, resumo")
         .eq("hash", hash)
         .maybeSingle();
-      if (erroCache) console.error("[cache-diagnostico] Erro ao CONSULTAR cache:", JSON.stringify(erroCache));
-      console.log("[cache-diagnostico] cache encontrado?", Boolean(cacheHit));
+      if (erroCache) console.error("[cache] Erro ao consultar cache:", JSON.stringify(erroCache));
       if (cacheHit) {
         return res.status(200).json({ resultados: cacheHit.resultados, resumo: cacheHit.resumo, deCache: true });
       }
-    } else {
-      console.log("[cache-diagnostico] cliente supabase NULO — cache desligado nesta chamada.");
     }
 
-    // 2) Sem cache — roda a analise normalmente via IA, em lotes
     const lotes = [];
     for (let i = 0; i < regras.length; i += TAMANHO_LOTE) lotes.push(regras.slice(i, i + TAMANHO_LOTE));
     const todosResultados = [];
@@ -168,16 +169,11 @@ export default async function handler(req, res) {
       if (i === lotes.length - 1) ultimoResumo = resultado.resumo ?? "";
     }
 
-    // 3) Salva no cache para que a proxima analise do mesmo PDF seja instantanea e identica
     if (supabase) {
       const { error: erroSalvar } = await supabase.from(TABELA_CACHE).upsert({
         hash, tipo_ambiente: tipoAmbiente, resultados: todosResultados, resumo: ultimoResumo,
       });
-      if (erroSalvar) {
-        console.error("[cache-diagnostico] Erro ao SALVAR cache:", JSON.stringify(erroSalvar));
-      } else {
-        console.log("[cache-diagnostico] cache salvo com sucesso, hash:", hash);
-      }
+      if (erroSalvar) console.error("[cache] Erro ao salvar cache:", JSON.stringify(erroSalvar));
     }
 
     return res.status(200).json({ resultados: todosResultados, resumo: ultimoResumo, deCache: false });

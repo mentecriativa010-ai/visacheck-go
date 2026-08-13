@@ -4,9 +4,12 @@ module.exports = {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
-      fontFamily: {
+fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
         display: ["Inter", "system-ui", "sans-serif"],
+        "marketing-display": ["Fraunces", "serif"],
+        body: ["IBM Plex Sans", "sans-serif"],
+        "mono-custom": ["IBM Plex Mono", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",

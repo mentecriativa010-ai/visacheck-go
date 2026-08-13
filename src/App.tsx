@@ -1,18 +1,20 @@
-import { lazy, Suspense } from "react";
+﻿import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
 
 // Carregamento lazy — cada página vira um chunk separado no build
 // Reduz o bundle inicial de ~540KB para ~150KB
-const Login          = lazy(() => import("./pages/Login"));
-const Signup         = lazy(() => import("./pages/Signup"));
-const ResetPassword  = lazy(() => import("./pages/ResetPassword"));
-const Dashboard      = lazy(() => import("./pages/Dashboard"));
-const ProjectDetails = lazy(() => import("./pages/ProjectDetails"));
-const Analise        = lazy(() => import("./pages/Analise"));
-const Privacidade    = lazy(() => import("./pages/Privacidade"));
-const Termos         = lazy(() => import("./pages/Termos"));
-const Consentimento  = lazy(() => import("./pages/Consentimento"));
-const MinhaConta     = lazy(() => import("./pages/MinhaConta"));
+const Home            = lazy(() => import("./pages/marketing/Home"));
+const ComingSoon       = lazy(() => import("./pages/marketing/ComingSoon"));
+const Login           = lazy(() => import("./pages/Login"));
+const Signup          = lazy(() => import("./pages/Signup"));
+const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
+const Dashboard       = lazy(() => import("./pages/Dashboard"));
+const ProjectDetails  = lazy(() => import("./pages/ProjectDetails"));
+const Analise          = lazy(() => import("./pages/Analise"));
+const Privacidade      = lazy(() => import("./pages/Privacidade"));
+const Termos           = lazy(() => import("./pages/Termos"));
+const Consentimento     = lazy(() => import("./pages/Consentimento"));
+const MinhaConta       = lazy(() => import("./pages/MinhaConta"));
 
 // Fallback simples enquanto o chunk carrega
 function PageLoader() {
@@ -28,6 +30,43 @@ function App() {
     <div className="min-h-screen bg-background text-foreground">
       <Suspense fallback={<PageLoader />}>
         <Routes>
+          <Route path="/"               element={<Home />} />
+          <Route
+            path="/como-funciona"
+            element={
+              <ComingSoon
+                title="Como funciona"
+                seoDescription="Entenda como o VISAcheck GO verifica a conformidade do seu projeto de arquitetura de saúde com as normas da ANVISA."
+              />
+            }
+          />
+          <Route
+            path="/normas"
+            element={
+              <ComingSoon
+                title="Normas cobertas"
+                seoDescription="Veja as 8 normas da ANVISA e ABNT verificadas pelo VISAcheck GO: RDC-50, NBR 9050, RDC-1002 e outras."
+              />
+            }
+          />
+          <Route
+            path="/precos"
+            element={
+              <ComingSoon
+                title="Preços"
+                seoDescription="Planos e preços do VISAcheck GO — em breve."
+              />
+            }
+          />
+          <Route
+            path="/sobre"
+            element={
+              <ComingSoon
+                title="Sobre"
+                seoDescription="Conheça a história por trás do VISAcheck GO."
+              />
+            }
+          />
           <Route path="/login"          element={<Login />} />
           <Route path="/signup"         element={<Signup />} />
           <Route path="/reset-password" element={<ResetPassword />} />
