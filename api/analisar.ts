@@ -1,4 +1,4 @@
-﻿import crypto from "node:crypto";
+import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -6,6 +6,7 @@ const ANTHROPIC_VERSION = "2023-06-01";
 const MODEL = "claude-haiku-4-5";
 const TAMANHO_LOTE = 30;
 const LIMITE_CARACTERES_PDF = 30000;
+const LIMITE_CARACTERES_MEMORIAL = 15000;
 const TABELA_CACHE = "analises_ia_cache";
 
 function extrairJSON(texto) {
@@ -17,13 +18,17 @@ function extrairJSON(texto) {
   return JSON.parse(texto.slice(inicio, fim + 1));
 }
 
-function calcularHashAnalise(textoPDF, tipoAmbiente, regras) {
+function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   const textoConsiderado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
+  const memorialConsiderado = textoMemorial ? String(textoMemorial).slice(0, LIMITE_CARACTERES_MEMORIAL) : "";
   const regrasOrdenadas = [...regras]
     .map(r => r.id + "|" + r.codigo + "|" + r.descricao + "|" + (r.norma_origem ?? ""))
     .sort()
     .join("\n");
-  const base = "v1\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado;
+  // v2: inclui o texto do memorial descritivo no hash — sem isso, duas analises do
+  // mesmo projeto (com e sem memorial) colidiriam no cache e retornariam o mesmo
+  // resultado, mesmo tendo fontes de informacao diferentes.
+  const base = "v2\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -53,11 +58,31 @@ async function obterUsuarioAutenticado(req) {
   return data.user;
 }
 
-async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes) {
+async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes, textoMemorial) {
   const listaRegras = regras
     .map(r => "- ID: " + r.id + " | Codigo: " + r.codigo + " | Norma: " + (r.norma_origem ?? "-") + " | Descricao: " + r.descricao)
     .join("\n");
   const textoLimitado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
+
+  const temMemorial = !!(textoMemorial && String(textoMemorial).trim().length > 0);
+  const textoMemorialLimitado = temMemorial ? String(textoMemorial).slice(0, LIMITE_CARACTERES_MEMORIAL) : "";
+
+  const blocoMemorial = temMemorial
+    ? "\n\nTEXTO DO MEMORIAL DESCRITIVO (documento complementar, redigido pelo arquiteto responsavel):\n" + textoMemorialLimitado + "\n"
+    : "";
+
+  const instrucoesMemorial = temMemorial
+    ? "USO DO MEMORIAL DESCRITIVO:\n" +
+      "- Alem da planta (TEXTO DO PROJETO), voce recebeu tambem o Memorial Descritivo do projeto, um documento " +
+      "textual complementar que pode trazer informacoes (medidas, materiais, caracteristicas de ambientes) que nao " +
+      "estao desenhadas ou legendadas com clareza na planta.\n" +
+      "- Se a planta nao trouxer o dado necessario para julgar uma regra, verifique tambem o texto do Memorial " +
+      "Descritivo antes de decidir que falta informacao.\n" +
+      "- Se planta e memorial informarem valores ou caracteristicas DIFERENTES para o mesmo elemento (ex: memorial " +
+      "descreve \"corredor de 1,50m\" mas a planta indica outra medida para o mesmo corredor), NAO marque como " +
+      "conforme nem como nao_aplicavel: marque como nao_conforme e explique a divergencia na justificativa, citando " +
+      "o valor de cada documento (ex: \"Divergencia entre memorial (1,50m) e planta (1,20m) para o corredor X\").\n\n"
+    : "";
 
   const prompt = "Analise o projeto para o ambiente: " + tipoAmbiente + " (lote " + numeroLote + "/" + totalLotes + ")\n\n" +
     "ESCOPO DA ANALISE - LEIA COM ATENCAO:\n" +
@@ -74,19 +99,20 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "- Se uma regra so puder ser avaliada a partir de um elemento que esta fora do escopo do projeto (nao faz " +
     "parte do \"" + tipoAmbiente + "\"), marque como nao_aplicavel e explique isso na justificativa " +
     "(ex: \"Fora do escopo deste projeto, que trata apenas do(a) " + tipoAmbiente + "\").\n\n" +
-    "TEXTO DO PROJETO:\n" + textoLimitado + "\n\n" +
+    "TEXTO DO PROJETO:\n" + textoLimitado + "\n" + blocoMemorial + "\n" +
     "REGRAS A VERIFICAR (" + regras.length + " regras):\n" + listaRegras + "\n\n" +
+    instrucoesMemorial +
     "COMO DECIDIR O STATUS DE CADA REGRA - SIGA ESTA ORDEM EXATA:\n" +
     "1) O elemento/ambiente a que a regra se refere EXISTE no projeto (dentro do escopo do \"" + tipoAmbiente + "\")?\n" +
     "   - NAO existe no projeto (ex: a regra fala de um ambiente que este projeto simplesmente nao tem, como " +
     "\"berçario\" num projeto que so tem centro cirurgico) -> status = nao_aplicavel. Justificativa: diga que o " +
     "elemento nao existe/nao se aplica a este projeto.\n" +
     "   - SIM existe -> va para o passo 2.\n" +
-    "2) O texto do projeto informa o dado necessario para julgar essa regra (medida, presenca de elemento, " +
+    "2) O texto do projeto" + (temMemorial ? " ou do memorial descritivo" : "") + " informa o dado necessario para julgar essa regra (medida, presenca de elemento, " +
     "caracteristica descrita)?\n" +
-    "   - NAO informa (o elemento existe mas o dado especifico da regra nao aparece no texto, ex: existe rampa mas " +
-    "a inclinacao dela nao foi informada) -> status = nao_aplicavel. Justificativa: diga exatamente qual dado " +
-    "especifico faltou no texto do projeto.\n" +
+    "   - NAO informa (o elemento existe mas o dado especifico da regra nao aparece em nenhum dos textos, ex: " +
+    "existe rampa mas a inclinacao dela nao foi informada) -> status = nao_aplicavel. Justificativa: diga " +
+    "exatamente qual dado especifico faltou.\n" +
     "   - SIM informa -> va para o passo 3.\n" +
     "3) O dado informado atende ao requisito da regra?\n" +
     "   - Atende -> status = conforme.\n" +
@@ -96,7 +122,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "valor), NUNCA marque como nao_aplicavel - marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
     "unidade ou formato, contanto que seja possivel comparar.\n\n" +
     "INSTRUCOES GERAIS:\n" +
-    "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito no texto do projeto, sem " +
+    "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
     "- TODA regra, inclusive as marcadas como nao_aplicavel, precisa de uma justificativa objetiva de 1 frase " +
     "explicando o motivo (nunca deixe justificativa vazia ou generica)\n\n" +
@@ -110,7 +136,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       model: MODEL,
       max_tokens: 4096,
       temperature: 0,
-      system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown. Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao.",
+      system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown. Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -138,13 +164,13 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
-  const { textoPDF, tipoAmbiente, regras } = req.body ?? {};
+  const { textoPDF, tipoAmbiente, regras, textoMemorial } = req.body ?? {};
   if (!textoPDF || !tipoAmbiente || !regras || !Array.isArray(regras)) {
     return res.status(400).json({ error: "Parametros obrigatorios ausentes." });
   }
 
   const supabase = obterClienteSupabase();
-  const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras);
+  const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial);
 
   try {
     if (supabase) {
@@ -164,7 +190,7 @@ export default async function handler(req, res) {
     const todosResultados = [];
     let ultimoResumo = "";
     for (let i = 0; i < lotes.length; i++) {
-      const resultado = await analisarLote(apiKey, textoPDF, tipoAmbiente, lotes[i], i + 1, lotes.length);
+      const resultado = await analisarLote(apiKey, textoPDF, tipoAmbiente, lotes[i], i + 1, lotes.length, textoMemorial);
       todosResultados.push(...(resultado.resultados ?? []));
       if (i === lotes.length - 1) ultimoResumo = resultado.resumo ?? "";
     }

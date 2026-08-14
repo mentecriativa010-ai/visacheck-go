@@ -1,4 +1,4 @@
-﻿// Integração com API da Anthropic via Edge Function proxy — VISAcheck GO
+// Integração com API da Anthropic via Edge Function proxy — VISAcheck GO
 //
 // Por que um proxy?
 // A API da Anthropic bloqueia chamadas diretas do navegador (CORS).
@@ -24,7 +24,8 @@ export interface RespostaAnalise {
 export async function analisarProjetoComIA(
   textoPDF: string,
   tipoAmbiente: string,
-  regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>
+  regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>,
+  textoMemorial?: string | null
 ): Promise<RespostaAnalise> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -38,7 +39,7 @@ export async function analisarProjetoComIA(
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ textoPDF, tipoAmbiente, regras }),
+    body: JSON.stringify({ textoPDF, tipoAmbiente, regras, textoMemorial: textoMemorial ?? null }),
   });
   if (!response.ok) {
     const erro = await response.json().catch(() => ({ error: response.statusText }));

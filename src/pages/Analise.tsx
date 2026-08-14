@@ -50,9 +50,14 @@ export default function Analise() {
   const [tipoSelecionado, setTipoSelecionado] = useState("");
   const [dropdownAberto, setDropdownAberto] = useState(false);
 
-  // PDF
+  // PDF do projeto (obrigatório)
   const [pdfFile, setPdfFile] = useState(null);
   const [pdfNome, setPdfNome] = useState("");
+
+  // Memorial Descritivo (PDF, opcional)
+  const [memorialFile, setMemorialFile] = useState(null);
+  const [memorialNome, setMemorialNome] = useState("");
+
   const [analisandoIA, setAnalisandoIA] = useState(false);
   const [iaStatus, setIaStatus] = useState("");
 
@@ -66,7 +71,7 @@ export default function Analise() {
   const [erro, setErro] = useState("");
   const [gruposAbertos, setGruposAbertos] = useState({});
 
-  // ─── Carregar regras do Supabase ──────────────────────────────────────────
+  // ─── Carregar regras do Supabase ────────────────────────────────────────
   const carregarRegras = async (tipo) => {
     if (!tipo) return;
     setLoadingRegras(true);
@@ -105,7 +110,7 @@ export default function Analise() {
     carregarRegras(tipo);
   };
 
-  // ─── Upload PDF para Supabase Storage ─────────────────────────────────────
+  // ─── Upload de PDF para Supabase Storage (usado tanto para o projeto quanto para o memorial) ───
   const uploadPDF = async (file) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -119,7 +124,7 @@ export default function Analise() {
     } catch { return null; }
   };
 
-  // ─── Extrai texto real do PDF usando pdf.js (via CDN) ───────────────────────
+  // ─── Extrai texto real do PDF usando pdf.js (via CDN) ───────────────────
   const extrairTextoPDF = async (file) => {
     // Carrega pdf.js dinamicamente (evita precisar adicionar dependência ao projeto)
     if (!window.pdfjsLib) {
@@ -148,10 +153,11 @@ export default function Analise() {
     return textoCompleto.trim();
   };
 
-  // ─── Análise por IA — via openrouter.ts ─────────────────────────────────────
+  // ─── Análise por IA — via openrouter.ts ──────────────────────────────────
   // Ao concluir com sucesso, salva direto no banco e já leva para a página de
   // resultado (passo 3), sem exigir clique manual categoria por categoria.
-  const analisarComIA = async (file, regrasCarregadas) => {
+  // arquivoMemorial é opcional: se não vier, a análise segue apenas com o PDF do projeto.
+  const analisarComIA = async (file, regrasCarregadas, arquivoMemorial) => {
     if (!regrasCarregadas.length) return false;
     setAnalisandoIA(true);
     setIaStatus("Lendo o PDF do projeto...");
@@ -160,6 +166,24 @@ export default function Analise() {
 
       if (!textoPDF || textoPDF.length < 30) {
         throw new Error("Não foi possível extrair texto do PDF (pode ser um PDF escaneado/imagem, sem camada de texto).");
+      }
+
+      // Memorial Descritivo é opcional e "best-effort": se não vier, se vier vazio/escaneado,
+      // ou se a extração falhar por qualquer motivo, a análise segue normalmente sem ele
+      // (nunca bloqueia o fluxo principal por causa de um documento opcional).
+      let textoMemorial = null;
+      if (arquivoMemorial) {
+        setIaStatus("Lendo o Memorial Descritivo...");
+        try {
+          const textoMemorialBruto = await extrairTextoPDF(arquivoMemorial);
+          if (textoMemorialBruto && textoMemorialBruto.length >= 30) {
+            textoMemorial = textoMemorialBruto;
+          } else {
+            console.warn("Memorial Descritivo sem texto extraível (pode ser PDF escaneado) — análise seguirá apenas com o projeto.");
+          }
+        } catch (errMemorial) {
+          console.warn("Falha ao ler o Memorial Descritivo — análise seguirá apenas com o projeto:", errMemorial);
+        }
       }
 
       setIaStatus("IA analisando o projeto arquitetônico...");
@@ -171,7 +195,7 @@ export default function Analise() {
         norma_origem: r.norma_origem ?? null,
       }));
 
-      const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas);
+      const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas, textoMemorial);
 
       // Monta o objeto de respostas completo aqui mesmo (não depende do estado
       // React, que ainda não foi re-renderizado neste ponto da execução).
@@ -203,6 +227,7 @@ export default function Analise() {
   const avancarPasso1 = async () => {
     if (!nomeProjeto.trim() || !tipoSelecionado || !pdfFile) return;
     if (pdfFile) uploadPDF(pdfFile); // fire-and-forget para storage
+    if (memorialFile) uploadPDF(memorialFile); // fire-and-forget para storage
     setPasso(2);
 
     // Aguarda as regras carregarem de fato, lendo o estado mais recente a cada checagem
@@ -216,7 +241,7 @@ export default function Analise() {
       if (regrasFrescas.length === 0 && regras.length > 0) regrasFrescas = regras;
       // Se a IA analisar com sucesso, ela mesma já leva o usuário até o passo 3.
       // Se falhar, o usuário permanece no passo 2 para preencher manualmente.
-      if (regrasFrescas.length > 0) await analisarComIA(pdfFile, regrasFrescas);
+      if (regrasFrescas.length > 0) await analisarComIA(pdfFile, regrasFrescas, memorialFile);
     }
   };
 
@@ -225,7 +250,7 @@ export default function Analise() {
     navigate("/login");
   };
 
-  // ─── Dados derivados ───────────────────────────────────────────────────────
+  // ─── Dados derivados ──────────────────────────────────────────────────
   const categorias = [...new Set(regras.map(r => r.categoria).filter(Boolean))];
   const regrasPorCategoria = regras.filter(r => r.categoria === categoriaAtiva);
   const totalConformes    = Object.values(respostas).filter(v => v === "conforme").length;
@@ -253,7 +278,7 @@ export default function Analise() {
   }, {});
   const toggleGrupo = (norma) => setGruposAbertos(prev => ({ ...prev, [norma]: !prev[norma] }));
 
-  // ─── Salvar no banco ───────────────────────────────────────────────────────
+  // ─── Salvar no banco ──────────────────────────────────────────────────
   // Aceita dados explícitos (regras/respostas/observações) como parâmetros opcionais.
   // Isso permite que a análise por IA chame esta função diretamente com os dados
   // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
@@ -284,7 +309,7 @@ export default function Analise() {
         .select("id").single();
       if (projError || !proj) throw projError;
 
-      // Antes, itens "não_aplicável" eram descartados aqui (nunca chegavam a
+      // Antes, itens "nao_aplicavel" eram descartados aqui (nunca chegavam a
       // ser inseridos em `validacoes`), o que fazia o relatório perder a
       // justificativa da IA sobre por que o item não se aplica ou o que falta
       // de informação no projeto para avaliá-lo. Agora TODAS as regras viram
@@ -344,7 +369,7 @@ export default function Analise() {
     URL.revokeObjectURL(url);
   };
 
-  // ─── RENDER ────────────────────────────────────────────────────────────────
+  // ─── RENDER ──────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex bg-background text-foreground">
 
@@ -461,7 +486,7 @@ export default function Analise() {
                     )}
                   </div>
 
-                  {/* Upload PDF */}
+                  {/* Upload PDF do projeto */}
                   <div className="space-y-2">
                     <Label>Projeto Arquitetônico (PDF) — obrigatório</Label>
                     <div
@@ -498,6 +523,47 @@ export default function Analise() {
                       <button type="button" onClick={() => { setPdfFile(null); setPdfNome(""); }}
                         className="text-xs text-muted-foreground hover:text-destructive transition-colors">
                         Remover PDF
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Upload Memorial Descritivo (opcional) */}
+                  <div className="space-y-2">
+                    <Label>Memorial Descritivo (PDF) — opcional</Label>
+                    <div
+                      className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${memorialFile ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/30 hover:bg-muted/30"}`}
+                      onClick={() => document.getElementById("memorial-input").click()}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => {
+                        e.preventDefault();
+                        const f = e.dataTransfer.files[0];
+                        if (f?.type === "application/pdf") { setMemorialFile(f); setMemorialNome(f.name); }
+                      }}
+                    >
+                      <input
+                        id="memorial-input" type="file" accept="application/pdf" className="hidden"
+                        onChange={e => {
+                          const f = e.target.files?.[0];
+                          if (f) { setMemorialFile(f); setMemorialNome(f.name); }
+                        }}
+                      />
+                      {memorialFile ? (
+                        <div className="flex items-center justify-center gap-2 text-primary">
+                          <FileUp className="w-5 h-5" />
+                          <span className="text-sm font-medium truncate max-w-xs">{memorialNome}</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <FileUp className="w-8 h-8 mx-auto text-muted-foreground/50" />
+                          <p className="text-sm text-muted-foreground">Arraste o Memorial ou clique para selecionar</p>
+                          <p className="text-xs text-muted-foreground/60">Usado como fonte adicional quando a planta não trouxer o dado (ex: corredor, rampa, sala cirúrgica)</p>
+                        </div>
+                      )}
+                    </div>
+                    {memorialFile && (
+                      <button type="button" onClick={() => { setMemorialFile(null); setMemorialNome(""); }}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors">
+                        Remover Memorial
                       </button>
                     )}
                   </div>
