@@ -26,6 +26,7 @@ const AMBIENTE_PARA_TIPOS = {
   "Pronto Socorro":                ["base"],
   "Ambulatório":                   ["base"],
   "Consultório Odontológico":      ["base", "odontologia"],
+  "Clínica Odontológica":          ["base", "odontologia"],
   "Centro Cirúrgico Odontológico": ["base", "odontologia"],
   "Laboratório de Prótese":        ["base", "odontologia"],
   "Drogaria":                      ["base", "drogaria"],
@@ -37,7 +38,7 @@ const AMBIENTE_PARA_TIPOS = {
 
 const GRUPOS_AMBIENTE = [
   { grupo: "Hospitalar", itens: ["UTI Adulto","UTI Pediátrica","UTI Neonatal","CME","Centro Cirúrgico","Centro Cirúrgico Ambulatorial","Radiologia","Hospital Geral","Internação","Pronto Socorro","Ambulatório"] },
-  { grupo: "Odontologia", itens: ["Consultório Odontológico","Centro Cirúrgico Odontológico","Laboratório de Prótese"] },
+  { grupo: "Odontologia", itens: ["Consultório Odontológico","Clínica Odontológica","Centro Cirúrgico Odontológico","Laboratório de Prótese"] },
   { grupo: "Farmácias / Distribuidoras", itens: ["Drogaria","Farmácia de Manipulação","Distribuidora"] },
   { grupo: "Outros", itens: ["Clínica Médica","Laboratório"] },
 ];
