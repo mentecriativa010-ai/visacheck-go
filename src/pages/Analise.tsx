@@ -64,6 +64,7 @@ export default function Analise() {
   const [regras, setRegras] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [observacoes, setObservacoes] = useState({});
+  const [memorialUsado, setMemorialUsado] = useState(false);
   const [loadingRegras, setLoadingRegras] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [projetoSalvoId, setProjetoSalvoId] = useState(null);
@@ -196,24 +197,43 @@ export default function Analise() {
       }));
 
       const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas, textoMemorial);
+      const memorialFoiUsado = !!textoMemorial;
+      setMemorialUsado(memorialFoiUsado);
 
       // Monta o objeto de respostas completo aqui mesmo (não depende do estado
       // React, que ainda não foi re-renderizado neste ponto da execução).
       const respostasFinal = {};
       regrasCarregadas.forEach(r => { respostasFinal[r.id] = "nao_aplicavel"; });
       const obsFinal = {};
+      let idsIgnorados = 0;
       resultado.resultados.forEach(r => {
         const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
+        // Defesa extra: só aceita resultados cujo id corresponde a uma regra
+        // realmente carregada. Isso evita que um id inválido/mal formado vindo
+        // da IA crie uma entrada "fantasma" que conta no total mas não aparece
+        // em nenhuma lista da tela (o total dizia "1 não-conformidade" mas a
+        // seção de não-conformidades aparecia vazia).
+        if (!(r.id in respostasFinal)) {
+          idsIgnorados++;
+          console.warn("IA retornou um id que não corresponde a nenhuma regra carregada (ignorado):", r.id);
+          return;
+        }
         if (statusMap[r.status]) respostasFinal[r.id] = statusMap[r.status];
-        if (r.justificativa) obsFinal[r.id] = r.justificativa;
+        if (r.justificativa) {
+          const sugestaoTexto = r.status === "nao_conforme" && r.sugestao ? ` Sugestão de correção: ${r.sugestao}` : "";
+          obsFinal[r.id] = r.justificativa + sugestaoTexto;
+        }
       });
+      if (idsIgnorados > 0) {
+        console.warn(`${idsIgnorados} resultado(s) da IA foram ignorados por id inválido.`);
+      }
 
       setRespostas(prev => ({ ...prev, ...respostasFinal }));
       setObservacoes(prev => ({ ...prev, ...obsFinal }));
       setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — gerando relatório...`);
 
       // Vai direto para a última página (resultado/relatório), sem passar pelo checklist manual.
-      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal);
+      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado);
       return true;
     } catch (err) {
       console.error("Erro IA:", err);
@@ -283,7 +303,7 @@ export default function Analise() {
   // Isso permite que a análise por IA chame esta função diretamente com os dados
   // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
   // direto para o passo 3 (resultado) em vez de exigir clique categoria por categoria.
-  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam) => {
+  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null) => {
     const regrasUsar = regrasParam ?? regras;
     const respostasUsar = respostasParam ?? respostas;
     const observacoesUsar = observacoesParam ?? observacoes;
@@ -328,9 +348,16 @@ export default function Analise() {
 
       const resumo = scoreCalc === 100
         ? `O projeto "${nomeProjeto}" atende a todas as especificações para ${tipoSelecionado}.`
-        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformesCalc} não-conformidades. Score: ${scoreCalc}%.`;
+        : `O diagnóstico de "${nomeProjeto}" identificou ${totalNaoConformesCalc} ${totalNaoConformesCalc === 1 ? "não-conformidade" : "não-conformidades"}. Score: ${scoreCalc}%.`;
+      // Registra qual foi a base documental da análise no próprio parecer salvo —
+      // assim essa informação aparece tanto na tela de resultado quanto depois,
+      // ao reabrir o laudo do projeto salvo.
+      const fonteTexto = memorialUsadoParam === null ? "" :
+        memorialUsadoParam
+          ? " Fontes analisadas: projeto arquitetônico e memorial descritivo."
+          : " Fontes analisadas: apenas projeto arquitetônico (memorial descritivo não enviado ou sem texto legível).";
       await supabase.from("pareceres").insert({
-        projeto_id: proj.id, parecer: resumo,
+        projeto_id: proj.id, parecer: resumo + fonteTexto,
         nivel_risco: scoreCalc === 100 ? "baixo" : scoreCalc >= 70 ? "medio" : "alto",
       });
 
@@ -736,7 +763,7 @@ export default function Analise() {
                       />
                     </div>
                     <span className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${scoreCalculado === 100 ? "bg-green-50 text-green-700 border border-green-200 dark:bg-green-950 dark:text-green-300" : "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950 dark:text-amber-300"}`}>
-                      {scoreCalculado === 100 ? "✓ APROVADO" : `${totalNaoConformes} não-conformidades`}
+                      {scoreCalculado === 100 ? "✓ APROVADO" : `${totalNaoConformes} ${totalNaoConformes === 1 ? "não-conformidade" : "não-conformidades"}`}
                     </span>
                   </div>
                 </div>
@@ -746,8 +773,11 @@ export default function Analise() {
                   <p className="text-sm text-foreground leading-relaxed">
                     {scoreCalculado === 100
                       ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoSelecionado}.`
-                      : `O diagnóstico de "${nomeProjeto}" (${tipoSelecionado}) identificou ${totalNaoConformes} não-conformidades entre ${totalRespondidas} itens verificados. Score: ${scoreCalculado}%.`
+                      : `O diagnóstico de "${nomeProjeto}" (${tipoSelecionado}) identificou ${totalNaoConformes} ${totalNaoConformes === 1 ? "não-conformidade" : "não-conformidades"} entre ${totalRespondidas} itens verificados. Score: ${scoreCalculado}%.`
                     }
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Fontes analisadas: {memorialUsado ? "projeto arquitetônico e memorial descritivo" : "apenas projeto arquitetônico"}
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-600"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>

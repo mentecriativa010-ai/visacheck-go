@@ -25,10 +25,10 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
     .map(r => r.id + "|" + r.codigo + "|" + r.descricao + "|" + (r.norma_origem ?? ""))
     .sort()
     .join("\n");
-  // v2: inclui o texto do memorial descritivo no hash — sem isso, duas analises do
-  // mesmo projeto (com e sem memorial) colidiriam no cache e retornariam o mesmo
-  // resultado, mesmo tendo fontes de informacao diferentes.
-  const base = "v2\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v3: bump de versao para invalidar cache antigo, que pode conter resultados
+  // gerados com o bug de mapeamento por id (ver analisarLote) — forcamos uma
+  // nova chamada a IA em vez de reaproveitar um resultado potencialmente errado.
+  const base = "v3\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -60,7 +60,7 @@ async function obterUsuarioAutenticado(req) {
 
 async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes, textoMemorial) {
   const listaRegras = regras
-    .map(r => "- ID: " + r.id + " | Codigo: " + r.codigo + " | Norma: " + (r.norma_origem ?? "-") + " | Descricao: " + r.descricao)
+    .map((r, i) => "- Indice: " + (i + 1) + " | Codigo: " + r.codigo + " | Norma: " + (r.norma_origem ?? "-") + " | Descricao: " + r.descricao)
     .join("\n");
   const textoLimitado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
 
@@ -125,9 +125,14 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
     "- TODA regra, inclusive as marcadas como nao_aplicavel, precisa de uma justificativa objetiva de 1 frase " +
-    "explicando o motivo (nunca deixe justificativa vazia ou generica)\n\n" +
+    "explicando o motivo (nunca deixe justificativa vazia ou generica)\n" +
+    "- Para toda regra com status nao_conforme, inclua tambem um campo \"sugestao\" com 1 frase objetiva recomendando " +
+    "a correcao necessaria para o projeto passar a atender a regra (omita esse campo para conforme/nao_aplicavel)\n" +
+    "- IMPORTANTE: identifique cada regra pelo campo \"indice\" (o numero listado antes de cada regra em \"REGRAS A " +
+    "VERIFICAR\" acima). NAO invente, copie ou tente lembrar nenhum identificador de texto — use apenas o numero " +
+    "inteiro do indice, exatamente como listado\n\n" +
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
-    "{\"resultados\":[{\"id\":\"uuid\",\"status\":\"conforme\",\"justificativa\":\"frase\"}],\"resumo\":\"resumo 1 frase\"}";
+    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"}],\"resumo\":\"resumo 1 frase\"}";
 
   const response = await fetch(ANTHROPIC_URL, {
     method: "POST",
@@ -136,7 +141,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       model: MODEL,
       max_tokens: 4096,
       temperature: 0,
-      system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown. Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
+      system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown, identificando cada regra pelo campo indice numerico (nunca por texto/id). Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
       messages: [{ role: "user", content: prompt }],
     }),
   });
@@ -147,7 +152,31 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
   const data = await response.json();
   const conteudo = data.content?.[0]?.text ?? "";
   if (!conteudo) throw new Error("Lote " + numeroLote + ": resposta vazia");
-  return extrairJSON(conteudo);
+  const bruto = extrairJSON(conteudo);
+
+  // Traduz o "indice" que a IA devolveu de volta para o id real da regra,
+  // usando a posicao dela na lista deste lote (regras[i-1] <-> indice i).
+  // Isso elimina de vez a classe de bug em que a IA erra/trunca um UUID longo
+  // ao tentar ecoa-lo: um numero pequeno (1..30) e muito mais dificil de errar
+  // do que um UUID de 36 caracteres, e mesmo que erre, o indice fora do
+  // intervalo e detectado e descartado abaixo (nunca vira uma entrada
+  // "fantasma" que conta no total mas nao aparece em nenhuma lista da tela).
+  let indicesInvalidos = 0;
+  const resultadosMapeados = (bruto.resultados ?? [])
+    .map(r => {
+      const regraCorrespondente = regras[r.indice - 1];
+      if (!regraCorrespondente) {
+        indicesInvalidos++;
+        return null;
+      }
+      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null };
+    })
+    .filter(Boolean);
+  if (indicesInvalidos > 0) {
+    console.warn("[analisar] lote " + numeroLote + ": " + indicesInvalidos + " indice(s) invalido(s) na resposta da IA (descartado(s)).");
+  }
+
+  return { resultados: resultadosMapeados, resumo: bruto.resumo };
 }
 
 export default async function handler(req, res) {

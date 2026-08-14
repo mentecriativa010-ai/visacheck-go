@@ -96,3 +96,6 @@ out/
 
 # Vercel
 .vercel
+
+*.bak
+*.bak2
