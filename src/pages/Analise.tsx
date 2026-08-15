@@ -377,8 +377,13 @@ export default function Analise() {
         memorialUsadoParam
           ? " Fontes analisadas: projeto arquitetônico e memorial descritivo."
           : " Fontes analisadas: apenas projeto arquitetônico (memorial descritivo não enviado ou sem texto legível).";
+      // Lista as normas de fato aplicadas nesta análise, derivada das próprias regras
+      // carregadas (nunca hardcoded) — assim, se o conjunto de normas mudar no futuro
+      // (nova RDC, norma removida etc.), o resumo reflete isso automaticamente.
+      const normasUsadas = [...new Set(regrasUsar.map(r => r.norma_origem).filter(Boolean))].sort();
+      const normasTexto = normasUsadas.length > 0 ? ` Normas aplicadas: ${normasUsadas.join(", ")}.` : "";
       await supabase.from("pareceres").insert({
-        projeto_id: proj.id, parecer: resumo + fonteTexto,
+        projeto_id: proj.id, parecer: resumo + fonteTexto + normasTexto,
         nivel_risco: scoreCalc === 100 ? "baixo" : scoreCalc >= 70 ? "medio" : "alto",
       });
 
@@ -799,6 +804,9 @@ export default function Analise() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-2">
                     Fontes analisadas: {memorialUsado ? "projeto arquitetônico e memorial descritivo" : "apenas projeto arquitetônico"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Normas aplicadas: {[...new Set(regras.map(r => r.norma_origem).filter(Boolean))].sort().join(", ")}
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-600"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
