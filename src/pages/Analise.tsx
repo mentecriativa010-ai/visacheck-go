@@ -88,6 +88,7 @@ export default function Analise() {
       const { data, error } = await supabase
         .from("regras_regulatorias")
         .select("id,codigo,descricao,norma_origem,categoria,subcategoria,artigo_referencia,obrigatorio,valor_minimo,valor_maximo,unidade")
+        .eq("ativo", true)
         .or(`${filtroTipos},${filtroAmbiente}`)
         .order("norma_origem", { ascending: true })
         .order("codigo", { ascending: true });
