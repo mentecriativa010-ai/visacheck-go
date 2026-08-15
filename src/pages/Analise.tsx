@@ -43,6 +43,18 @@ const GRUPOS_AMBIENTE = [
   { grupo: "Outros", itens: ["Clínica Médica","Laboratório"] },
 ];
 
+// Normas que, na prática de fiscalização (validado com Vigilância Sanitária),
+// NÃO devem ser aplicadas para determinados tipo_estabelecimento — mesmo que
+// existam regras cadastradas com essa norma_origem sob a tag "base" (que é
+// compartilhada entre vários tipos de estabelecimento). Ex: para
+// estabelecimentos odontológicos, quem rege hoje é a RDC-1002/2025 e a
+// NBR-9050; a RDC-50/2002 não é usada nesse contexto, mesmo cobrindo temas
+// genéricos como "portas de áreas assistenciais" que tecnicamente existem no
+// texto da norma mas não se aplicam à realidade de uma clínica odontológica.
+const NORMAS_EXCLUIDAS_POR_TIPO = {
+  odontologia: ["RDC-50-2002"],
+};
+
 export default function Analise() {
   const navigate = useNavigate();
 
@@ -94,11 +106,18 @@ export default function Analise() {
         .order("codigo", { ascending: true });
       if (error) throw error;
       const unicas = data ? [...new Map(data.map(r => [r.id, r])).values()] : [];
-      setRegras(unicas);
+      // Aplica exclusões de norma por tipo de estabelecimento (ver NORMAS_EXCLUIDAS_POR_TIPO
+      // acima) — resolve casos em que uma norma tecnicamente cadastrada sob "base" não deve
+      // ser usada para determinados ambientes, sem precisar recadastrar cada regra individualmente.
+      const normasExcluidas = tiposAlvo.flatMap(t => NORMAS_EXCLUIDAS_POR_TIPO[t] ?? []);
+      const filtradas = normasExcluidas.length > 0
+        ? unicas.filter(r => !normasExcluidas.includes(r.norma_origem))
+        : unicas;
+      setRegras(filtradas);
       const init = {};
-      unicas.forEach(r => { init[r.id] = "nao_aplicavel"; });
+      filtradas.forEach(r => { init[r.id] = "nao_aplicavel"; });
       setRespostas(init);
-      if (unicas.length > 0) setCategoriaAtiva(unicas[0].categoria ?? "");
+      if (filtradas.length > 0) setCategoriaAtiva(filtradas[0].categoria ?? "");
       else setErro(`Nenhuma regra encontrada para "${tipo}".`);
     } catch (err) {
       setErro(`Erro ao carregar regras: ${err.message}`);
