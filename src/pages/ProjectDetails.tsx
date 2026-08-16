@@ -91,7 +91,7 @@ export default function ProjectDetails() {
 
       if (projError) throw projError;
       if (!projData) {
-        setError("Projeto nÃ£o encontrado ou vocÃª nÃ£o tem permissÃ£o para acessÃ¡-lo.");
+        setError("Projeto não encontrado ou você não tem permissão para acessá-lo.");
         setLoading(false);
         return;
       }
@@ -106,11 +106,11 @@ export default function ProjectDetails() {
         .limit(1)
         .maybeSingle();
 
-      // OBS: "pareceres" (por norma) NÃƒO Ã© mais derivado daqui â€” esse registro
-      // sÃ³ guarda o resumo executivo em texto livre gerado pela IA. Os pareceres
-      // por norma sÃ£o calculados abaixo, a partir das validaÃ§Ãµes reais (valData),
+      // OBS: "pareceres" (por norma) NÃO é mais derivado daqui  —  esse registro
+      // só guarda o resumo executivo em texto livre gerado pela IA. Os pareceres
+      // por norma são calculados abaixo, a partir das validações reais (valData),
       // agrupadas por norma_origem. Isso evita exibir normas fixas/erradas que
-      // nÃ£o tÃªm relaÃ§Ã£o com o tipo de estabelecimento analisado.
+      // não têm relação com o tipo de estabelecimento analisado.
       setResumoExecutivo(parecerData?.parecer || "");
 
       const { data: valData } = await supabase
@@ -125,10 +125,10 @@ export default function ProjectDetails() {
           const regra = v.regras_regulatorias;
           return {
             codigo: regra?.codigo || v.id,
-            nome: regra?.descricao?.slice(0, 60) || "Regra RegulatÃ³ria",
+            nome: regra?.descricao?.slice(0, 60) || "Regra Regulatória",
             severidade: "atencao" as const,
             norma: regra?.norma_origem || "ANVISA",
-            descricao: regra?.descricao || "NÃ£o conformidade detectada.",
+            descricao: regra?.descricao || "Não conformidade detectada.",
             sugestao: regra?.artigo_referencia || "Consulte a norma vigente."
           };
         }));
@@ -139,17 +139,17 @@ export default function ProjectDetails() {
               const regra = v.regras_regulatorias;
               return {
                 codigo: regra?.codigo || v.id,
-                nome: regra?.descricao?.slice(0, 60) || "Regra RegulatÃ³ria",
-                norma: regra?.norma_origem || "Norma nÃ£o identificada",
-                observacao: v.observacao || "NÃ£o aplicÃ¡vel ao projeto/ambiente analisado.",
+                nome: regra?.descricao?.slice(0, 60) || "Regra Regulatória",
+                norma: regra?.norma_origem || "Norma não identificada",
+                observacao: v.observacao || "Não aplicável ao projeto/ambiente analisado.",
               };
             })
         );
 
-        // Apenas itens aplicÃ¡veis (aprovado/reprovado) entram no total de cada
-        // categoria â€” "nÃ£o_aplicÃ¡vel" nÃ£o conta nem a favor nem contra, senÃ£o
+        // Apenas itens aplicáveis (aprovado/reprovado) entram no total de cada
+        // categoria  —  "não_aplicável" não conta nem a favor nem contra, senão
         // infla o total e distorce o percentual de conformidade (mesmo bug que
-        // jÃ¡ corrigimos no cÃ¡lculo do score geral).
+        // já corrigimos no cálculo do score geral).
         const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
         valData.forEach((v: any) => {
           if (v.status === "nao_aplicavel") return;
@@ -164,14 +164,14 @@ export default function ProjectDetails() {
           percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
         })));
 
-        // â”€â”€ Pareceres por norma (dinÃ¢mico) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-        // Agrupa as validaÃ§Ãµes reais pela norma de origem de cada regra
+        // ── Pareceres por norma (dinâmico) ──
+        // Agrupa as validações reais pela norma de origem de cada regra
         // (ex: "RDC-50-2002", "NBR-9050-2020"), em vez de exibir normas
-        // fixas que nÃ£o tÃªm relaÃ§Ã£o com o tipo de estabelecimento avaliado.
+        // fixas que não têm relação com o tipo de estabelecimento avaliado.
         const normaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
         valData.forEach((v: any) => {
           if (v.status === "nao_aplicavel") return;
-          const norma = v.regras_regulatorias?.norma_origem || "Norma nÃ£o identificada";
+          const norma = v.regras_regulatorias?.norma_origem || "Norma não identificada";
           if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0 };
           normaMap[norma].total++;
           if (v.status === "aprovado") normaMap[norma].conformes++;
@@ -182,9 +182,9 @@ export default function ProjectDetails() {
             const semNaoConformes = dados.naoConformes === 0;
             const risco = semNaoConformes ? "baixo" : dados.naoConformes <= 2 ? "medio" : "alto";
             const observacao = semNaoConformes
-              ? `${dados.total} item(ns) verificado(s) nesta norma â€” todos conformes.`
-              : `${dados.naoConformes} de ${dados.total} item(ns) nÃ£o conforme(s) nesta norma.`;
-            return { norma, status: semNaoConformes ? "Conforme" : "Requer atenÃ§Ã£o", observacao, risco };
+              ? `${dados.total} item(ns) verificado(s) nesta norma  —  todos conformes.`
+              : `${dados.naoConformes} de ${dados.total} item(ns) não conforme(s) nesta norma.`;
+            return { norma, status: semNaoConformes ? "Conforme" : "Requer atenção", observacao, risco };
           })
           .sort((a, b) => a.norma.localeCompare(b.norma));
         setPareceres(pareceresDinamicos);
@@ -197,7 +197,7 @@ export default function ProjectDetails() {
           { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
           { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
           { categoria: "Higiene", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
-          { categoria: "GestÃ£o", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+          { categoria: "Gestão", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
         ]);
       }
     } catch (err: any) {
@@ -229,7 +229,7 @@ export default function ProjectDetails() {
       setArquivoNovaAnaliseFile(null);
       await fetchProjectAndUser();
     } catch (err: any) {
-      console.error("Erro ao rodar nova anÃ¡lise:", err);
+      console.error("Erro ao rodar nova análise:", err);
     } finally {
       setRodarNovaAnalise(false);
     }
@@ -242,8 +242,8 @@ export default function ProjectDetails() {
     setExportando(true);
     try {
       const linhas = [
-        `RELATÃ“RIO DE CONFORMIDADE REGULATÃ“RIA`,
-        `VISAcheck GO â€” DiagnÃ³stico ArquitetÃ´nico Automatizado`,
+        `RELATÓRIO DE CONFORMIDADE REGULATÓRIA`,
+        `VISAcheck GO  —  Diagnóstico Arquitetônico Automatizado`,
         ``, `Projeto: ${projeto.nome_projeto}`,
         `Tipo de Estabelecimento: ${projeto.tipo_estabelecimento}`,
         `Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`,
@@ -251,15 +251,15 @@ export default function ProjectDetails() {
         `Status: ${scoreCalculado === 100 ? "APROVADO" : projeto.status}`,
         ``, `RESUMO EXECUTIVO`,
         resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length),
-        ``, `VALIDAÃ‡Ã•ES POR CATEGORIA`,
-        ...validacoesPorCategoria.map(v => `  â€¢ ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
-        ``, `NÃƒO-CONFORMIDADES (${naoconformidades.length})`,
+        ``, `VALIDAÇÕES POR CATEGORIA`,
+        ...validacoesPorCategoria.map(v => `  •  ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
+        ``, `NÃO-CONFORMIDADES (${naoconformidades.length})`,
         ...naoconformidades.map(nc => `  [${nc.severidade.toUpperCase()}] ${nc.codigo}\n  Norma: ${nc.norma}\n  ${nc.descricao}`),
-        ``, `OBSERVAÃ‡Ã•ES / PENDÃŠNCIAS DE INFORMAÃ‡ÃƒO (${pendenciasInformacao.length})`,
+        ``, `OBSERVAÇÕES / PENDÊNCIAS DE INFORMAÇÃO (${pendenciasInformacao.length})`,
         ...pendenciasInformacao.map(p => `  ${p.codigo}\n  Norma: ${p.norma}\n  ${p.nome}\n  Obs: ${p.observacao}`),
-        ``, `PARECERES TÃ‰CNICOS`,
-        ...pareceres.map(p => `  â€¢ ${p.norma}\n    Status: ${p.status}\n    ${p.observacao}`),
-        ``, `RelatÃ³rio gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
+        ``, `PARECERES TÉCNICOS`,
+        ...pareceres.map(p => `  •  ${p.norma}\n    Status: ${p.status}\n    ${p.observacao}`),
+        ``, `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
       ];
       const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
@@ -272,16 +272,16 @@ export default function ProjectDetails() {
   };
 
   // Usa SEMPRE o score persistido em score_conformidade (calculado no Analise.tsx
-  // como conformes/aplicÃ¡veis, item a item â€” peso igual para cada item).
-  // Antes esse valor era recalculado aqui como mÃ©dia dos percentuais por
-  // categoria, o que dava um nÃºmero DIFERENTE do que estÃ¡ salvo no banco
-  // (ex: categoria "GestÃ£o" com 1 item pesava igual a "Infraestrutura" com
-  // 32 itens, distorcendo a mÃ©dia). Resultado: a mesma anÃ¡lise mostrava
+  // como conformes/aplicáveis, item a item  —  peso igual para cada item).
+  // Antes esse valor era recalculado aqui como média dos percentuais por
+  // categoria, o que dava um número DIFERENTE do que está salvo no banco
+  // (ex: categoria "Gestão" com 1 item pesava igual a "Infraestrutura" com
+  // 32 itens, distorcendo a média). Resultado: a mesma análise mostrava
   // 95% em uma tela e 96% em outra. Agora as duas telas leem o mesmo valor.
   const scoreCalculado = projeto?.score_conformidade ?? (projeto?.status === "aprovado" ? 100 : 0);
 
   const pendenciasPorNorma = pendenciasInformacao.reduce((acc: Record<string, Pendencia[]>, p) => {
-    const norma = p.norma || "Norma nÃ£o identificada";
+    const norma = p.norma || "Norma não identificada";
     if (!acc[norma]) acc[norma] = [];
     acc[norma].push(p);
     return acc;
@@ -298,8 +298,8 @@ export default function ProjectDetails() {
   const getStatusBadge = (proj: Projeto) => {
     const status = getStatusEfetivo(proj);
     switch (status) {
-      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 dark:bg-green-950 text-[#16A34A] dark:text-green-400 border border-green-200 dark:border-green-800"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO âœ“</span>;
-      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950 text-primary border border-blue-200 dark:border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em anÃ¡lise</span>;
+      case "aprovado": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-50 dark:bg-green-950 text-[#16A34A] dark:text-green-400 border border-green-200 dark:border-green-800"><span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />APROVADO ✓</span>;
+      case "analisando": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 dark:bg-blue-950 text-primary border border-blue-200 dark:border-blue-800"><span className="w-1.5 h-1.5 rounded-full bg-[#1E3A5F]" />Em análise</span>;
       case "reprovado":
       case "parcial": return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 dark:bg-red-950 text-[#DC2626] dark:text-red-400 border border-red-200 dark:border-red-800"><span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]" />Reprovado</span>;
       default: return <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border"><span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />Pendente</span>;
@@ -309,8 +309,8 @@ export default function ProjectDetails() {
   const getSeveridadeBadge = (severidade: NaoConformidade["severidade"]) => {
     switch (severidade) {
       case "bloqueante": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-100 dark:bg-red-950 text-[#DC2626] dark:text-red-400 border border-red-200 dark:border-red-800 flex items-center gap-1"><AlertOctagon className="w-3 h-3" />Bloqueante</span>;
-      case "critico": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 dark:bg-orange-950 text-[#D97706] dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />CrÃ­tico</span>;
-      case "atencao": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />AtenÃ§Ã£o</span>;
+      case "critico": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-orange-100 dark:bg-orange-950 text-[#D97706] dark:text-orange-400 border border-orange-200 dark:border-orange-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Crítico</span>;
+      case "atencao": return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800 flex items-center gap-1"><AlertTriangle className="w-3 h-3" />Atenção</span>;
       default: return <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-800 flex items-center gap-1"><Info className="w-3 h-3" />Informativo</span>;
     }
   };
@@ -318,28 +318,28 @@ export default function ProjectDetails() {
   const getRiscoBadge = (risco: string) => {
     switch (risco) {
       case "alto": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-red-50 dark:bg-red-950 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800">Risco Alto</span>;
-      case "medio": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Risco MÃ©dio</span>;
+      case "medio": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">Risco Médio</span>;
       case "baixo": return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800">Risco Baixo</span>;
       default: return <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border">Indefinido</span>;
     }
   };
 
   const getResumoExecutivo = (proj: Projeto, totalInfracoes: number) => {
-    const nomeEst = proj.tipo_estabelecimento || "Estabelecimento de SaÃºde";
+    const nomeEst = proj.tipo_estabelecimento || "Estabelecimento de Saúde";
     if (scoreCalculado === 100 || proj.status === "aprovado")
-      return `O projeto "${proj.nome_projeto}" foi analisado Ã  luz das normas regulatÃ³rias vigentes para ${nomeEst}. NÃ£o foram identificadas nÃ£o-conformidades impeditivas.`;
+      return `O projeto "${proj.nome_projeto}" foi analisado à luz das normas regulatórias vigentes para ${nomeEst}. Não foram identificadas não-conformidades impeditivas.`;
     if (proj.status === "pendente" && !temValidacoesReais)
-      return `O projeto "${proj.nome_projeto}" foi cadastrado e aguarda a anÃ¡lise regulatÃ³ria.`;
-    return `O diagnÃ³stico para "${proj.nome_projeto}" (${nomeEst}) identificou ${totalInfracoes} nÃ£o-conformidades. Score global: ${scoreCalculado}%.`;
+      return `O projeto "${proj.nome_projeto}" foi cadastrado e aguarda a análise regulatória.`;
+    return `O diagnóstico para "${proj.nome_projeto}" (${nomeEst}) identificou ${totalInfracoes} não-conformidades. Score global: ${scoreCalculado}%.`;
   };
 
   const statusEfetivo = projeto ? getStatusEfetivo(projeto) : "pendente";
   const temNaoConformidades = naoconformidades.length > 0;
 
   const getMensagemScore = () => {
-    if (statusEfetivo === "aprovado") return "AnÃ¡lise concluÃ­da com Ãªxito";
-    if (!projeto?.status === "pendente") return "Aguardando anÃ¡lise do projeto";
-    return "Ajustes sanitÃ¡rios pendentes";
+    if (statusEfetivo === "aprovado") return "Análise concluída com êxito";
+    if (!projeto?.status === "pendente") return "Aguardando análise do projeto";
+    return "Ajustes sanitários pendentes";
   };
 
   return (
@@ -375,7 +375,7 @@ export default function ProjectDetails() {
                 {!loading && projeto && getStatusBadge(projeto)}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {loading ? <span className="h-3 w-32 bg-muted animate-pulse rounded block" /> : `Laudo TÃ©cnico: ${projeto?.tipo_estabelecimento}`}
+                {loading ? <span className="h-3 w-32 bg-muted animate-pulse rounded block" /> : `Laudo Técnico: ${projeto?.tipo_estabelecimento}`}
               </p>
             </div>
           </div>
@@ -384,12 +384,12 @@ export default function ProjectDetails() {
               {temNaoConformidades && (
                 <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-primary hover:bg-primary/5 flex items-center gap-2 text-sm">
                   {rodarNovaAnalise ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                  Nova AnÃ¡lise
+                  Nova Análise
                 </Button>
               )}
               <Button onClick={handleExportarPDF} disabled={exportando} className="bg-[#1E3A5F] hover:bg-[#162d4a] text-white flex items-center gap-2 text-sm">
                 {exportando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                Exportar RelatÃ³rio
+                Exportar Relatório
               </Button>
             </div>
           )}
@@ -416,7 +416,7 @@ export default function ProjectDetails() {
                     <h3 className="text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-4">Score de Conformidade</h3>
                     <div className="flex items-baseline gap-1.5 mb-2">
                       <span className={`text-4xl font-extrabold tracking-tight ${scoreCalculado >= 80 ? "text-[#16A34A]" : scoreCalculado >= 50 ? "text-[#D97706]" : "text-[#DC2626]"}`}>{scoreCalculado}%</span>
-                      <span className="text-xs text-muted-foreground">de aprovaÃ§Ã£o</span>
+                      <span className="text-xs text-muted-foreground">de aprovação</span>
                     </div>
                   </div>
                   <div className="space-y-2 mt-4">
@@ -441,7 +441,7 @@ export default function ProjectDetails() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="w-5 h-5 text-primary" />
-                  <h2 className="text-base font-bold text-foreground">ValidaÃ§Ãµes por Categoria</h2>
+                  <h2 className="text-base font-bold text-foreground">Validações por Categoria</h2>
                 </div>
                 <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
                   <table className="w-full text-sm">
@@ -449,7 +449,7 @@ export default function ProjectDetails() {
                       <tr className="bg-muted border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conformes</th>
-                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">PendÃªncias</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendências</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-48">Conformidade</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
                       </tr>
@@ -478,17 +478,17 @@ export default function ProjectDetails() {
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
-                  <h2 className="text-base font-bold text-foreground">NÃ£o-Conformidades ({naoconformidades.length})</h2>
+                  <h2 className="text-base font-bold text-foreground">Não-Conformidades ({naoconformidades.length})</h2>
                   <span className="text-xs text-muted-foreground font-medium">Regulamento: RDC 50/2002 e correlatas</span>
                 </div>
                 {naoconformidades.length === 0 ? (
                   <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
                     <CheckCircle className="w-12 h-12 text-[#16A34A] mx-auto mb-4" />
                     <h3 className="text-base font-semibold text-foreground">
-                      {scoreCalculado === 100 ? "ParabÃ©ns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
+                      {scoreCalculado === 100 ? "Parabéns! Nenhuma irregularidade" : "Nenhuma irregularidade identificada"}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {scoreCalculado === 100 ? "O projeto atende a todas as especificaÃ§Ãµes sanitÃ¡rias analisadas." : "Aguardando anÃ¡lise regulatÃ³ria do projeto."}
+                      {scoreCalculado === 100 ? "O projeto atende a todas as especificações sanitárias analisadas." : "Aguardando análise regulatória do projeto."}
                     </p>
                   </div>
                 ) : (
@@ -496,8 +496,8 @@ export default function ProjectDetails() {
                     <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
                       <RefreshCw className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">CorreÃ§Ãµes necessÃ¡rias</p>
-                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">ApÃ³s corrigir o projeto, clique em <strong>Nova AnÃ¡lise</strong> para submeter o projeto corrigido.</p>
+                        <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Correções necessárias</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">Após corrigir o projeto, clique em <strong>Nova Análise</strong> para submeter o projeto corrigido.</p>
                       </div>
                     </div>
                     {naoconformidades.map((nc, idx) => (
@@ -515,7 +515,7 @@ export default function ProjectDetails() {
                           <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg">{nc.descricao}</p>
                         </div>
                         <div className="border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 p-4 rounded-lg space-y-1.5">
-                          <span className="text-[10px] font-bold text-[#16A34A] dark:text-green-400 uppercase tracking-wider block">ReferÃªncia</span>
+                          <span className="text-[10px] font-bold text-[#16A34A] dark:text-green-400 uppercase tracking-wider block">Referência</span>
                           <p className="text-xs text-foreground font-medium">{nc.sugestao}</p>
                         </div>
                       </div>
@@ -527,8 +527,8 @@ export default function ProjectDetails() {
               {pendenciasInformacao.length > 0 && (
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <h2 className="text-base font-bold text-foreground">ObservaÃ§Ãµes / PendÃªncias de InformaÃ§Ã£o ({pendenciasInformacao.length})</h2>
-                    <span className="text-xs text-muted-foreground font-medium">Agrupado por norma â€” clique para expandir</span>
+                    <h2 className="text-base font-bold text-foreground">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
+                    <span className="text-xs text-muted-foreground font-medium">Agrupado por norma  —  clique para expandir</span>
                   </div>
                   <div className="space-y-3">
                     {Object.entries(pendenciasPorNorma).map(([norma, itens]) => {
@@ -552,7 +552,7 @@ export default function ProjectDetails() {
                                 <div key={idx} className="px-6 py-4 space-y-1.5">
                                   <div className="flex items-start justify-between gap-3">
                                     <span className="text-xs font-mono font-bold text-muted-foreground">{p.codigo}</span>
-                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">NÃ£o aplicÃ¡vel</span>
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-muted text-muted-foreground border border-border flex-shrink-0">Não aplicável</span>
                                   </div>
                                   <h3 className="text-sm font-bold text-foreground">{p.nome}</h3>
                                   <p className="text-xs text-foreground/80 leading-relaxed bg-muted/50 border border-border p-3 rounded-lg italic">{p.observacao}</p>
@@ -570,12 +570,12 @@ export default function ProjectDetails() {
               <div className="space-y-4">
                 <div className="flex items-center gap-2">
                   <ClipboardList className="w-5 h-5 text-primary" />
-                  <h2 className="text-base font-bold text-foreground">Pareceres TÃ©cnicos por Norma</h2>
+                  <h2 className="text-base font-bold text-foreground">Pareceres Técnicos por Norma</h2>
                 </div>
                 {pareceres.length === 0 ? (
                   <div className="bg-card border border-border rounded-xl p-8 text-center shadow-sm">
                     <ClipboardList className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">Aguardando anÃ¡lise â€” os pareceres por norma aparecem aqui apÃ³s a validaÃ§Ã£o do projeto.</p>
+                    <p className="text-sm text-muted-foreground">Aguardando análise  —  os pareceres por norma aparecem aqui após a validação do projeto.</p>
                   </div>
                 ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,9 +608,9 @@ export default function ProjectDetails() {
           <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6 space-y-5">
             <div className="flex items-center gap-3">
               <RefreshCw className="w-5 h-5 text-primary" />
-              <h2 className="text-base font-bold text-foreground">Nova AnÃ¡lise RegulatÃ³ria</h2>
+              <h2 className="text-base font-bold text-foreground">Nova Análise Regulatória</h2>
             </div>
-            <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar nova anÃ¡lise.</p>
+            <p className="text-sm text-foreground/80">Anexe o projeto corrigido para substituir o anterior e iniciar nova análise.</p>
             <div className="space-y-2">
               <label className="text-xs font-semibold text-foreground/90 block">Projeto corrigido (PDF / DWG)</label>
               <div className="flex gap-2">
@@ -623,14 +623,14 @@ export default function ProjectDetails() {
                 onChange={(e) => { const file = e.target.files?.[0]; if (file) { setArquivoNovaAnaliseFile(file); setArquivoNovaAnalise(file.name); } }} />
             </div>
             <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-700 dark:text-amber-300">
-              <strong>AtenÃ§Ã£o:</strong> Os resultados anteriores serÃ£o substituÃ­dos.
+              <strong>Atenção:</strong> Os resultados anteriores serão substituídos.
             </div>
             <div className="flex gap-3">
               <button onClick={() => { setNovaAnaliseOpen(false); setArquivoNovaAnalise(""); }} disabled={rodarNovaAnalise}
                 className="flex-1 h-9 rounded-md border border-input text-sm hover:bg-muted text-foreground disabled:opacity-50">Cancelar</button>
               <button onClick={handleNovaAnalise} disabled={rodarNovaAnalise}
                 className="flex-1 h-9 rounded-md bg-[#1E3A5F] text-white text-sm font-semibold hover:bg-[#162d4a] disabled:opacity-50 flex items-center justify-center gap-2">
-                {rodarNovaAnalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Nova AnÃ¡lise</>}
+                {rodarNovaAnalise ? <><Loader2 className="w-4 h-4 animate-spin" />Processando...</> : <><RefreshCw className="w-4 h-4" />Iniciar Nova Análise</>}
               </button>
             </div>
           </div>
@@ -639,6 +639,10 @@ export default function ProjectDetails() {
     </div>
   );
 }
+
+
+
+
 
 
 
