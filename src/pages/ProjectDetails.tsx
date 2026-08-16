@@ -433,7 +433,7 @@ export default function ProjectDetails() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>AnÃ¡lise executada de acordo com as normas da ANVISA e ABNT aplicÃ¡veis.</span>
+                    <span>{pareceres.length > 0 ? `Análise executada de acordo com: ${pareceres.map(p => p.norma).join(", ")}.` : "Análise executada de acordo com as normas da ANVISA e ABNT aplicáveis."}</span>
                   </div>
                 </div>
               </div>
@@ -639,5 +639,6 @@ export default function ProjectDetails() {
     </div>
   );
 }
+
 
 
