@@ -99,3 +99,6 @@ out/
 
 *.bak
 *.bak2
+
+# Backups locais
+*.bak*
