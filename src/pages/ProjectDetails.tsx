@@ -4,14 +4,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   Loader2, AlertTriangle, CheckCircle, AlertOctagon, Info,
   FileText, Download, ClipboardList, BarChart2, RefreshCw,
   ChevronDown, ChevronRight,
 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 interface Projeto {
   id: string;
@@ -108,7 +108,7 @@ export default function ProjectDetails() {
         .limit(1)
         .maybeSingle();
 
-      // OBS: "pareceres" (por norma) NÃO é mais derivado daqui  —  esse registro
+      // OBS: "pareceres" (por norma) NÃO é mais derivado daqui — esse registro
       // só guarda o resumo executivo em texto livre gerado pela IA. Os pareceres
       // por norma são calculados abaixo, a partir das validações reais (valData),
       // agrupadas por norma_origem. Isso evita exibir normas fixas/erradas que
@@ -149,7 +149,7 @@ export default function ProjectDetails() {
         );
 
         // Apenas itens aplicáveis (aprovado/reprovado) entram no total de cada
-        // categoria  —  "não_aplicável" não conta nem a favor nem contra, senão
+        // categoria — "não_aplicável" não conta nem a favor nem contra, senão
         // infla o total e distorce o percentual de conformidade (mesmo bug que
         // já corrigimos no cálculo do score geral).
         const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
@@ -184,7 +184,7 @@ export default function ProjectDetails() {
             const semNaoConformes = dados.naoConformes === 0;
             const risco = semNaoConformes ? "baixo" : dados.naoConformes <= 2 ? "medio" : "alto";
             const observacao = semNaoConformes
-              ? `${dados.total} item(ns) verificado(s) nesta norma  —  todos conformes.`
+              ? `${dados.total} item(ns) verificado(s) nesta norma — todos conformes.`
               : `${dados.naoConformes} de ${dados.total} item(ns) não conforme(s) nesta norma.`;
             return { norma, status: semNaoConformes ? "Conforme" : "Requer atenção", observacao, risco };
           })
@@ -239,238 +239,193 @@ export default function ProjectDetails() {
 
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/login"); };
 
+  // ─── Exportação em PDF formatado (laudo técnico) ─────────────────────────
+  // Usa jsPDF + jspdf-autotable para montar um documento real, com tabelas,
+  // cores da marca e paginação automática — texto pesquisável/copiável,
+  // diferente do .txt simples que existia antes.
   const handleExportarPDF = async () => {
     if (!projeto) return;
     setExportando(true);
     try {
-      const doc = new jsPDF({ unit: "pt", format: "a4" });
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const marginX = 40;
-      let cursorY = 50;
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const AZUL: [number, number, number] = [30, 58, 95];
+      const VERDE: [number, number, number] = [22, 163, 74];
+      const AMBAR: [number, number, number] = [217, 119, 6];
+      const VERMELHO: [number, number, number] = [220, 38, 38];
+      const CINZA: [number, number, number] = [107, 114, 128];
+      const ESCURO: [number, number, number] = [30, 30, 30];
+      const MARGEM = 14;
+      const LARGURA_UTIL = 182;
+      let y = 0;
 
-      const corPrimaria: [number, number, number] = [30, 58, 95];   // #1E3A5F
-      const corVerde: [number, number, number] = [22, 163, 74];     // #16A34A
-      const corAmbar: [number, number, number] = [217, 119, 6];     // #D97706
-      const corVermelho: [number, number, number] = [220, 38, 38];  // #DC2626
+      const corDoScore = scoreCalculado >= 80 ? VERDE : scoreCalculado >= 50 ? AMBAR : VERMELHO;
 
-      const corScore: [number, number, number] =
-        scoreCalculado >= 80 ? corVerde : scoreCalculado >= 50 ? corAmbar : corVermelho;
-
-      // ---------- Cabeçalho ----------
-      doc.setFillColor(...corPrimaria);
-      doc.rect(0, 0, pageWidth, 70, "F");
-      doc.setTextColor(255, 255, 255);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(16);
-      doc.text("RELATÓRIO DE CONFORMIDADE REGULATÓRIA", marginX, 32);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
-      doc.text("VISAcheck GO — Diagnóstico Arquitetônico Automatizado", marginX, 50);
-
-      cursorY = 95;
-
-      // ---------- Dados do projeto ----------
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(30, 30, 30);
-      doc.text(projeto.nome_projeto, marginX, cursorY);
-      cursorY += 18;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(80, 80, 80);
-      doc.text(`Tipo de Estabelecimento: ${projeto.tipo_estabelecimento}`, marginX, cursorY);
-      cursorY += 14;
-      doc.text(`Data da Análise: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`, marginX, cursorY);
-      cursorY += 14;
-      doc.text(`Status: ${scoreCalculado === 100 ? "APROVADO" : projeto.status.toUpperCase()}`, marginX, cursorY);
-
-      // Score no canto direito do cabeçalho
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(20);
-      doc.setTextColor(...corScore);
-      doc.text(`${scoreCalculado}%`, pageWidth - marginX, 100, { align: "right" });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8.5);
-      doc.setTextColor(120, 120, 120);
-      doc.text("Score de Conformidade", pageWidth - marginX, 113, { align: "right" });
-
-      cursorY += 26;
-      doc.setDrawColor(220, 220, 220);
-      doc.line(marginX, cursorY, pageWidth - marginX, cursorY);
-      cursorY += 18;
-
-      // ---------- Resumo Executivo ----------
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(30, 30, 30);
-      doc.text("Resumo Executivo", marginX, cursorY);
-      cursorY += 14;
-
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
-      doc.setTextColor(60, 60, 60);
-      const resumoTexto = resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length);
-      const resumoLinhas = doc.splitTextToSize(resumoTexto, pageWidth - marginX * 2);
-      doc.text(resumoLinhas, marginX, cursorY);
-      cursorY += resumoLinhas.length * 12 + 22;
-
-      // Util: garante espaço antes de escrever um novo bloco de texto solto
-      const checkPageBreak = (alturaNecessaria: number) => {
-        if (cursorY + alturaNecessaria > doc.internal.pageSize.getHeight() - 55) {
-          doc.addPage();
-          cursorY = 50;
+      const desenharRodapes = () => {
+        const total = doc.getNumberOfPages();
+        for (let i = 1; i <= total; i++) {
+          doc.setPage(i);
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(7.5);
+          doc.setTextColor(...CINZA);
+          doc.text(
+            `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
+            MARGEM, 290
+          );
+          doc.text(`Página ${i} de ${total}`, 210 - MARGEM, 290, { align: "right" });
         }
       };
 
-      // ---------- Validações por Categoria ----------
-      if (validacoesPorCategoria.length > 0) {
-        checkPageBreak(60);
-        autoTable(doc, {
-          startY: cursorY,
-          margin: { left: marginX, right: marginX },
-          head: [["Categoria", "Conformes", "Pendências", "Conformidade"]],
-          body: validacoesPorCategoria.map((v) => [
-            v.categoria,
-            `${v.conformes}/${v.total}`,
-            String(v.naoConformes),
-            `${v.percentual}%`,
-          ]),
-          headStyles: { fillColor: corPrimaria, textColor: 255, fontSize: 9, fontStyle: "bold" },
-          bodyStyles: { fontSize: 9, textColor: [50, 50, 50] },
-          alternateRowStyles: { fillColor: [248, 248, 248] },
-          theme: "grid",
-        });
-        cursorY = (doc as any).lastAutoTable.finalY + 24;
-      }
-
-      // ---------- Não-Conformidades ----------
-      checkPageBreak(50);
+      // Cabeçalho
+      doc.setFillColor(...AZUL);
+      doc.rect(0, 0, 210, 24, "F");
+      doc.setTextColor(255, 255, 255);
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(11);
-      doc.setTextColor(30, 30, 30);
-      doc.text(`Não-Conformidades (${naoconformidades.length})`, marginX, cursorY);
-      cursorY += 16;
+      doc.setFontSize(14);
+      doc.text("VISAcheck GO", MARGEM, 12);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.text("Relatório de Conformidade Regulatória — Diagnóstico Arquitetônico Automatizado", MARGEM, 18);
+      y = 32;
 
+      // Título do projeto + status
+      doc.setTextColor(...ESCURO);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.text(projeto.nome_projeto, MARGEM, y);
+      y += 6;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...CINZA);
+      doc.text(`Laudo Técnico: ${projeto.tipo_estabelecimento}`, MARGEM, y);
+      doc.text(`Data: ${new Date(projeto.created_at).toLocaleDateString("pt-BR")}`, 210 - MARGEM, y, { align: "right" });
+      y += 10;
+
+      // Score
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(26);
+      doc.setTextColor(...corDoScore);
+      doc.text(`${scoreCalculado}%`, MARGEM, y + 8);
+      doc.setFontSize(9);
+      doc.setTextColor(...CINZA);
+      doc.setFont("helvetica", "normal");
+      doc.text("Score de Conformidade", MARGEM, y + 14);
+
+      doc.setFillColor(...corDoScore);
+      doc.roundedRect(MARGEM + 42, y - 1, 45, 8, 1.5, 1.5, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      const rotuloStatus = scoreCalculado === 100 ? "APROVADO" : statusEfetivo.toUpperCase();
+      doc.text(rotuloStatus, MARGEM + 42 + 22.5, y + 4.5, { align: "center" });
+      y += 22;
+
+      // Resumo executivo
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(...CINZA);
+      doc.text("RESUMO EXECUTIVO", MARGEM, y);
+      y += 5;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...ESCURO);
+      const resumoTexto = resumoExecutivo || getResumoExecutivo(projeto, naoconformidades.length);
+      const linhasResumo = doc.splitTextToSize(resumoTexto, LARGURA_UTIL);
+      doc.text(linhasResumo, MARGEM, y);
+      y += linhasResumo.length * 4.5 + 8;
+
+      // Validações por Categoria
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text("Validações por Categoria", MARGEM, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [["Categoria", "Conformes", "Pendências", "Conformidade"]],
+        body: validacoesPorCategoria.map(v => [v.categoria, String(v.conformes), String(v.naoConformes), `${v.percentual}%`]),
+        theme: "grid",
+        headStyles: { fillColor: AZUL, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 9, textColor: ESCURO },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+
+      // Não-Conformidades
+      if (y > 250) { doc.addPage(); y = 18; }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text(`Não-Conformidades (${naoconformidades.length})`, MARGEM, y);
+      y += 6;
       if (naoconformidades.length === 0) {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(9.5);
-        doc.setTextColor(80, 80, 80);
-        doc.text("Nenhuma irregularidade identificada.", marginX, cursorY);
-        cursorY += 20;
+        doc.setTextColor(...VERDE);
+        doc.text("Nenhuma irregularidade identificada — o projeto atende a todas as especificações verificadas.", MARGEM, y);
+        y += 10;
       } else {
         autoTable(doc, {
-          startY: cursorY,
-          margin: { left: marginX, right: marginX },
-          head: [["Código", "Severidade", "Norma", "Descrição", "Referência"]],
-          body: naoconformidades.map((nc) => [
-            nc.codigo,
-            nc.severidade.toUpperCase(),
-            nc.norma,
-            nc.descricao,
-            nc.sugestao,
-          ]),
-          headStyles: { fillColor: corPrimaria, textColor: 255, fontSize: 9, fontStyle: "bold" },
-          bodyStyles: { fontSize: 8.5, textColor: [50, 50, 50], valign: "top" },
-          columnStyles: {
-            0: { cellWidth: 55 },
-            1: { cellWidth: 58 },
-            2: { cellWidth: 65 },
-            3: { cellWidth: "auto" },
-            4: { cellWidth: 110 },
-          },
-          alternateRowStyles: { fillColor: [248, 248, 248] },
+          startY: y,
+          head: [["Código", "Norma", "Descrição", "Referência"]],
+          body: naoconformidades.map(nc => [nc.codigo, nc.norma, nc.descricao, nc.sugestao]),
           theme: "grid",
-          didParseCell: (data) => {
-            if (data.section === "body" && data.column.index === 1) {
-              const sev = String(data.cell.raw).toLowerCase();
-              if (sev === "bloqueante") data.cell.styles.textColor = corVermelho;
-              else if (sev === "critico" || sev === "atencao") data.cell.styles.textColor = corAmbar;
-            }
-          },
+          headStyles: { fillColor: VERMELHO, textColor: 255, fontSize: 9, fontStyle: "bold" },
+          bodyStyles: { fontSize: 8.5, textColor: ESCURO },
+          columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 90 }, 3: { cellWidth: 40 } },
+          margin: { left: MARGEM, right: MARGEM },
         });
-        cursorY = (doc as any).lastAutoTable.finalY + 24;
+        y = (doc as any).lastAutoTable.finalY + 10;
       }
 
-      // ---------- Observações / Pendências de Informação ----------
+      // Pareceres Técnicos por Norma
+      if (y > 250) { doc.addPage(); y = 18; }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text("Pareceres Técnicos por Norma", MARGEM, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [["Norma", "Status", "Risco", "Observação"]],
+        body: pareceres.map(p => [p.norma, p.status, p.risco.toUpperCase(), p.observacao]),
+        theme: "grid",
+        headStyles: { fillColor: AZUL, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8.5, textColor: ESCURO },
+        columnStyles: { 0: { cellWidth: 32 }, 1: { cellWidth: 24 }, 2: { cellWidth: 20 }, 3: { cellWidth: 106 } },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+
+      // Observações / Pendências de Informação (em página nova, geralmente é a seção mais longa)
       if (pendenciasInformacao.length > 0) {
-        checkPageBreak(50);
+        doc.addPage();
+        y = 18;
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(30, 30, 30);
-        doc.text(`Observações / Pendências de Informação (${pendenciasInformacao.length})`, marginX, cursorY);
-        cursorY += 16;
-
+        doc.setFontSize(11.5);
+        doc.setTextColor(...AZUL);
+        doc.text(`Observações / Pendências de Informação (${pendenciasInformacao.length})`, MARGEM, y);
+        y += 4;
         autoTable(doc, {
-          startY: cursorY,
-          margin: { left: marginX, right: marginX },
-          head: [["Código", "Norma", "Item", "Observação"]],
-          body: pendenciasInformacao.map((p) => [p.codigo, p.norma, p.nome, p.observacao]),
-          headStyles: { fillColor: corPrimaria, textColor: 255, fontSize: 9, fontStyle: "bold" },
-          bodyStyles: { fontSize: 8.5, textColor: [50, 50, 50], valign: "top" },
-          alternateRowStyles: { fillColor: [248, 248, 248] },
+          startY: y,
+          head: [["Código", "Norma", "Observação"]],
+          body: pendenciasInformacao.map(p => [p.codigo, p.norma, p.observacao]),
           theme: "grid",
-        });
-        cursorY = (doc as any).lastAutoTable.finalY + 24;
-      }
-
-      // ---------- Pareceres Técnicos por Norma ----------
-      if (pareceres.length > 0) {
-        checkPageBreak(50);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
-        doc.setTextColor(30, 30, 30);
-        doc.text("Pareceres Técnicos por Norma", marginX, cursorY);
-        cursorY += 16;
-
-        autoTable(doc, {
-          startY: cursorY,
-          margin: { left: marginX, right: marginX },
-          head: [["Norma", "Status", "Risco", "Observação"]],
-          body: pareceres.map((p) => [p.norma, p.status, p.risco.toUpperCase(), p.observacao]),
-          headStyles: { fillColor: corPrimaria, textColor: 255, fontSize: 9, fontStyle: "bold" },
-          bodyStyles: { fontSize: 8.5, textColor: [50, 50, 50], valign: "top" },
-          alternateRowStyles: { fillColor: [248, 248, 248] },
-          theme: "grid",
-          didParseCell: (data) => {
-            if (data.section === "body" && data.column.index === 2) {
-              const risco = String(data.cell.raw).toLowerCase();
-              if (risco === "alto") data.cell.styles.textColor = corVermelho;
-              else if (risco === "medio") data.cell.styles.textColor = corAmbar;
-              else if (risco === "baixo") data.cell.styles.textColor = corVerde;
-            }
-          },
+          headStyles: { fillColor: CINZA, textColor: 255, fontSize: 9, fontStyle: "bold" },
+          bodyStyles: { fontSize: 8, textColor: ESCURO },
+          columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 30 }, 2: { cellWidth: 126 } },
+          margin: { left: MARGEM, right: MARGEM },
         });
       }
 
-      // ---------- Rodapé em todas as páginas ----------
-      const totalPaginas = doc.getNumberOfPages();
-      for (let i = 1; i <= totalPaginas; i++) {
-        doc.setPage(i);
-        const alturaPagina = doc.internal.pageSize.getHeight();
-        doc.setDrawColor(220, 220, 220);
-        doc.line(marginX, alturaPagina - 35, pageWidth - marginX, alturaPagina - 35);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(7.5);
-        doc.setTextColor(140, 140, 140);
-        doc.text(
-          `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
-          marginX,
-          alturaPagina - 22
-        );
-        doc.text(`Página ${i} de ${totalPaginas}`, pageWidth - marginX, alturaPagina - 22, { align: "right" });
-      }
-
+      desenharRodapes();
       doc.save(`VISAcheck_${projeto.nome_projeto.replace(/\s+/g, "_")}.pdf`);
-    } catch (err) {
-      console.error("Erro ao gerar PDF:", err);
     } finally {
       setExportando(false);
     }
   };
 
   // Usa SEMPRE o score persistido em score_conformidade (calculado no Analise.tsx
-  // como conformes/aplicáveis, item a item  —  peso igual para cada item).
+  // como conformes/aplicáveis, item a item — peso igual para cada item).
   // Antes esse valor era recalculado aqui como média dos percentuais por
   // categoria, o que dava um número DIFERENTE do que está salvo no banco
   // (ex: categoria "Gestão" com 1 item pesava igual a "Infraestrutura" com
@@ -726,7 +681,7 @@ export default function ProjectDetails() {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <h2 className="text-base font-bold text-foreground">Observações / Pendências de Informação ({pendenciasInformacao.length})</h2>
-                    <span className="text-xs text-muted-foreground font-medium">Agrupado por norma  —  clique para expandir</span>
+                    <span className="text-xs text-muted-foreground font-medium">Agrupado por norma — clique para expandir</span>
                   </div>
                   <div className="space-y-3">
                     {Object.entries(pendenciasPorNorma).map(([norma, itens]) => {
@@ -773,7 +728,7 @@ export default function ProjectDetails() {
                 {pareceres.length === 0 ? (
                   <div className="bg-card border border-border rounded-xl p-8 text-center shadow-sm">
                     <ClipboardList className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">Aguardando análise  —  os pareceres por norma aparecem aqui após a validação do projeto.</p>
+                    <p className="text-sm text-muted-foreground">Aguardando análise — os pareceres por norma aparecem aqui após a validação do projeto.</p>
                   </div>
                 ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -837,10 +792,3 @@ export default function ProjectDetails() {
     </div>
   );
 }
-
-
-
-
-
-
-
