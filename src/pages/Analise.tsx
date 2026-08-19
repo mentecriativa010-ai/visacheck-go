@@ -6,6 +6,8 @@ import { analisarProjetoComIA } from "@/lib/openrouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   CheckCircle, AlertTriangle, AlertOctagon, ChevronRight,
@@ -396,31 +398,178 @@ export default function Analise() {
     }
   };
 
+  // ─── Exportação em PDF formatado (laudo técnico) ─────────────────────────
+  // Mesmo estilo visual usado em ProjectDetails.tsx — cabeçalho azul da marca,
+  // score colorido, tabelas via autoTable, paginação e rodapé automáticos.
   const exportarRelatorio = () => {
-    const linhas = [
-      "RELATÓRIO DE CONFORMIDADE REGULATÓRIA", "VISAcheck GO", "",
-      `Projeto: ${nomeProjeto}`, `Tipo: ${tipoSelecionado}`,
-      `Data: ${new Date().toLocaleDateString("pt-BR")}`, `Score: ${scoreCalculado}%`, "",
-      "VALIDAÇÕES POR CATEGORIA",
-      ...validacoesPorCategoria.map(v => `  • ${v.categoria}: ${v.conformes}/${v.total} conformes (${v.percentual}%)`),
-      "", `NÃO-CONFORMIDADES (${naoConformidades.length})`,
-      ...naoConformidades.map(nc =>
-        `  [${nc.norma_origem}] ${nc.codigo}\n  ${nc.descricao}` +
-        (observacoes[nc.id] ? `\n  Obs: ${observacoes[nc.id]}` : "")
-      ),
-      "", `OBSERVAÇÕES / PENDÊNCIAS DE INFORMAÇÃO (${pendenciasInformacao.length})`,
-      ...pendenciasInformacao.map(p =>
-        `  [${p.norma_origem}] ${p.codigo}\n  ${p.descricao}` +
-        (observacoes[p.id] ? `\n  Obs: ${observacoes[p.id]}` : "")
-      ),
-      "", `Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`,
-    ];
-    const blob = new Blob([linhas.join("\n")], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `VISAcheck_${nomeProjeto.replace(/\s+/g,"_")}.txt`; a.click();
-    URL.revokeObjectURL(url);
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const AZUL: [number, number, number] = [30, 58, 95];
+    const VERDE: [number, number, number] = [22, 163, 74];
+    const AMBAR: [number, number, number] = [217, 119, 6];
+    const VERMELHO: [number, number, number] = [220, 38, 38];
+    const CINZA: [number, number, number] = [107, 114, 128];
+    const ESCURO: [number, number, number] = [30, 30, 30];
+    const MARGEM = 14;
+    const LARGURA_UTIL = 182;
+    let y = 0;
+
+    const corDoScore = scoreCalculado >= 80 ? VERDE : scoreCalculado >= 50 ? AMBAR : VERMELHO;
+    const normasAplicadas = [...new Set(regras.map(r => r.norma_origem).filter(Boolean))].sort();
+
+    const desenharRodapes = () => {
+      const total = doc.getNumberOfPages();
+      for (let i = 1; i <= total; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(7.5);
+        doc.setTextColor(...CINZA);
+        doc.text(`Relatório gerado pelo VISAcheck GO em ${new Date().toLocaleString("pt-BR")}`, MARGEM, 290);
+        doc.text(`Página ${i} de ${total}`, 210 - MARGEM, 290, { align: "right" });
+      }
+    };
+
+    // Cabeçalho
+    doc.setFillColor(...AZUL);
+    doc.rect(0, 0, 210, 24, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("VISAcheck GO", MARGEM, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.text("Relatório de Conformidade Regulatória — Diagnóstico Arquitetônico Automatizado", MARGEM, 18);
+    y = 32;
+
+    // Título do projeto
+    doc.setTextColor(...ESCURO);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(15);
+    doc.text(nomeProjeto, MARGEM, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...CINZA);
+    doc.text(`Laudo Técnico: ${tipoSelecionado}`, MARGEM, y);
+    doc.text(`Data: ${new Date().toLocaleDateString("pt-BR")}`, 210 - MARGEM, y, { align: "right" });
+    y += 10;
+
+    // Score
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(26);
+    doc.setTextColor(...corDoScore);
+    doc.text(`${scoreCalculado}%`, MARGEM, y + 8);
+    doc.setFontSize(9);
+    doc.setTextColor(...CINZA);
+    doc.setFont("helvetica", "normal");
+    doc.text("Score de Conformidade", MARGEM, y + 14);
+
+    doc.setFillColor(...corDoScore);
+    doc.roundedRect(MARGEM + 42, y - 1, 45, 8, 1.5, 1.5, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    const rotuloStatus = scoreCalculado === 100 ? "APROVADO" : `${totalNaoConformes} ${totalNaoConformes === 1 ? "NÃO-CONFORMIDADE" : "NÃO-CONFORMIDADES"}`;
+    doc.text(rotuloStatus, MARGEM + 42 + 22.5, y + 4.5, { align: "center" });
+    y += 22;
+
+    // Resumo
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...CINZA);
+    doc.text("RESUMO DA ANÁLISE", MARGEM, y);
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...ESCURO);
+    const resumoTexto = scoreCalculado === 100
+      ? `O projeto "${nomeProjeto}" atende a todas as especificações regulatórias verificadas para ${tipoSelecionado}.`
+      : `O diagnóstico de "${nomeProjeto}" (${tipoSelecionado}) identificou ${totalNaoConformes} ${totalNaoConformes === 1 ? "não-conformidade" : "não-conformidades"} entre ${totalRespondidas} itens verificados. Score: ${scoreCalculado}%.`;
+    const linhasResumo = doc.splitTextToSize(resumoTexto, LARGURA_UTIL);
+    doc.text(linhasResumo, MARGEM, y);
+    y += linhasResumo.length * 4.5 + 3;
+
+    doc.setFontSize(8.5);
+    doc.setTextColor(...CINZA);
+    doc.text(`Fontes analisadas: ${memorialUsado ? "projeto arquitetônico e memorial descritivo" : "apenas projeto arquitetônico"}`, MARGEM, y);
+    y += 4.5;
+    if (normasAplicadas.length > 0) {
+      doc.text(`Normas aplicadas: ${normasAplicadas.join(", ")}`, MARGEM, y);
+      y += 4.5;
+    }
+    y += 5;
+
+    // Validações por Categoria
+    const categoriasComItens = validacoesPorCategoria.filter(v => v.total > 0);
+    if (categoriasComItens.length > 0) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text("Validações por Categoria", MARGEM, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [["Categoria", "Conformes", "Não Conformes", "Conformidade"]],
+        body: categoriasComItens.map(v => [v.categoria, String(v.conformes), String(v.naoConformes), `${v.percentual}%`]),
+        theme: "grid",
+        headStyles: { fillColor: AZUL, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 9, textColor: ESCURO },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Não-Conformidades
+    if (y > 250) { doc.addPage(); y = 18; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11.5);
+    doc.setTextColor(...AZUL);
+    doc.text(`Não-Conformidades (${naoConformidades.length})`, MARGEM, y);
+    y += 6;
+    if (naoConformidades.length === 0) {
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...VERDE);
+      doc.text("Nenhuma irregularidade identificada — o projeto atende a todas as especificações verificadas.", MARGEM, y);
+      y += 10;
+    } else {
+      autoTable(doc, {
+        startY: y,
+        head: [["Código", "Norma", "Descrição", "Observação"]],
+        body: naoConformidades.map(nc => [nc.codigo, nc.norma_origem || "-", nc.descricao, observacoes[nc.id] || "-"]),
+        theme: "grid",
+        headStyles: { fillColor: VERMELHO, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8.5, textColor: ESCURO },
+        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Observações / Pendências de Informação
+    if (pendenciasInformacao.length > 0) {
+      doc.addPage();
+      y = 18;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text(`Observações / Pendências de Informação (${pendenciasInformacao.length})`, MARGEM, y);
+      y += 4;
+      autoTable(doc, {
+        startY: y,
+        head: [["Código", "Norma", "Observação"]],
+        body: pendenciasInformacao.map(p => [p.codigo, p.norma_origem || "-", observacoes[p.id] || p.descricao || "-"]),
+        theme: "grid",
+        headStyles: { fillColor: CINZA, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8, textColor: ESCURO },
+        columnStyles: { 0: { cellWidth: 26 }, 1: { cellWidth: 30 }, 2: { cellWidth: 126 } },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+    }
+
+    desenharRodapes();
+    doc.save(`VISAcheck_${nomeProjeto.replace(/\s+/g, "_")}.pdf`);
   };
+
 
   // ─── RENDER ──────────────────────────────────────────────────────────
   return (
