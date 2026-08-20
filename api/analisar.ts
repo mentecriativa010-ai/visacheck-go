@@ -28,7 +28,8 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // v3: bump de versao para invalidar cache antigo, que pode conter resultados
   // gerados com o bug de mapeamento por id (ver analisarLote) — forcamos uma
   // nova chamada a IA em vez de reaproveitar um resultado potencialmente errado.
-  const base = "v3\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v4: prompt agora pede motivo_na (nao_existe/sem_dado) para filtrar pendencias reais
+  const base = "v4\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -124,15 +125,34 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
+    "- Antes de marcar uma regra como nao_aplicavel por falta de dado, procure no texto por termos equivalentes ou " +
+    "sinonimos do que a regra pede (ex: \"abertura telada\"/\"tela\" equivale a protecao contra vetores/insetos; " +
+    "\"Ø\" seguido de um numero indica diametro; \"resíduo comum\" equivale a \"resíduo do Grupo D\") antes de " +
+    "concluir que a informacao nao existe\n" +
+    "- NAO invente ou reutilize siglas/abreviacoes que nao estejam escritas na propria descricao da regra sendo " +
+    "avaliada (ex: nunca abrevie \"Consultorio(s) Odontologico(s) Coletivo(s)\" como \"CCO\" - essa sigla ja " +
+    "significa \"Centro Cirurgico Odontologico\" em outras regras deste mesmo relatorio; escreva os nomes de " +
+    "ambientes por extenso para evitar confundir o leitor)\n" +
     "- TODA regra, inclusive as marcadas como nao_aplicavel, precisa de uma justificativa objetiva de 1 frase " +
     "explicando o motivo (nunca deixe justificativa vazia ou generica)\n" +
+    "- Para toda regra com status nao_aplicavel, inclua tambem um campo \"motivo_na\" com um destes dois valores " +
+    "exatos:\n" +
+    "  * \"nao_existe\" quando o elemento/ambiente da regra simplesmente NAO existe neste tipo de projeto e nunca " +
+    "existiria (ex: piscina, playground, auditorio, consultorio coletivo quando o projeto so tem individuais, " +
+    "centro cirurgico quando o projeto nao tem um) — ou seja, nenhuma informacao adicional mudaria a resposta\n" +
+    "  * \"sem_dado\" quando o elemento/ambiente EXISTE no projeto mas falta uma medida ou especificacao pontual " +
+    "para julgar a regra (ex: existe balcao de atendimento mas a altura nao foi informada; existe estacionamento " +
+    "mas o numero de vagas PCD nao foi informado) — aqui a informacao poderia completar a analise se fosse " +
+    "fornecida\n" +
+    "  * Na duvida entre os dois, use \"sem_dado\" (e melhor mostrar uma pendencia a mais do que esconder um " +
+    "problema real)\n" +
     "- Para toda regra com status nao_conforme, inclua tambem um campo \"sugestao\" com 1 frase objetiva recomendando " +
     "a correcao necessaria para o projeto passar a atender a regra (omita esse campo para conforme/nao_aplicavel)\n" +
     "- IMPORTANTE: identifique cada regra pelo campo \"indice\" (o numero listado antes de cada regra em \"REGRAS A " +
     "VERIFICAR\" acima). NAO invente, copie ou tente lembrar nenhum identificador de texto — use apenas o numero " +
     "inteiro do indice, exatamente como listado\n\n" +
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
-    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"}],\"resumo\":\"resumo 1 frase\"}";
+    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":3,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
 
   const response = await fetch(ANTHROPIC_URL, {
     method: "POST",
@@ -169,7 +189,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
         indicesInvalidos++;
         return null;
       }
-      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null };
+      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: r.motivo_na ?? null };
     })
     .filter(Boolean);
   if (indicesInvalidos > 0) {

@@ -79,6 +79,7 @@ export default function Analise() {
   const [regras, setRegras] = useState([]);
   const [respostas, setRespostas] = useState({});
   const [observacoes, setObservacoes] = useState({});
+  const [motivosNaoAplicavel, setMotivosNaoAplicavel] = useState({});
   const [memorialUsado, setMemorialUsado] = useState(false);
   const [loadingRegras, setLoadingRegras] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -228,6 +229,7 @@ export default function Analise() {
       const respostasFinal = {};
       regrasCarregadas.forEach(r => { respostasFinal[r.id] = "nao_aplicavel"; });
       const obsFinal = {};
+      const motivosFinal = {};
       let idsIgnorados = 0;
       resultado.resultados.forEach(r => {
         const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
@@ -246,6 +248,12 @@ export default function Analise() {
           const sugestaoTexto = r.status === "nao_conforme" && r.sugestao ? ` Sugestão de correção: ${r.sugestao}` : "";
           obsFinal[r.id] = r.justificativa + sugestaoTexto;
         }
+        // motivo_na só existe (e só importa) para itens nao_aplicavel — usado
+        // pra filtrar da tela de Pendências os itens "óbvios" (elemento não
+        // existe neste tipo de projeto), mantendo só pendência real (elemento
+        // existe mas falta dado). Default null = trata como pendência real,
+        // pra nunca esconder algo por engano quando a IA não classificou.
+        if (r.status === "nao_aplicavel") motivosFinal[r.id] = r.motivo_na ?? null;
       });
       if (idsIgnorados > 0) {
         console.warn(`${idsIgnorados} resultado(s) da IA foram ignorados por id inválido.`);
@@ -253,10 +261,11 @@ export default function Analise() {
 
       setRespostas(prev => ({ ...prev, ...respostasFinal }));
       setObservacoes(prev => ({ ...prev, ...obsFinal }));
+      setMotivosNaoAplicavel(prev => ({ ...prev, ...motivosFinal }));
       setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — gerando relatório...`);
 
       // Vai direto para a última página (resultado/relatório), sem passar pelo checklist manual.
-      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado);
+      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado, motivosFinal);
       return true;
     } catch (err) {
       console.error("Erro IA:", err);
@@ -312,7 +321,14 @@ export default function Analise() {
   });
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
-  const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel");
+  // "Pendências de Informação" mostra só o que é pendência de verdade — elemento existe no
+  // projeto mas falta um dado pra avaliar (motivo_na === "sem_dado"). Itens onde o elemento
+  // simplesmente não existe no projeto (motivo_na === "nao_existe", ex: piscina, playground,
+  // consultório coletivo quando só há individuais) ficam de fora — decisão tomada com a
+  // Vigilância Sanitária pra reduzir ruído no relatório. Quando a IA não classificou o motivo
+  // (motivo null/undefined, ex: em análises antigas antes dessa mudança), o item aparece por
+  // padrão — nunca esconde algo por falta de classificação.
+  const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel" && motivosNaoAplicavel[r.id] !== "nao_existe");
   const pendenciasPorNorma = pendenciasInformacao.reduce((acc, r) => {
     const norma = r.norma_origem || "Norma não identificada";
     if (!acc[norma]) acc[norma] = [];
@@ -326,9 +342,10 @@ export default function Analise() {
   // Isso permite que a análise por IA chame esta função diretamente com os dados
   // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
   // direto para o passo 3 (resultado) em vez de exigir clique categoria por categoria.
-  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null) => {
+  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null, motivosParam = null) => {
     const regrasUsar = regrasParam ?? regras;
     const respostasUsar = respostasParam ?? respostas;
+    const motivosUsar = motivosParam ?? motivosNaoAplicavel;
     const observacoesUsar = observacoesParam ?? observacoes;
 
     const totalConformesCalc = Object.values(respostasUsar).filter(v => v === "conforme").length;
@@ -365,7 +382,7 @@ export default function Analise() {
           resp === "conforme" ? "Conforme verificação" :
           resp === "nao_conforme" ? (observacoesUsar[r.id] || "Não conformidade identificada") :
           (observacoesUsar[r.id] || "Não aplicável ao projeto/ambiente analisado.");
-        return { projeto_id: proj.id, regra_id: r.id, status, observacao };
+        return { projeto_id: proj.id, regra_id: r.id, status, observacao, motivo_na: resp === "nao_aplicavel" ? (motivosUsar[r.id] ?? null) : null };
       });
       if (validacoes.length > 0) await supabase.from("validacoes").insert(validacoes);
 
@@ -960,7 +977,7 @@ export default function Analise() {
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-600"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
                     <div className="flex items-center gap-2 text-destructive"><AlertTriangle className="w-4 h-4" /><span className="font-semibold">{totalNaoConformes} não-conformes</span></div>
-                    <div className="flex items-center gap-2 text-muted-foreground"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{regras.length - totalRespondidas} não aplicáveis</span></div>
+                    <div className="flex items-center gap-2 text-muted-foreground"><AlertOctagon className="w-4 h-4" /><span className="font-semibold">{pendenciasInformacao.length} não aplicáveis</span></div>
                   </div>
                 </div>
               </div>

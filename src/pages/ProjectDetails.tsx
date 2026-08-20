@@ -117,7 +117,7 @@ export default function ProjectDetails() {
 
       const { data: valData } = await supabase
         .from("validacoes")
-        .select(`id, status, observacao, regras_regulatorias (codigo, descricao, norma_origem, artigo_referencia, categoria)`)
+        .select(`id, status, observacao, motivo_na, regras_regulatorias (codigo, descricao, norma_origem, artigo_referencia, categoria)`)
         .eq("projeto_id", id);
 
       if (valData && valData.length > 0) {
@@ -136,7 +136,11 @@ export default function ProjectDetails() {
         }));
         setPendenciasInformacao(
           valData
-            .filter((v: any) => v.status === "nao_aplicavel")
+            // Mostra só pendência real (elemento existe, falta dado) — esconde os "óbvios"
+            // (motivo_na === "nao_existe", ex: piscina/playground numa clínica odontológica).
+            // Quando motivo_na é null (análises salvas antes dessa mudança), mostra por padrão
+            // — nunca esconde algo por falta de classificação.
+            .filter((v: any) => v.status === "nao_aplicavel" && v.motivo_na !== "nao_existe")
             .map((v: any) => {
               const regra = v.regras_regulatorias;
               return {
