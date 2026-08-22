@@ -80,6 +80,7 @@ export default function Analise() {
   const [respostas, setRespostas] = useState({});
   const [observacoes, setObservacoes] = useState({});
   const [motivosNaoAplicavel, setMotivosNaoAplicavel] = useState({});
+  const [noLimiteFlags, setNoLimiteFlags] = useState({});
   const [memorialUsado, setMemorialUsado] = useState(false);
   const [loadingRegras, setLoadingRegras] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -230,6 +231,7 @@ export default function Analise() {
       regrasCarregadas.forEach(r => { respostasFinal[r.id] = "nao_aplicavel"; });
       const obsFinal = {};
       const motivosFinal = {};
+      const noLimiteFinal = {};
       let idsIgnorados = 0;
       resultado.resultados.forEach(r => {
         const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
@@ -254,6 +256,11 @@ export default function Analise() {
         // existe mas falta dado). Default null = trata como pendência real,
         // pra nunca esconder algo por engano quando a IA não classificou.
         if (r.status === "nao_aplicavel") motivosFinal[r.id] = r.motivo_na ?? null;
+        // no_limite só existe (e só importa) para itens conforme com critério
+        // numérico — sinaliza um item que passa mas com margem estreita
+        // (ex: área exatamente no mínimo exigido), útil pra quem vai vistoriar
+        // o projeto fisicamente depois.
+        if (r.status === "conforme" && r.no_limite === true) noLimiteFinal[r.id] = true;
       });
       if (idsIgnorados > 0) {
         console.warn(`${idsIgnorados} resultado(s) da IA foram ignorados por id inválido.`);
@@ -262,10 +269,11 @@ export default function Analise() {
       setRespostas(prev => ({ ...prev, ...respostasFinal }));
       setObservacoes(prev => ({ ...prev, ...obsFinal }));
       setMotivosNaoAplicavel(prev => ({ ...prev, ...motivosFinal }));
+      setNoLimiteFlags(prev => ({ ...prev, ...noLimiteFinal }));
       setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — gerando relatório...`);
 
       // Vai direto para a última página (resultado/relatório), sem passar pelo checklist manual.
-      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado, motivosFinal);
+      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado, motivosFinal, noLimiteFinal);
       return true;
     } catch (err) {
       console.error("Erro IA:", err);
@@ -321,6 +329,9 @@ export default function Analise() {
   });
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
+  // Conformes com margem estreita (área/medida exatamente no limite exigido) — não são
+  // problema, mas merecem destaque separado porque têm menos folga numa vistoria física.
+  const conformesNoLimite = regras.filter(r => respostas[r.id] === "conforme" && noLimiteFlags[r.id]);
   // "Pendências de Informação" mostra só o que é pendência de verdade — elemento existe no
   // projeto mas falta um dado pra avaliar (motivo_na === "sem_dado"). Itens onde o elemento
   // simplesmente não existe no projeto (motivo_na === "nao_existe", ex: piscina, playground,
@@ -342,10 +353,11 @@ export default function Analise() {
   // Isso permite que a análise por IA chame esta função diretamente com os dados
   // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
   // direto para o passo 3 (resultado) em vez de exigir clique categoria por categoria.
-  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null, motivosParam = null) => {
+  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null, motivosParam = null, noLimiteParam = null) => {
     const regrasUsar = regrasParam ?? regras;
     const respostasUsar = respostasParam ?? respostas;
     const motivosUsar = motivosParam ?? motivosNaoAplicavel;
+    const noLimiteUsar = noLimiteParam ?? noLimiteFlags;
     const observacoesUsar = observacoesParam ?? observacoes;
 
     const totalConformesCalc = Object.values(respostasUsar).filter(v => v === "conforme").length;
@@ -379,10 +391,14 @@ export default function Analise() {
         const resp = respostasUsar[r.id];
         const status = resp === "conforme" ? "aprovado" : resp === "nao_conforme" ? "reprovado" : "nao_aplicavel";
         const observacao =
-          resp === "conforme" ? "Conforme verificação" :
+          resp === "conforme" ? (observacoesUsar[r.id] || "Conforme verificação") :
           resp === "nao_conforme" ? (observacoesUsar[r.id] || "Não conformidade identificada") :
           (observacoesUsar[r.id] || "Não aplicável ao projeto/ambiente analisado.");
-        return { projeto_id: proj.id, regra_id: r.id, status, observacao, motivo_na: resp === "nao_aplicavel" ? (motivosUsar[r.id] ?? null) : null };
+        return {
+          projeto_id: proj.id, regra_id: r.id, status, observacao,
+          motivo_na: resp === "nao_aplicavel" ? (motivosUsar[r.id] ?? null) : null,
+          no_limite: resp === "conforme" ? !!noLimiteUsar[r.id] : false,
+        };
       });
       if (validacoes.length > 0) await supabase.from("validacoes").insert(validacoes);
 
@@ -555,6 +571,27 @@ export default function Analise() {
         body: naoConformidades.map(nc => [nc.codigo, nc.norma_origem || "-", nc.descricao, observacoes[nc.id] || "-"]),
         theme: "grid",
         headStyles: { fillColor: VERMELHO, textColor: 255, fontSize: 9, fontStyle: "bold" },
+        bodyStyles: { fontSize: 8.5, textColor: ESCURO },
+        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
+        margin: { left: MARGEM, right: MARGEM },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    // Conformes com margem estreita
+    if (conformesNoLimite.length > 0) {
+      if (y > 250) { doc.addPage(); y = 18; }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11.5);
+      doc.setTextColor(...AZUL);
+      doc.text(`Conformes com Margem Estreita (${conformesNoLimite.length})`, MARGEM, y);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [["Código", "Norma", "Descrição", "Detalhe"]],
+        body: conformesNoLimite.map(item => [item.codigo, item.norma_origem || "-", item.descricao, observacoes[item.id] || "-"]),
+        theme: "grid",
+        headStyles: { fillColor: AMBAR, textColor: 255, fontSize: 9, fontStyle: "bold" },
         bodyStyles: { fontSize: 8.5, textColor: ESCURO },
         columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
         margin: { left: MARGEM, right: MARGEM },
@@ -1042,6 +1079,31 @@ export default function Analise() {
                             {observacoes[nc.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[nc.id]}"</p>}
                           </div>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-destructive/10 text-destructive border border-destructive/20 flex-shrink-0">Não conforme</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Conformes com margem estreita */}
+              {conformesNoLimite.length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-base font-bold">Conformes com Margem Estreita ({conformesNoLimite.length})</h2>
+                  <p className="text-xs text-muted-foreground -mt-2">Itens que atendem à regra, mas com pouca folga em relação ao limite exigido — vale atenção redobrada numa vistoria física.</p>
+                  <div className="space-y-4">
+                    {conformesNoLimite.map(item => (
+                      <div key={item.id} className="bg-card border border-amber-300 dark:border-amber-700 rounded-xl p-5 shadow-sm space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-mono text-muted-foreground">{item.codigo}</span>
+                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{item.norma_origem}</span>
+                            </div>
+                            <p className="text-sm text-foreground">{item.descricao}</p>
+                            {observacoes[item.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[item.id]}"</p>}
+                          </div>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 flex-shrink-0">⚠ No limite</span>
                         </div>
                       </div>
                     ))}

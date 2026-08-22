@@ -29,7 +29,8 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // gerados com o bug de mapeamento por id (ver analisarLote) — forcamos uma
   // nova chamada a IA em vez de reaproveitar um resultado potencialmente errado.
   // v4: prompt agora pede motivo_na (nao_existe/sem_dado) para filtrar pendencias reais
-  const base = "v4\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v5: prompt agora pede no_limite (conforme com margem estreita) e valores encontrados na justificativa
+  const base = "v5\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -148,11 +149,19 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "problema real)\n" +
     "- Para toda regra com status nao_conforme, inclua tambem um campo \"sugestao\" com 1 frase objetiva recomendando " +
     "a correcao necessaria para o projeto passar a atender a regra (omita esse campo para conforme/nao_aplicavel)\n" +
+    "- Para toda regra com status conforme cujo criterio envolva um valor numerico (valor_minimo ou valor_maximo " +
+    "informado na regra), a justificativa deve citar o valor encontrado no projeto e o valor exigido lado a lado " +
+    "(ex: \"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\"), nao so dizer que esta conforme\n" +
+    "- Para toda regra conforme desse tipo (com valor_minimo ou valor_maximo), inclua tambem um campo booleano " +
+    "\"no_limite\": true quando o valor encontrado estiver muito proximo do limite exigido (dentro de uma margem de " +
+    "ate 10% acima do minimo, ou ate 10% abaixo do maximo) — isso sinaliza um item que passa mas com pouca folga, " +
+    "util para quem vai vistoriar o projeto fisicamente depois. Omita o campo (ou use false) quando a margem for " +
+    "confortavel\n" +
     "- IMPORTANTE: identifique cada regra pelo campo \"indice\" (o numero listado antes de cada regra em \"REGRAS A " +
     "VERIFICAR\" acima). NAO invente, copie ou tente lembrar nenhum identificador de texto — use apenas o numero " +
     "inteiro do indice, exatamente como listado\n\n" +
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
-    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":3,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
+    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"conforme\",\"justificativa\":\"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\",\"no_limite\":true},{\"indice\":3,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":4,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
 
   const response = await fetch(ANTHROPIC_URL, {
     method: "POST",
@@ -189,7 +198,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
         indicesInvalidos++;
         return null;
       }
-      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: r.motivo_na ?? null };
+      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: r.motivo_na ?? null, no_limite: r.no_limite === true };
     })
     .filter(Boolean);
   if (indicesInvalidos > 0) {
