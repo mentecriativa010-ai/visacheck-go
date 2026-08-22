@@ -567,12 +567,12 @@ export default function Analise() {
     } else {
       autoTable(doc, {
         startY: y,
-        head: [["Código", "Norma", "Descrição", "Observação"]],
-        body: naoConformidades.map(nc => [nc.codigo, nc.norma_origem || "-", nc.descricao, observacoes[nc.id] || "-"]),
+        head: [["Código", "Norma", "Descrição", "Observação", "Referência"]],
+        body: naoConformidades.map(nc => [nc.codigo, nc.norma_origem || "-", nc.descricao, observacoes[nc.id] || "-", nc.artigo_referencia || "-"]),
         theme: "grid",
         headStyles: { fillColor: VERMELHO, textColor: 255, fontSize: 9, fontStyle: "bold" },
-        bodyStyles: { fontSize: 8.5, textColor: ESCURO },
-        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
+        bodyStyles: { fontSize: 8, textColor: ESCURO },
+        columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 24 }, 2: { cellWidth: 58 }, 3: { cellWidth: 52 }, 4: { cellWidth: 28 } },
         margin: { left: MARGEM, right: MARGEM },
       });
       y = (doc as any).lastAutoTable.finalY + 10;
@@ -1079,6 +1079,10 @@ export default function Analise() {
                             {observacoes[nc.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[nc.id]}"</p>}
                           </div>
                           <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-destructive/10 text-destructive border border-destructive/20 flex-shrink-0">Não conforme</span>
+                        </div>
+                        <div className="border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 p-3 rounded-lg space-y-1">
+                          <span className="text-[10px] font-bold text-[#16A34A] dark:text-green-400 uppercase tracking-wider block">Referência</span>
+                          <p className="text-xs text-foreground font-medium">{nc.artigo_referencia || "Consulte a norma vigente."}</p>
                         </div>
                       </div>
                     ))}
