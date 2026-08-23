@@ -329,9 +329,6 @@ export default function Analise() {
   });
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
-  // Conformes com margem estreita (área/medida exatamente no limite exigido) — não são
-  // problema, mas merecem destaque separado porque têm menos folga numa vistoria física.
-  const conformesNoLimite = regras.filter(r => respostas[r.id] === "conforme" && noLimiteFlags[r.id]);
   // "Pendências de Informação" mostra só o que é pendência de verdade — elemento existe no
   // projeto mas falta um dado pra avaliar (motivo_na === "sem_dado"). Itens onde o elemento
   // simplesmente não existe no projeto (motivo_na === "nao_existe", ex: piscina, playground,
@@ -573,27 +570,6 @@ export default function Analise() {
         headStyles: { fillColor: VERMELHO, textColor: 255, fontSize: 9, fontStyle: "bold" },
         bodyStyles: { fontSize: 8, textColor: ESCURO },
         columnStyles: { 0: { cellWidth: 20 }, 1: { cellWidth: 24 }, 2: { cellWidth: 58 }, 3: { cellWidth: 52 }, 4: { cellWidth: 28 } },
-        margin: { left: MARGEM, right: MARGEM },
-      });
-      y = (doc as any).lastAutoTable.finalY + 10;
-    }
-
-    // Conformes com margem estreita
-    if (conformesNoLimite.length > 0) {
-      if (y > 250) { doc.addPage(); y = 18; }
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(11.5);
-      doc.setTextColor(...AZUL);
-      doc.text(`Conformes com Margem Estreita (${conformesNoLimite.length})`, MARGEM, y);
-      y += 6;
-      autoTable(doc, {
-        startY: y,
-        head: [["Código", "Norma", "Descrição", "Detalhe"]],
-        body: conformesNoLimite.map(item => [item.codigo, item.norma_origem || "-", item.descricao, observacoes[item.id] || "-"]),
-        theme: "grid",
-        headStyles: { fillColor: AMBAR, textColor: 255, fontSize: 9, fontStyle: "bold" },
-        bodyStyles: { fontSize: 8.5, textColor: ESCURO },
-        columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
         margin: { left: MARGEM, right: MARGEM },
       });
       y = (doc as any).lastAutoTable.finalY + 10;
@@ -1083,31 +1059,6 @@ export default function Analise() {
                         <div className="border border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/20 p-3 rounded-lg space-y-1">
                           <span className="text-[10px] font-bold text-[#16A34A] dark:text-green-400 uppercase tracking-wider block">Referência</span>
                           <p className="text-xs text-foreground font-medium">{nc.artigo_referencia || "Consulte a norma vigente."}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Conformes com margem estreita */}
-              {conformesNoLimite.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-base font-bold">Conformes com Margem Estreita ({conformesNoLimite.length})</h2>
-                  <p className="text-xs text-muted-foreground -mt-2">Itens que atendem à regra, mas com pouca folga em relação ao limite exigido — vale atenção redobrada numa vistoria física.</p>
-                  <div className="space-y-4">
-                    {conformesNoLimite.map(item => (
-                      <div key={item.id} className="bg-card border border-amber-300 dark:border-amber-700 rounded-xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono text-muted-foreground">{item.codigo}</span>
-                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{item.norma_origem}</span>
-                            </div>
-                            <p className="text-sm text-foreground">{item.descricao}</p>
-                            {observacoes[item.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[item.id]}"</p>}
-                          </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 flex-shrink-0">⚠ No limite</span>
                         </div>
                       </div>
                     ))}

@@ -396,27 +396,6 @@ export default function ProjectDetails() {
         y = (doc as any).lastAutoTable.finalY + 10;
       }
 
-      // Conformes com margem estreita
-      if (conformesNoLimite.length > 0) {
-        if (y > 250) { doc.addPage(); y = 18; }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(11.5);
-        doc.setTextColor(...AZUL);
-        doc.text(`Conformes com Margem Estreita (${conformesNoLimite.length})`, MARGEM, y);
-        y += 6;
-        autoTable(doc, {
-          startY: y,
-          head: [["Código", "Norma", "Descrição", "Detalhe"]],
-          body: conformesNoLimite.map(item => [item.codigo, item.norma, item.nome, item.observacao]),
-          theme: "grid",
-          headStyles: { fillColor: AMBAR, textColor: 255, fontSize: 9, fontStyle: "bold" },
-          bodyStyles: { fontSize: 8.5, textColor: ESCURO },
-          columnStyles: { 0: { cellWidth: 24 }, 1: { cellWidth: 28 }, 2: { cellWidth: 70 }, 3: { cellWidth: 60 } },
-          margin: { left: MARGEM, right: MARGEM },
-        });
-        y = (doc as any).lastAutoTable.finalY + 10;
-      }
-
       // Pareceres Técnicos por Norma
       if (y > 250) { doc.addPage(); y = 18; }
       doc.setFont("helvetica", "bold");
@@ -716,30 +695,6 @@ export default function ProjectDetails() {
                   </div>
                 )}
               </div>
-
-              {conformesNoLimite.length > 0 && (
-                <div className="space-y-4">
-                  <h2 className="text-base font-bold text-foreground">Conformes com Margem Estreita ({conformesNoLimite.length})</h2>
-                  <p className="text-xs text-muted-foreground -mt-2">Itens que atendem à regra, mas com pouca folga em relação ao limite exigido — vale atenção redobrada numa vistoria física.</p>
-                  <div className="space-y-4">
-                    {conformesNoLimite.map((item, idx) => (
-                      <div key={idx} className="bg-card border border-amber-300 dark:border-amber-700 rounded-xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-xs font-mono font-bold text-muted-foreground">{item.codigo}</span>
-                              <span className="text-[10px] font-bold text-primary tracking-wide uppercase bg-primary/10 px-2 py-0.5 rounded">{item.norma}</span>
-                            </div>
-                            <h3 className="text-sm font-bold text-foreground">{item.nome}</h3>
-                            <p className="text-xs text-foreground/80 mt-1 italic">{item.observacao}</p>
-                          </div>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700 flex-shrink-0">⚠ No limite</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {pendenciasInformacao.length > 0 && (
                 <div className="space-y-4">
