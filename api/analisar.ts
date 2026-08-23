@@ -152,16 +152,11 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "- Para toda regra com status conforme cujo criterio envolva um valor numerico (valor_minimo ou valor_maximo " +
     "informado na regra), a justificativa deve citar o valor encontrado no projeto e o valor exigido lado a lado " +
     "(ex: \"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\"), nao so dizer que esta conforme\n" +
-    "- Para toda regra conforme desse tipo (com valor_minimo ou valor_maximo), inclua tambem um campo booleano " +
-    "\"no_limite\": true quando o valor encontrado estiver muito proximo do limite exigido (dentro de uma margem de " +
-    "ate 10% acima do minimo, ou ate 10% abaixo do maximo) — isso sinaliza um item que passa mas com pouca folga, " +
-    "util para quem vai vistoriar o projeto fisicamente depois. Omita o campo (ou use false) quando a margem for " +
-    "confortavel\n" +
     "- IMPORTANTE: identifique cada regra pelo campo \"indice\" (o numero listado antes de cada regra em \"REGRAS A " +
     "VERIFICAR\" acima). NAO invente, copie ou tente lembrar nenhum identificador de texto — use apenas o numero " +
     "inteiro do indice, exatamente como listado\n\n" +
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
-    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"conforme\",\"justificativa\":\"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\",\"no_limite\":true},{\"indice\":3,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":4,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
+    "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"conforme\",\"justificativa\":\"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\"},{\"indice\":3,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":4,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
 
   const response = await fetch(ANTHROPIC_URL, {
     method: "POST",
