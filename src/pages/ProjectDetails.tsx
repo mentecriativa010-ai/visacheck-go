@@ -65,7 +65,6 @@ export default function ProjectDetails() {
   const [validacoesPorCategoria, setValidacoesPorCategoria] = useState<ValidacaoCategoria[]>([]);
   const [pareceres, setPareceres] = useState<Parecer[]>([]);
   const [pendenciasInformacao, setPendenciasInformacao] = useState<Pendencia[]>([]);
-  const [conformesNoLimite, setConformesNoLimite] = useState<Pendencia[]>([]);
   const [gruposAbertos, setGruposAbertos] = useState<Record<string, boolean>>({});
   const [exportando, setExportando] = useState(false);
   const [novaAnaliseOpen, setNovaAnaliseOpen] = useState(false);
@@ -152,19 +151,6 @@ export default function ProjectDetails() {
               };
             })
         );
-        setConformesNoLimite(
-          valData
-            .filter((v: any) => v.status === "aprovado" && v.no_limite === true)
-            .map((v: any) => {
-              const regra = v.regras_regulatorias;
-              return {
-                codigo: regra?.codigo || v.id,
-                nome: regra?.descricao?.slice(0, 60) || "Regra Regulatória",
-                norma: regra?.norma_origem || "Norma não identificada",
-                observacao: v.observacao || "Conforme, no limite exigido.",
-              };
-            })
-        );
 
         // Apenas itens aplicáveis (aprovado/reprovado) entram no total de cada
         // categoria — "não_aplicável" não conta nem a favor nem contra, senão
@@ -213,7 +199,6 @@ export default function ProjectDetails() {
         setNaoConformidades([]);
         setPareceres([]);
         setPendenciasInformacao([]);
-        setConformesNoLimite([]);
         setValidacoesPorCategoria([
           { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
           { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },

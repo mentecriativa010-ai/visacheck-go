@@ -80,7 +80,6 @@ export default function Analise() {
   const [respostas, setRespostas] = useState({});
   const [observacoes, setObservacoes] = useState({});
   const [motivosNaoAplicavel, setMotivosNaoAplicavel] = useState({});
-  const [noLimiteFlags, setNoLimiteFlags] = useState({});
   const [memorialUsado, setMemorialUsado] = useState(false);
   const [loadingRegras, setLoadingRegras] = useState(false);
   const [salvando, setSalvando] = useState(false);
@@ -231,7 +230,6 @@ export default function Analise() {
       regrasCarregadas.forEach(r => { respostasFinal[r.id] = "nao_aplicavel"; });
       const obsFinal = {};
       const motivosFinal = {};
-      const noLimiteFinal = {};
       let idsIgnorados = 0;
       resultado.resultados.forEach(r => {
         const statusMap = { conforme: "conforme", nao_conforme: "nao_conforme", nao_aplicavel: "nao_aplicavel" };
@@ -256,11 +254,6 @@ export default function Analise() {
         // existe mas falta dado). Default null = trata como pendência real,
         // pra nunca esconder algo por engano quando a IA não classificou.
         if (r.status === "nao_aplicavel") motivosFinal[r.id] = r.motivo_na ?? null;
-        // no_limite só existe (e só importa) para itens conforme com critério
-        // numérico — sinaliza um item que passa mas com margem estreita
-        // (ex: área exatamente no mínimo exigido), útil pra quem vai vistoriar
-        // o projeto fisicamente depois.
-        if (r.status === "conforme" && r.no_limite === true) noLimiteFinal[r.id] = true;
       });
       if (idsIgnorados > 0) {
         console.warn(`${idsIgnorados} resultado(s) da IA foram ignorados por id inválido.`);
@@ -269,11 +262,10 @@ export default function Analise() {
       setRespostas(prev => ({ ...prev, ...respostasFinal }));
       setObservacoes(prev => ({ ...prev, ...obsFinal }));
       setMotivosNaoAplicavel(prev => ({ ...prev, ...motivosFinal }));
-      setNoLimiteFlags(prev => ({ ...prev, ...noLimiteFinal }));
       setIaStatus(`✓ IA analisou ${resultado.resultados.length} regras — gerando relatório...`);
 
       // Vai direto para a última página (resultado/relatório), sem passar pelo checklist manual.
-      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado, motivosFinal, noLimiteFinal);
+      await salvarNoBanco(regrasCarregadas, respostasFinal, obsFinal, memorialFoiUsado, motivosFinal);
       return true;
     } catch (err) {
       console.error("Erro IA:", err);
@@ -350,11 +342,10 @@ export default function Analise() {
   // Isso permite que a análise por IA chame esta função diretamente com os dados
   // recém-calculados, sem esperar o React re-renderizar o estado — e assim pular
   // direto para o passo 3 (resultado) em vez de exigir clique categoria por categoria.
-  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null, motivosParam = null, noLimiteParam = null) => {
+  const salvarNoBanco = async (regrasParam, respostasParam, observacoesParam, memorialUsadoParam = null, motivosParam = null) => {
     const regrasUsar = regrasParam ?? regras;
     const respostasUsar = respostasParam ?? respostas;
     const motivosUsar = motivosParam ?? motivosNaoAplicavel;
-    const noLimiteUsar = noLimiteParam ?? noLimiteFlags;
     const observacoesUsar = observacoesParam ?? observacoes;
 
     const totalConformesCalc = Object.values(respostasUsar).filter(v => v === "conforme").length;
@@ -394,7 +385,7 @@ export default function Analise() {
         return {
           projeto_id: proj.id, regra_id: r.id, status, observacao,
           motivo_na: resp === "nao_aplicavel" ? (motivosUsar[r.id] ?? null) : null,
-          no_limite: resp === "conforme" ? !!noLimiteUsar[r.id] : false,
+          no_limite: false,
         };
       });
       if (validacoes.length > 0) await supabase.from("validacoes").insert(validacoes);
