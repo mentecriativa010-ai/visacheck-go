@@ -58,23 +58,36 @@ export default function Login() {
     const conselhoNorm = conselho.trim().toUpperCase();
     const cnpjNorm = cnpj.trim();
 
-    const { data: emailData, error: lookupError } = await supabase.rpc(
-      "get_email_by_credentials" as never,
-      {
-        _crea_cau: tab === "profissional" ? conselhoNorm : "",
-        _cnpj: tab === "empresa" ? cnpjNorm : "",
-      } as never,
-    );
-    if (lookupError || !emailData) {
+    let emailData: string | null = null;
+    try {
+      const lookupResp = await fetch("/api/login-lookup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          creaCau: tab === "profissional" ? conselhoNorm : "",
+          cnpj: tab === "empresa" ? cnpjNorm : "",
+        }),
+      });
+      if (lookupResp.status === 429) {
+        setLoading(false);
+        setError("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
+        return;
+      }
+      const lookupJson = await lookupResp.json();
+      emailData = lookupJson.email ?? null;
+    } catch {
+      emailData = null;
+    }
+    if (!emailData) {
       setLoading(false);
       setError(
         tab === "profissional"
-          ? "Conselho não encontrado."
-          : "CNPJ não encontrado.",
+          ? "Conselho nao encontrado."
+          : "CNPJ nao encontrado.",
       );
       return;
     }
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+const { error: signInError } = await supabase.auth.signInWithPassword({
       email: emailData as string,
       password,
     });
