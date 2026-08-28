@@ -151,17 +151,14 @@ export default function Analise() {
 
   // ─── Extrai texto real do PDF usando pdf.js (via CDN) ───────────────────
   const extrairTextoPDF = async (file) => {
-    // Carrega pdf.js dinamicamente (evita precisar adicionar dependência ao projeto)
+    // Carrega pdf.js via modulo ES - versoes >=4 do pdf.js nao tem mais build classico
     if (!window.pdfjsLib) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement("script");
-        script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-        script.onload = resolve;
-        script.onerror = () => reject(new Error("Falha ao carregar leitor de PDF"));
-        document.head.appendChild(script);
-      });
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      const pdfjsLib = await import(
+        /* @vite-ignore */ "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.min.mjs"
+      );
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.worker.min.mjs";
+      window.pdfjsLib = pdfjsLib;
     }
 
     const arrayBuffer = await file.arrayBuffer();

@@ -67,15 +67,12 @@ async function carregarRegras(tipoEstabelecimento: string): Promise<RegraDb[]> {
 // Mesma extração de texto usada em Analise.tsx (via pdf.js pelo CDN).
 async function extrairTextoPDF(file: File): Promise<string> {
   if (!(window as any).pdfjsLib) {
-    await new Promise<void>((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Falha ao carregar leitor de PDF"));
-      document.head.appendChild(script);
-    });
-    (window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const pdfjsLib: any = await import(
+      /* @vite-ignore */ "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.min.mjs"
+    );
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdn.jsdelivr.net/npm/pdfjs-dist@6.2.108/build/pdf.worker.min.mjs";
+    (window as any).pdfjsLib = pdfjsLib;
   }
 
   const arrayBuffer = await file.arrayBuffer();
