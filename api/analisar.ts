@@ -217,13 +217,36 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
-  const { textoPDF, tipoAmbiente, regras, textoMemorial } = req.body ?? {};
+  const { textoPDF, tipoAmbiente, regras: regrasRecebidas, textoMemorial } = req.body ?? {};
   const LIMITE_REGRAS = 150;
-  if (Array.isArray(regras) && regras.length > LIMITE_REGRAS) {
+  if (Array.isArray(regrasRecebidas) && regrasRecebidas.length > LIMITE_REGRAS) {
     return res.status(400).json({ error: `Numero de regras excede o limite de ${LIMITE_REGRAS} por analise.` });
   }
-  if (!textoPDF || !tipoAmbiente || !regras || !Array.isArray(regras)) {
+  if (!textoPDF || !tipoAmbiente || !regrasRecebidas || !Array.isArray(regrasRecebidas)) {
     return res.status(400).json({ error: "Parametros obrigatorios ausentes." });
+  }
+
+  // Busca as regras oficiais no banco usando so os ids recebidos - o
+  // codigo/descricao/norma_origem que o cliente mandar junto e ignorado,
+  // evitando que o payload manipule o conteudo enviado para a IA.
+  const idsRegras = [...new Set(regrasRecebidas.map(r => r && r.id).filter(Boolean))];
+  if (idsRegras.length === 0) {
+    return res.status(400).json({ error: "Nenhum id de regra valido informado." });
+  }
+  const supabaseServidor = obterClienteSupabase();
+  if (!supabaseServidor) return res.status(500).json({ error: "Configuracao do servidor ausente." });
+  const { data: regrasOficiais, error: erroRegras } = await supabaseServidor
+    .from("regras_regulatorias")
+    .select("id, codigo, descricao, norma_origem, categoria")
+    .in("id", idsRegras);
+  if (erroRegras) {
+    console.error("[analisar] erro ao buscar regras oficiais:", erroRegras);
+    return res.status(500).json({ error: "Erro ao validar regras." });
+  }
+  const mapaRegrasOficiais = new Map((regrasOficiais ?? []).map(r => [r.id, r]));
+  const regras = idsRegras.map(id => mapaRegrasOficiais.get(id)).filter(Boolean);
+  if (regras.length === 0) {
+    return res.status(400).json({ error: "Nenhuma regra valida encontrada para os IDs informados." });
   }
 
   const supabase = obterClienteSupabase();
