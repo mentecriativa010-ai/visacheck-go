@@ -142,7 +142,7 @@ export default function Analise() {
       if (!user) return null;
       const caminho = `${user.id}/${Date.now()}_${file.name}`;
       const { error } = await supabase.storage
-        .from("projetos-arquivos")
+        .from("projetos-pdf")
         .upload(caminho, file, { contentType: "application/pdf", upsert: false });
       if (error) console.error("Erro upload PDF:", error);
       return caminho;

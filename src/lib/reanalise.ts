@@ -92,7 +92,7 @@ async function uploadPdfCorrigido(userId: string, file: File): Promise<string | 
   try {
     const caminho = `${userId}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage
-      .from("projetos-arquivos")
+      .from("projetos-pdf")
       .upload(caminho, file, { contentType: "application/pdf", upsert: false });
     if (error) {
       console.error("Erro upload PDF corrigido:", error);
