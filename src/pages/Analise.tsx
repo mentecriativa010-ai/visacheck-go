@@ -140,7 +140,10 @@ export default function Analise() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const caminho = `${user.id}/${Date.now()}_${file.name}`;
+      const nomeSanitizado = file.name
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9.\-_]/g, "_");
+      const caminho = `${user.id}/${Date.now()}_${nomeSanitizado}`;
       const { error } = await supabase.storage
         .from("projetos-pdf")
         .upload(caminho, file, { contentType: "application/pdf", upsert: false });
