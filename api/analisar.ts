@@ -218,6 +218,10 @@ export default async function handler(req, res) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
   const { textoPDF, tipoAmbiente, regras, textoMemorial } = req.body ?? {};
+  const LIMITE_REGRAS = 150;
+  if (Array.isArray(regras) && regras.length > LIMITE_REGRAS) {
+    return res.status(400).json({ error: `Numero de regras excede o limite de ${LIMITE_REGRAS} por analise.` });
+  }
   if (!textoPDF || !tipoAmbiente || !regras || !Array.isArray(regras)) {
     return res.status(400).json({ error: "Parametros obrigatorios ausentes." });
   }
