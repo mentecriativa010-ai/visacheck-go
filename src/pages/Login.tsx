@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -194,7 +194,7 @@ const { error: signInError } = await supabase.auth.signInWithPassword({
                 <Input
                   id="conselho"
                   type="text"
-                  placeholder="CREA-GO 12345 ou CAU-GO 12345"
+                  placeholder="CREA 12345 ou CAU 12345"
                   value={conselho}
                   onChange={(e) => setConselho(e.target.value)}
                   required
