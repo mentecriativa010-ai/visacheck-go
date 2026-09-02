@@ -2,6 +2,7 @@
 import { useState } from "react";
 
 const navLinks = [
+  { label: "Home", href: "/" },
   { label: "Como funciona", href: "/como-funciona" },
   { label: "Normas cobertas", href: "/normas" },
   { label: "Preços", href: "/precos" },
