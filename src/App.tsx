@@ -5,6 +5,8 @@ import { Routes, Route } from "react-router-dom";
 // Reduz o bundle inicial de ~540KB para ~150KB
 const Home            = lazy(() => import("./pages/marketing/Home"));
 const ComoFunciona    = lazy(() => import("./pages/marketing/ComoFunciona"));
+const NormasCobertas  = lazy(() => import("./pages/marketing/NormasCobertas"));
+const Sobre            = lazy(() => import("./pages/marketing/Sobre"));
 const ComingSoon       = lazy(() => import("./pages/marketing/ComingSoon"));
 const Login           = lazy(() => import("./pages/Login"));
 const Signup          = lazy(() => import("./pages/Signup"));
@@ -33,15 +35,7 @@ function App() {
         <Routes>
           <Route path="/"               element={<Home />} />
           <Route path="/como-funciona"  element={<ComoFunciona />} />
-          <Route
-            path="/normas"
-            element={
-              <ComingSoon
-                title="Normas cobertas"
-                seoDescription="Veja as 6 normas da ANVISA e ABNT verificadas pelo VISAcheck GO: RDC-50, NBR 9050, RDC-1002 e outras."
-              />
-            }
-          />
+          <Route path="/normas" element={<NormasCobertas />} />
           <Route
             path="/precos"
             element={
@@ -51,15 +45,7 @@ function App() {
               />
             }
           />
-          <Route
-            path="/sobre"
-            element={
-              <ComingSoon
-                title="Sobre"
-                seoDescription="Conheça a história por trás do VISAcheck GO."
-              />
-            }
-          />
+          <Route path="/sobre" element={<Sobre />} />
           <Route path="/login"          element={<Login />} />
           <Route path="/signup"         element={<Signup />} />
           <Route path="/reset-password" element={<ResetPassword />} />
