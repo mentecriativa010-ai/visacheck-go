@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -152,7 +152,7 @@ export default function Signup() {
                   <Label htmlFor="conselho">Número do Conselho</Label>
                   <Input
                     id="conselho"
-                    placeholder="CREA-GO 12345 ou CAU-GO 12345"
+                    placeholder="CREA 12345 ou CAU 12345"
                     value={conselho}
                     onChange={(e) => setConselho(e.target.value)}
                     required
