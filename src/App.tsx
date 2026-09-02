@@ -38,7 +38,7 @@ function App() {
             element={
               <ComingSoon
                 title="Normas cobertas"
-                seoDescription="Veja as 8 normas da ANVISA e ABNT verificadas pelo VISAcheck GO: RDC-50, NBR 9050, RDC-1002 e outras."
+                seoDescription="Veja as 6 normas da ANVISA e ABNT verificadas pelo VISAcheck GO: RDC-50, NBR 9050, RDC-1002 e outras."
               />
             }
           />

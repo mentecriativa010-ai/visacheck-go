@@ -23,7 +23,7 @@ const passos = [
   },
   {
     numero: "02",
-    titulo: "A IA verifica contra 8 normas",
+    titulo: "A IA verifica contra 6 normas",
     texto: "Cada ambiente do projeto é conferido item a item contra as normas aplicáveis à tipologia do estabelecimento.",
   },
   {
@@ -105,7 +105,7 @@ export default function Home() {
       <section className="bg-[#0F2A4A] text-[#F7F4EC] py-16">
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-10">
           <div>
-            <p className="font-marketing-display text-3xl text-[#22C79A] mb-2">8 normas</p>
+            <p className="font-marketing-display text-3xl text-[#22C79A] mb-2">6 normas</p>
             <p className="text-sm text-[#F7F4EC]/70 leading-relaxed">
               RDC-50, NBR 9050, RDC-1002, RDC-07, RDC-15 e RDC-330 — cada uma
               revisada item a item contra o texto oficial.
