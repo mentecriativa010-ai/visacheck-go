@@ -13,8 +13,6 @@ const normas = [
   { codigo: "RDC-07/2010", tema: "Unidades de Terapia Intensiva" },
   { codigo: "RDC-15/2012", tema: "Processamento de produtos para saúde (CME)" },
   { codigo: "RDC-330/2019", tema: "Serviços de radiologia diagnóstica" },
-  { codigo: "RDC-430/2020", tema: "Distribuição e armazenagem de medicamentos" },
-  { codigo: "RDC-44/2009", tema: "Farmácias e drogarias" },
 ];
 
 const passos = [
@@ -109,8 +107,8 @@ export default function Home() {
           <div>
             <p className="font-marketing-display text-3xl text-[#22C79A] mb-2">8 normas</p>
             <p className="text-sm text-[#F7F4EC]/70 leading-relaxed">
-              RDC-50, NBR 9050, RDC-1002, RDC-07, RDC-15, RDC-330, RDC-430 e
-              RDC-44 — cada uma revisada item a item contra o texto oficial.
+              RDC-50, NBR 9050, RDC-1002, RDC-07, RDC-15 e RDC-330 — cada uma
+              revisada item a item contra o texto oficial.
             </p>
           </div>
           <div>
@@ -207,8 +205,8 @@ export default function Home() {
             Seja um dos primeiros a testar
           </h2>
           <p className="text-[#04342C]/80 mb-8">
-            Acesso gratuito para os primeiros arquitetos, em troca de
-            feedback direto sobre o produto.
+            Acesso gratuito para os primeiros arquitetos e engenheiros, em
+            troca de feedback direto sobre o produto.
           </p>
           <Link
             to="/login"
