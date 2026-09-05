@@ -24,7 +24,7 @@ function verificarSenha(req: VercelRequest, res: VercelResponse): boolean {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!verificarSenha(req, res)) return;
 
-  const { action } = req.method === 'GET' ? req.query : req.body;
+  const action = req.query.action as string;
 
   try {
     // ---------- Estatísticas gerais ----------
