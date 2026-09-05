@@ -1,6 +1,5 @@
-﻿import { lazy, Suspense } from "react";
+import { lazy, Suspense } from "react";
 import { Routes, Route } from "react-router-dom";
-
 // Carregamento lazy — cada página vira um chunk separado no build
 // Reduz o bundle inicial de ~540KB para ~150KB
 const Home            = lazy(() => import("./pages/marketing/Home"));
@@ -18,7 +17,7 @@ const Privacidade      = lazy(() => import("./pages/Privacidade"));
 const Termos           = lazy(() => import("./pages/Termos"));
 const Consentimento     = lazy(() => import("./pages/Consentimento"));
 const MinhaConta       = lazy(() => import("./pages/MinhaConta"));
-
+const AdminPainel      = lazy(() => import("./pages/AdminPainel"));
 // Fallback simples enquanto o chunk carrega
 function PageLoader() {
   return (
@@ -27,7 +26,6 @@ function PageLoader() {
     </div>
   );
 }
-
 function App() {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -56,11 +54,11 @@ function App() {
           <Route path="/termos"         element={<Termos />} />
           <Route path="/consentimento"  element={<Consentimento />} />
           <Route path="/minha-conta"    element={<MinhaConta />} />
+          <Route path="/admin"          element={<AdminPainel />} />
           <Route path="*"               element={<Login />} />
         </Routes>
       </Suspense>
     </div>
   );
 }
-
 export default App;
