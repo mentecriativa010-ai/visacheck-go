@@ -45,7 +45,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    // ---------- Busca de usuário (nome, e-mail ou CAU/CREA) ----------
+    // ---------- Busca de usuário (nome, CAU/CREA ou CNPJ) ----------
     if (action === 'buscar') {
       const termo = (req.query.termo as string) || '';
       if (!termo || termo.trim().length < 2) {
@@ -54,8 +54,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const { data, error } = await supabaseAdmin
         .from('perfis')
-        .select('id, nome, email, crea_cau, created_at')
-        .or(`nome.ilike.%${termo}%,email.ilike.%${termo}%,crea_cau.ilike.%${termo}%`)
+        .select('id, nome, crea_cau, cnpj, tipo, created_at')
+        .or(`nome.ilike.%${termo}%,crea_cau.ilike.%${termo}%,cnpj.ilike.%${termo}%`)
         .limit(20);
 
       if (error) throw error;
@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .from('perfis')
         .update({ crea_cau: novoCreaCau })
         .eq('id', id)
-        .select('id, nome, email, crea_cau')
+        .select('id, nome, crea_cau')
         .single();
 
       if (error) throw error;
