@@ -11,8 +11,9 @@ interface Estatisticas {
 interface ResultadoBusca {
   id: string;
   nome: string;
-  email: string;
   crea_cau: string;
+  cnpj: string | null;
+  tipo: string | null;
   created_at: string;
 }
 
@@ -216,7 +217,7 @@ export default function AdminPainel() {
               type="text"
               value={termoBusca}
               onChange={(e) => setTermoBusca(e.target.value)}
-              placeholder="Buscar por nome, e-mail ou CAU/CREA"
+              placeholder="Buscar por nome, CAU/CREA ou CNPJ"
               className="flex-1 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
             />
             <button
@@ -246,7 +247,8 @@ export default function AdminPainel() {
                     {item.nome}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                    {item.email}
+                    {item.tipo || 'profissional'}
+                    {item.cnpj ? ` • CNPJ ${item.cnpj}` : ''}
                   </p>
                 </div>
 
