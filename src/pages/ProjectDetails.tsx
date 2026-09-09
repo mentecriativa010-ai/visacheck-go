@@ -4,6 +4,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -793,6 +794,7 @@ export default function ProjectDetails() {
           </div>
         </div>
       )}
+        <FeedbackButton />
     </div>
   );
 }
