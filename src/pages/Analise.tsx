@@ -6,6 +6,7 @@ import { analisarProjetoComIA } from "@/lib/openrouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
@@ -1120,6 +1121,7 @@ export default function Analise() {
 
         </div>
       </main>
+      <FeedbackButton />
     </div>
   );
 }

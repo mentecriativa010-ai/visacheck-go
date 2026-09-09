@@ -5,6 +5,7 @@ import { reanalisarProjeto } from "@/lib/reanalise";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useSidebar } from "@/hooks/useSidebar";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -643,6 +644,7 @@ export default function Dashboard() {
           </div>
         </div>
       )}
+      <FeedbackButton />
     </div>
   );
 }
