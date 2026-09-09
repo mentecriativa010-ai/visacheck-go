@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -51,15 +51,15 @@ export function FeedbackButton() {
               </p>
             ) : (
               <>
-                <h3 className="text-lg font-medium mb-2">Deixe seu feedback</h3>
+                <h3 className="text-lg font-medium mb-2 text-slate-900">Deixe seu feedback</h3>
                 <p className="text-sm text-slate-500 mb-3">
-                  O que funcionou bem, o que travou, o que faria diferenÃ§a.
+                  O que funcionou bem, o que travou, o que faria diferença.
                 </p>
                 <textarea
                   value={mensagem}
                   onChange={(e) => setMensagem(e.target.value)}
                   rows={5}
-                  className="w-full border border-slate-300 rounded-md p-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  className="w-full border border-slate-300 rounded-md p-2 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400"
                   placeholder="Escreva aqui..."
                 />
                 <div className="flex justify-end gap-2 mt-4">
