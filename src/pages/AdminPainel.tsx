@@ -17,6 +17,13 @@ interface ResultadoBusca {
   created_at: string;
 }
 
+interface Feedback {
+  id: string;
+  nome: string;
+  pagina: string;
+  mensagem: string;
+  criado_em: string;
+}
 const CHAVE_SESSAO = 'visacheck_admin_secret';
 
 async function chamarApiAdmin(action: string, senha: string, opcoes: RequestInit = {}) {
@@ -56,6 +63,8 @@ export default function AdminPainel() {
   const [novoCreaCau, setNovoCreaCau] = useState('');
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
+  const [carregandoFeedbacks, setCarregandoFeedbacks] = useState(false);
 
   const carregarStats = useCallback(async (senhaAtual: string) => {
     setCarregandoStats(true);
@@ -69,7 +78,18 @@ export default function AdminPainel() {
     }
   }, []);
 
-  useEffect(() => {
+  async function carregarFeedbacks(senhaAtual: string) {
+    setCarregandoFeedbacks(true);
+    try {
+      const dados = await chamarApiAdmin('feedbacks', senhaAtual);
+      setFeedbacks(dados.feedbacks || []);
+    } catch (erro: any) {
+      setMensagem({ tipo: 'erro', texto: erro.message });
+    } finally {
+      setCarregandoFeedbacks(false);
+    }
+  }
+   useEffect(() => {
     if (senha) {
       chamarApiAdmin('stats', senha)
         .then((dados) => {
@@ -206,6 +226,42 @@ export default function AdminPainel() {
         >
           Atualizar números
         </button>
+
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1E3A5F] dark:text-white">
+              Feedbacks recebidos
+            </h2>
+            <button
+              onClick={() => carregarFeedbacks(senha)}
+              className="text-sm text-[#1E3A5F] dark:text-blue-300 underline"
+            >
+              {carregandoFeedbacks ? 'Carregando...' : 'Ver feedbacks'}
+            </button>
+          </div>
+
+          <div className="divide-y divide-slate-200 dark:divide-slate-700 max-h-96 overflow-y-auto">
+            {feedbacks.map((f) => (
+              <div key={f.id} className="py-3">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                    {f.nome}
+                  </p>
+                  <span className="text-xs text-slate-400 shrink-0">
+                    {new Date(f.criado_em).toLocaleString('pt-BR')}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mb-1">{f.pagina}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-200">{f.mensagem}</p>
+              </div>
+            ))}
+            {feedbacks.length === 0 && !carregandoFeedbacks && (
+              <p className="text-sm text-slate-400 py-3">
+                Nenhum feedback carregado ainda. Clique em "Ver feedbacks".
+              </p>
+            )}
+          </div>
+        </div>
 
         {/* Busca e correção de CAU/CREA */}
         <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5">

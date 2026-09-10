@@ -82,7 +82,74 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ perfil: data });
     }
 
-    return res.status(400).json({ erro: 'Ação inválida.' });
+        // Feedbacks enviados pelos profissionais
+    if (action === 'feedbacks') {
+      const { data: feedbacksData, error: erroFeedbacks } = await supabaseAdmin
+        .from('feedbacks')
+        .select('id, user_id, pagina, mensagem, criado_em')
+        .order('criado_em', { ascending: false })
+        .limit(100);
+
+      if (erroFeedbacks) throw erroFeedbacks;
+
+      const userIds = [...new Set((feedbacksData || []).map((f) => f.user_id).filter(Boolean))];
+
+      let perfisPorId: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: perfisData, error: erroPerfis } = await supabaseAdmin
+          .from('perfis')
+          .select('id, nome')
+          .in('id', userIds);
+
+        if (erroPerfis) throw erroPerfis;
+
+        perfisPorId = Object.fromEntries((perfisData || []).map((p) => [p.id, p.nome]));
+      }
+
+      const resultado = (feedbacksData || []).map((f) => ({
+        id: f.id,
+        nome: perfisPorId[f.user_id] || 'Usuario desconhecido',
+        pagina: f.pagina,
+        mensagem: f.mensagem,
+        criado_em: f.criado_em,
+      }));
+
+      return res.status(200).json({ feedbacks: resultado });
+    }    // Feedbacks enviados pelos profissionais
+    if (action === 'feedbacks') {
+      const { data: feedbacksData, error: erroFeedbacks } = await supabaseAdmin
+        .from('feedbacks')
+        .select('id, user_id, pagina, mensagem, criado_em')
+        .order('criado_em', { ascending: false })
+        .limit(100);
+
+      if (erroFeedbacks) throw erroFeedbacks;
+
+      const userIds = [...new Set((feedbacksData || []).map((f) => f.user_id).filter(Boolean))];
+
+      let perfisPorId: Record<string, string> = {};
+      if (userIds.length > 0) {
+        const { data: perfisData, error: erroPerfis } = await supabaseAdmin
+          .from('perfis')
+          .select('id, nome')
+          .in('id', userIds);
+
+        if (erroPerfis) throw erroPerfis;
+
+        perfisPorId = Object.fromEntries((perfisData || []).map((p) => [p.id, p.nome]));
+      }
+
+      const resultado = (feedbacksData || []).map((f) => ({
+        id: f.id,
+        nome: perfisPorId[f.user_id] || 'Usuario desconhecido',
+        pagina: f.pagina,
+        mensagem: f.mensagem,
+        criado_em: f.criado_em,
+      }));
+
+      return res.status(200).json({ feedbacks: resultado });
+    }
+     return res.status(400).json({ erro: 'Ação inválida.' });
   } catch (erro: any) {
     console.error('Erro no endpoint admin:', erro);
     return res.status(500).json({ erro: 'Erro interno ao processar a solicitação.' });
