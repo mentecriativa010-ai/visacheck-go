@@ -152,7 +152,7 @@ export default function Signup() {
                   <Label htmlFor="conselho">Número do Conselho</Label>
                   <Input
                     id="conselho"
-                    placeholder="CREA 12345 ou CAU 12345"
+                    placeholder="CREA 1234-5 ou CAU 1234-5"
                     value={conselho}
                     onChange={(e) => setConselho(e.target.value)}
                     required
