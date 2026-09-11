@@ -37,6 +37,7 @@ interface ValidacaoCategoria {
   total: number;
   conformes: number;
   naoConformes: number;
+  pendencias: number;
   percentual: number;
 }
 
@@ -156,18 +157,24 @@ export default function ProjectDetails() {
         // Apenas itens aplicáveis (aprovado/reprovado) entram no total de cada
         // categoria — "não_aplicável" não conta nem a favor nem contra, senão
         // infla o total e distorce o percentual de conformidade (mesmo bug que
-        // já corrigimos no cálculo do score geral).
-        const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
+        // já corrigimos no cálculo do score geral). Pendências reais (elemento
+        // existe, falta dado) são contadas à parte em vez de simplesmente
+        // descartadas — senão uma categoria pode aparecer "100% conforme"
+        // escondendo itens que ainda não têm veredito nenhum.
+        const categoriaMap: Record<string, { total: number; conformes: number; naoConformes: number; pendencias: number }> = {};
         valData.forEach((v: any) => {
-          if (v.status === "nao_aplicavel") return;
           const cat = v.regras_regulatorias?.categoria || "Geral";
-          if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0 };
+          if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0, pendencias: 0 };
+          if (v.status === "nao_aplicavel") {
+            if (v.motivo_na !== "nao_existe") categoriaMap[cat].pendencias++;
+            return;
+          }
           categoriaMap[cat].total++;
           if (v.status === "aprovado") categoriaMap[cat].conformes++;
           else if (v.status === "reprovado") categoriaMap[cat].naoConformes++;
         });
         setValidacoesPorCategoria(Object.entries(categoriaMap).map(([cat, val]) => ({
-          categoria: cat, total: val.total, conformes: val.conformes, naoConformes: val.naoConformes,
+          categoria: cat, total: val.total, conformes: val.conformes, naoConformes: val.naoConformes, pendencias: val.pendencias,
           percentual: val.total > 0 ? Math.round((val.conformes / val.total) * 100) : 100,
         })));
 
@@ -175,11 +182,18 @@ export default function ProjectDetails() {
         // Agrupa as validações reais pela norma de origem de cada regra
         // (ex: "RDC-50-2002", "NBR-9050-2020"), em vez de exibir normas
         // fixas que não têm relação com o tipo de estabelecimento avaliado.
-        const normaMap: Record<string, { total: number; conformes: number; naoConformes: number }> = {};
+        // Mesma lógica de pendências do bloco acima: "todos conformes" só é
+        // dito quando não sobra nenhum item pendente de informação para essa
+        // norma — antes disso, uma norma com 3 conformes + 3 pendências era
+        // reportada como "3/3, todos conformes", escondendo os outros 3 itens.
+        const normaMap: Record<string, { total: number; conformes: number; naoConformes: number; pendencias: number }> = {};
         valData.forEach((v: any) => {
-          if (v.status === "nao_aplicavel") return;
           const norma = v.regras_regulatorias?.norma_origem || "Norma não identificada";
-          if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0 };
+          if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0, pendencias: 0 };
+          if (v.status === "nao_aplicavel") {
+            if (v.motivo_na !== "nao_existe") normaMap[norma].pendencias++;
+            return;
+          }
           normaMap[norma].total++;
           if (v.status === "aprovado") normaMap[norma].conformes++;
           else if (v.status === "reprovado") normaMap[norma].naoConformes++;
@@ -187,11 +201,15 @@ export default function ProjectDetails() {
         const pareceresDinamicos: Parecer[] = Object.entries(normaMap)
           .map(([norma, dados]) => {
             const semNaoConformes = dados.naoConformes === 0;
-            const risco = semNaoConformes ? "baixo" : dados.naoConformes <= 2 ? "medio" : "alto";
-            const observacao = semNaoConformes
-              ? `${dados.total} item(ns) verificado(s) nesta norma — todos conformes.`
-              : `${dados.naoConformes} de ${dados.total} item(ns) não conforme(s) nesta norma.`;
-            return { norma, status: semNaoConformes ? "Conforme" : "Requer atenção", observacao, risco };
+            const temPendencias = dados.pendencias > 0;
+            const risco = !semNaoConformes ? (dados.naoConformes <= 2 ? "medio" : "alto") : (temPendencias ? "medio" : "baixo");
+            const status = semNaoConformes ? (temPendencias ? "Conforme (c/ pendências)" : "Conforme") : "Requer atenção";
+            const observacao = !semNaoConformes
+              ? `${dados.naoConformes} de ${dados.total} item(ns) não conforme(s) nesta norma.`
+              : temPendencias
+                ? `${dados.total} item(ns) verificado(s) nesta norma, todos conformes — mas há ${dados.pendencias} item(ns) ainda pendente(s) de informação.`
+                : `${dados.total} item(ns) verificado(s) nesta norma — todos conformes.`;
+            return { norma, status, observacao, risco };
           })
           .sort((a, b) => a.norma.localeCompare(b.norma));
         setPareceres(pareceresDinamicos);
@@ -201,10 +219,10 @@ export default function ProjectDetails() {
         setPareceres([]);
         setPendenciasInformacao([]);
         setValidacoesPorCategoria([
-          { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, percentual: 100 },
-          { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, percentual: 100 },
-          { categoria: "Higiene", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
-          { categoria: "Gestão", total: 4, conformes: 4, naoConformes: 0, percentual: 100 },
+          { categoria: "Acessibilidade", total: 8, conformes: 8, naoConformes: 0, pendencias: 0, percentual: 100 },
+          { categoria: "Infraestrutura", total: 6, conformes: 6, naoConformes: 0, pendencias: 0, percentual: 100 },
+          { categoria: "Higiene", total: 4, conformes: 4, naoConformes: 0, pendencias: 0, percentual: 100 },
+          { categoria: "Gestão", total: 4, conformes: 4, naoConformes: 0, pendencias: 0, percentual: 100 },
         ]);
       }
     } catch (err: any) {
@@ -346,8 +364,8 @@ export default function ProjectDetails() {
       y += 4;
       autoTable(doc, {
         startY: y,
-        head: [["Categoria", "Conformes", "Pendências", "Conformidade"]],
-        body: validacoesPorCategoria.map(v => [v.categoria, String(v.conformes), String(v.naoConformes), `${v.percentual}%`]),
+        head: [["Categoria", "Conformes", "Não Conformes", "Pendências", "Conformidade"]],
+        body: validacoesPorCategoria.map(v => [v.categoria, String(v.conformes), String(v.naoConformes), String(v.pendencias), `${v.percentual}%`]),
         theme: "grid",
         headStyles: { fillColor: AZUL, textColor: 255, fontSize: 9, fontStyle: "bold" },
         bodyStyles: { fontSize: 9, textColor: ESCURO },
@@ -607,6 +625,7 @@ export default function ProjectDetails() {
                       <tr className="bg-muted border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Conformes</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Não Conformes</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pendências</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider w-48">Conformidade</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
@@ -618,6 +637,7 @@ export default function ProjectDetails() {
                           <td className="px-6 py-4 font-medium text-foreground">{v.categoria}</td>
                           <td className="px-4 py-4 text-center text-green-700 dark:text-green-400 font-semibold">{v.conformes}</td>
                           <td className="px-4 py-4 text-center">{v.naoConformes > 0 ? <span className="text-red-600 dark:text-red-400 font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}</td>
+                          <td className="px-4 py-4 text-center">{v.pendencias > 0 ? <span className="text-amber-600 dark:text-amber-400 font-semibold">{v.pendencias}</span> : <span className="text-muted-foreground">0</span>}</td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-muted rounded-full h-2 overflow-hidden">
@@ -626,7 +646,7 @@ export default function ProjectDetails() {
                               <span className="text-xs font-semibold text-foreground/80 w-10 text-right">{v.percentual}%</span>
                             </div>
                           </td>
-                          <td className="px-4 py-4 text-center">{v.naoConformes === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}</td>
+                          <td className="px-4 py-4 text-center">{v.naoConformes === 0 && v.pendencias === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}</td>
                         </tr>
                       ))}
                     </tbody>
