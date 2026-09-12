@@ -60,6 +60,28 @@ async function obterUsuarioAutenticado(req) {
   return data.user;
 }
 
+function esperar(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// O projeto Supabase (plano gratuito) pode ficar momentaneamente lento/instavel
+// apos periodos sem uso (ex: "Gateway Timeout" na primeira consulta apos hibernar).
+// Tenta novamente algumas vezes com espera crescente antes de desistir.
+async function buscarRegrasOficiaisComRetry(supabaseServidor, idsRegras, tentativas = 3) {
+  let ultimoErro = null;
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    const { data, error } = await supabaseServidor
+      .from("regras_regulatorias")
+      .select("id, codigo, descricao, norma_origem, categoria")
+      .in("id", idsRegras);
+    if (!error) return { data, error: null };
+    ultimoErro = error;
+    console.warn(`[analisar] tentativa ${tentativa}/${tentativas} falhou ao buscar regras oficiais:`, error);
+    if (tentativa < tentativas) await esperar(800 * tentativa);
+  }
+  return { data: null, error: ultimoErro };
+}
+
 async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes, textoMemorial) {
   const listaRegras = regras
     .map((r, i) => "- Indice: " + (i + 1) + " | Codigo: " + r.codigo + " | Norma: " + (r.norma_origem ?? "-") + " | Descricao: " + r.descricao)
@@ -235,13 +257,10 @@ export default async function handler(req, res) {
   }
   const supabaseServidor = obterClienteSupabase();
   if (!supabaseServidor) return res.status(500).json({ error: "Configuracao do servidor ausente." });
-  const { data: regrasOficiais, error: erroRegras } = await supabaseServidor
-    .from("regras_regulatorias")
-    .select("id, codigo, descricao, norma_origem, categoria")
-    .in("id", idsRegras);
+  const { data: regrasOficiais, error: erroRegras } = await buscarRegrasOficiaisComRetry(supabaseServidor, idsRegras);
   if (erroRegras) {
-    console.error("[analisar] erro ao buscar regras oficiais:", erroRegras);
-    return res.status(500).json({ error: "Erro ao validar regras." });
+    console.error("[analisar] erro ao buscar regras oficiais apos varias tentativas:", erroRegras);
+    return res.status(500).json({ error: "Erro ao validar regras. O banco de dados pode estar temporariamente instavel - tente novamente em instantes." });
   }
   const mapaRegrasOficiais = new Map((regrasOficiais ?? []).map(r => [r.id, r]));
   const regras = idsRegras.map(id => mapaRegrasOficiais.get(id)).filter(Boolean);
