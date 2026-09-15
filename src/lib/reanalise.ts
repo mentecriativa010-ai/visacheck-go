@@ -7,38 +7,9 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { analisarProjetoComIA } from "@/lib/openrouter";
+import { carregarRegrasParaAmbiente, type RegraRegulatoria } from "@/lib/regrasAmbiente";
 
-// Mesmo mapeamento usado em src/pages/Analise.tsx — mantém a mesma lógica de
-// quais "tipos" de regra buscar para cada ambiente/estabelecimento.
-const AMBIENTE_PARA_TIPOS: Record<string, string[]> = {
-  "UTI Adulto": ["base", "hospital_uti"],
-  "UTI Pediátrica": ["base", "hospital_uti"],
-  "UTI Neonatal": ["base", "hospital_uti"],
-  "CME": ["base", "hospital_cme"],
-  "Centro Cirúrgico": ["base", "hospital_cc"],
-  "Centro Cirúrgico Ambulatorial": ["base", "hospital_cca"],
-  "Radiologia": ["base", "hospital_radiologia"],
-  "Hospital Geral": ["base", "hospital_uti", "hospital_cme", "hospital_radiologia"],
-  "Internação": ["base"],
-  "Pronto Socorro": ["base"],
-  "Ambulatório": ["base"],
-  "Consultório Odontológico": ["base", "odontologia"],
-  "Centro Cirúrgico Odontológico": ["base", "odontologia"],
-  "Laboratório de Prótese": ["base", "odontologia"],
-  "Drogaria": ["base", "drogaria"],
-  "Farmácia de Manipulação": ["base", "farmacia_manipulacao"],
-  "Distribuidora": ["distribuidora"],
-  "Clínica Médica": ["base"],
-  "Laboratório": ["base"],
-};
-
-interface RegraDb {
-  id: string;
-  codigo: string;
-  descricao: string;
-  norma_origem: string | null;
-  categoria: string;
-}
+type RegraDb = RegraRegulatoria;
 
 export interface ResultadoReanalise {
   scoreConformidade: number;
@@ -46,22 +17,6 @@ export interface ResultadoReanalise {
   totalConformes: number;
   totalNaoConformes: number;
   totalRegras: number;
-}
-
-async function carregarRegras(tipoEstabelecimento: string): Promise<RegraDb[]> {
-  const tiposAlvo = AMBIENTE_PARA_TIPOS[tipoEstabelecimento] ?? ["base"];
-  const filtroTipos = tiposAlvo.map((t) => `tipo_estabelecimento.eq.${t}`).join(",");
-  const filtroAmbiente = `ambiente.cs.{"${tipoEstabelecimento}"}`;
-
-  const { data, error } = await supabase
-    .from("regras_regulatorias")
-    .select("id,codigo,descricao,norma_origem,categoria")
-    .or(`${filtroTipos},${filtroAmbiente}`);
-
-  if (error) throw error;
-
-  const unicas = data ? [...new Map(data.map((r: any) => [r.id, r])).values()] : [];
-  return unicas as RegraDb[];
 }
 
 // Mesma extração de texto usada em Analise.tsx (via pdf.js pelo CDN).
@@ -130,7 +85,7 @@ export async function reanalisarProjeto(
   if (!user) throw new Error("Usuário não autenticado.");
 
   onStatus?.("Carregando regras regulatórias...");
-  const regras = await carregarRegras(tipoEstabelecimento);
+  const regras: RegraDb[] = await carregarRegrasParaAmbiente(tipoEstabelecimento);
   if (regras.length === 0) {
     throw new Error(`Nenhuma regra encontrada para "${tipoEstabelecimento}".`);
   }
@@ -154,6 +109,7 @@ export async function reanalisarProjeto(
 
   const respostas: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
   const observacoes: Record<string, string> = {};
+  const motivosNaoAplicavel: Record<string, string | null> = {};
   regras.forEach((r) => {
     respostas[r.id] = "nao_aplicavel";
   });
@@ -162,6 +118,11 @@ export async function reanalisarProjeto(
       respostas[r.id] = r.status;
     }
     if (r.justificativa) observacoes[r.id] = r.justificativa;
+    // motivo_na só existe (e só importa) para itens nao_aplicavel — usado pra filtrar da
+    // tela de Pendências os itens "óbvios"/dispensados/verificados em vistoria (ver
+    // MOTIVOS_NA_OCULTOS em ProjectDetails.tsx). Sem isso, todo item nao_aplicavel virava
+    // pendência visível, mesmo quando a IA já tinha identificado que não deveria aparecer.
+    if (r.status === "nao_aplicavel") motivosNaoAplicavel[r.id] = (r as any).motivo_na ?? null;
   });
 
   const totalConformes = Object.values(respostas).filter((v) => v === "conforme").length;
@@ -187,7 +148,14 @@ export async function reanalisarProjeto(
         : resp === "nao_conforme"
         ? observacoes[r.id] || "Não conformidade identificada"
         : observacoes[r.id] || "Não aplicável ao projeto/ambiente analisado.";
-    return { projeto_id: projetoId, regra_id: r.id, status: statusValidacao, observacao };
+    return {
+      projeto_id: projetoId,
+      regra_id: r.id,
+      status: statusValidacao,
+      observacao,
+      motivo_na: resp === "nao_aplicavel" ? (motivosNaoAplicavel[r.id] ?? null) : null,
+      no_limite: false,
+    };
   });
   if (validacoesNovas.length > 0) {
     const { error: valError } = await supabase.from("validacoes").insert(validacoesNovas);

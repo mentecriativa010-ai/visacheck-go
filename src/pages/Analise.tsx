@@ -16,28 +16,7 @@ import {
   ChevronDown, FileUp, Sparkles,
 } from "lucide-react";
 
-const AMBIENTE_PARA_TIPOS = {
-  "UTI Adulto":                    ["base", "hospital_uti"],
-  "UTI Pediátrica":                ["base", "hospital_uti"],
-  "UTI Neonatal":                  ["base", "hospital_uti"],
-  "CME":                           ["base", "hospital_cme"],
-  "Centro Cirúrgico":              ["base", "hospital_cc"],
-  "Centro Cirúrgico Ambulatorial": ["base", "hospital_cca"],
-  "Radiologia":                    ["base", "hospital_radiologia"],
-  "Hospital Geral":                ["base", "hospital_uti", "hospital_cme", "hospital_radiologia"],
-  "Internação":                    ["base"],
-  "Pronto Socorro":                ["base"],
-  "Ambulatório":                   ["base"],
-  "Consultório Odontológico":      ["base", "odontologia"],
-  "Clínica Odontológica":          ["base", "odontologia"],
-  "Centro Cirúrgico Odontológico": ["base", "odontologia"],
-  "Laboratório de Prótese":        ["base", "odontologia"],
-  "Drogaria":                      ["base", "drogaria"],
-  "Farmácia de Manipulação":       ["base", "farmacia_manipulacao"],
-  "Distribuidora":                 ["distribuidora"],
-  "Clínica Médica":                ["base"],
-  "Laboratório":                   ["base"],
-};
+import { AMBIENTE_PARA_TIPOS, carregarRegrasParaAmbiente } from "@/lib/regrasAmbiente";
 
 const GRUPOS_AMBIENTE = [
   { grupo: "Hospitalar", itens: ["UTI Adulto","UTI Pediátrica","UTI Neonatal","CME","Centro Cirúrgico","Centro Cirúrgico Ambulatorial","Radiologia","Hospital Geral","Internação","Pronto Socorro","Ambulatório"] },
@@ -45,18 +24,6 @@ const GRUPOS_AMBIENTE = [
   { grupo: "Farmácias / Distribuidoras", itens: ["Drogaria","Farmácia de Manipulação","Distribuidora"] },
   { grupo: "Outros", itens: ["Clínica Médica","Laboratório"] },
 ];
-
-// Normas que, na prática de fiscalização (validado com Vigilância Sanitária),
-// NÃO devem ser aplicadas para determinados tipo_estabelecimento — mesmo que
-// existam regras cadastradas com essa norma_origem sob a tag "base" (que é
-// compartilhada entre vários tipos de estabelecimento). Ex: para
-// estabelecimentos odontológicos, quem rege hoje é a RDC-1002/2025 e a
-// NBR-9050; a RDC-50/2002 não é usada nesse contexto, mesmo cobrindo temas
-// genéricos como "portas de áreas assistenciais" que tecnicamente existem no
-// texto da norma mas não se aplicam à realidade de uma clínica odontológica.
-const NORMAS_EXCLUIDAS_POR_TIPO = {
-  odontologia: ["RDC-50-2002"],
-};
 
 export default function Analise() {
   const navigate = useNavigate();
@@ -98,25 +65,7 @@ export default function Analise() {
     setObservacoes({});
     setErro("");
     try {
-      const tiposAlvo = AMBIENTE_PARA_TIPOS[tipo] ?? ["base"];
-      const filtroTipos = tiposAlvo.map(t => `tipo_estabelecimento.eq.${t}`).join(",");
-      const filtroAmbiente = `ambiente.cs.{"${tipo}"}`;
-      const { data, error } = await supabase
-        .from("regras_regulatorias")
-        .select("id,codigo,descricao,norma_origem,categoria,subcategoria,artigo_referencia,obrigatorio,valor_minimo,valor_maximo,unidade")
-        .eq("ativo", true)
-        .or(`${filtroTipos},${filtroAmbiente}`)
-        .order("norma_origem", { ascending: true })
-        .order("codigo", { ascending: true });
-      if (error) throw error;
-      const unicas = data ? [...new Map(data.map(r => [r.id, r])).values()] : [];
-      // Aplica exclusões de norma por tipo de estabelecimento (ver NORMAS_EXCLUIDAS_POR_TIPO
-      // acima) — resolve casos em que uma norma tecnicamente cadastrada sob "base" não deve
-      // ser usada para determinados ambientes, sem precisar recadastrar cada regra individualmente.
-      const normasExcluidas = tiposAlvo.flatMap(t => NORMAS_EXCLUIDAS_POR_TIPO[t] ?? []);
-      const filtradas = normasExcluidas.length > 0
-        ? unicas.filter(r => !normasExcluidas.includes(r.norma_origem))
-        : unicas;
+      const filtradas = await carregarRegrasParaAmbiente(tipo);
       setRegras(filtradas);
       const init = {};
       filtradas.forEach(r => { init[r.id] = "nao_aplicavel"; });
