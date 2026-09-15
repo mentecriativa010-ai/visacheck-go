@@ -37,7 +37,9 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // v7: fallback server-side — se a IA marcar nao_aplicavel sem preencher motivo_na, mas a
   // justificativa mencionar "dispensad...", classifica como "dispensado" mesmo assim (a IA às
   // vezes acerta o raciocínio no texto mas esquece de preencher o campo estruturado)
-  const base = "v7\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v8: override de verificado_em_vistoria agora cobre qualquer motivo_na (inclusive null),
+  // nao so "sem_dado" — a IA as vezes marca nao_aplicavel sem preencher motivo_na nenhum
+  const base = "v8\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -254,7 +256,15 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       if (r.status === "nao_aplicavel" && !motivoNa && typeof r.justificativa === "string" && /dispensad/i.test(r.justificativa)) {
         motivoNa = "dispensado";
       }
-      if (regraCorrespondente.verificado_em_vistoria && r.status === "nao_aplicavel" && motivoNa === "sem_dado") {
+      // Regras marcadas como verificado_em_vistoria (ex: material de construcao e acesso do abrigo
+      // externo de residuos) sao conferidas pelo fiscal presencialmente, nao a partir do papel do
+      // projeto. Qualquer status nao_aplicavel aqui vira "verificar_in_loco" (menos quando a IA ja
+      // identificou nao_existe/dispensado, que sao classificacoes legitimas por si so) —
+      // propositalmente NAO exige motivo_na === "sem_dado": a IA as vezes marca nao_aplicavel sem
+      // preencher motivo_na nenhum (fica null), e mesmo assim isso precisa ser tratado como
+      // verificar_in_loco, ja que essa e uma caracteristica da REGRA (metadado conhecido de
+      // antemao), nao um julgamento que dependa da IA acertar um campo especifico.
+      if (regraCorrespondente.verificado_em_vistoria && r.status === "nao_aplicavel" && motivoNa !== "nao_existe" && motivoNa !== "dispensado") {
         motivoNa = "verificar_in_loco";
       }
       return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: motivoNa, no_limite: r.no_limite === true };
