@@ -34,7 +34,10 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // exemplos de "nao_existe" (cilindro portatil vs compressor fixo, rampa inexistente) e de sinonimos/
   // simbolos (area de manobra com Ø = diametro de rotacao); regras com verificado_em_vistoria=true agora
   // usam motivo_na "verificar_in_loco" quando falta dado, em vez de "sem_dado"
-  const base = "v6\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v7: fallback server-side — se a IA marcar nao_aplicavel sem preencher motivo_na, mas a
+  // justificativa mencionar "dispensad...", classifica como "dispensado" mesmo assim (a IA às
+  // vezes acerta o raciocínio no texto mas esquece de preencher o campo estruturado)
+  const base = "v7\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -243,6 +246,14 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       // front-end filtra do mesmo jeito que ja filtra "nao_existe". Isso e deterministico (baseado no
       // cadastro da regra, nao em julgamento da IA) para nao depender da IA lembrar dessa excecao.
       let motivoNa = r.motivo_na ?? null;
+      // Rede de segurança: às vezes a IA acerta o raciocínio na justificativa (menciona
+      // "dispensado"/"dispensada") mas esquece de preencher o campo motivo_na correspondente
+      // (fica null), fazendo a pendência vazar pro relatório mesmo com o texto já explicando a
+      // dispensa. Se a justificativa cita dispensa e a IA não classificou o motivo, usa o
+      // próprio texto como sinal em vez de depender só do campo estruturado.
+      if (r.status === "nao_aplicavel" && !motivoNa && typeof r.justificativa === "string" && /dispensad/i.test(r.justificativa)) {
+        motivoNa = "dispensado";
+      }
       if (regraCorrespondente.verificado_em_vistoria && r.status === "nao_aplicavel" && motivoNa === "sem_dado") {
         motivoNa = "verificar_in_loco";
       }
