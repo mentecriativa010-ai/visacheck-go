@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AMBIENTE_PARA_TIPOS, carregarRegrasParaAmbiente } from "@/lib/regrasAmbiente";
+import { ehPendenciaVisivel } from "@/lib/motivoNa";
 
 const GRUPOS_AMBIENTE = [
   { grupo: "Hospitalar", itens: ["UTI Adulto","UTI Pediátrica","UTI Neonatal","CME","Centro Cirúrgico","Centro Cirúrgico Ambulatorial","Radiologia","Hospital Geral","Internação","Pronto Socorro","Ambulatório"] },
@@ -266,19 +267,18 @@ export default function Analise() {
     const aplicaveis   = regrasCat.filter(r => respostas[r.id] !== "nao_aplicavel");
     const conformes    = regrasCat.filter(r => respostas[r.id] === "conforme");
     const naoConformes = regrasCat.filter(r => respostas[r.id] === "nao_conforme");
+    const pendencias   = regrasCat.filter(r => respostas[r.id] === "nao_aplicavel" && ehPendenciaVisivel(motivosNaoAplicavel[r.id]));
     const pct = aplicaveis.length > 0 ? Math.round((conformes.length / aplicaveis.length) * 100) : 100;
-    return { categoria: cat, total: aplicaveis.length, conformes: conformes.length, naoConformes: naoConformes.length, percentual: pct };
+    return { categoria: cat, total: aplicaveis.length, conformes: conformes.length, naoConformes: naoConformes.length, pendencias: pendencias.length, percentual: pct };
   });
 
   const naoConformidades = regras.filter(r => respostas[r.id] === "nao_conforme");
   // "Pendências de Informação" mostra só o que é pendência de verdade — elemento existe no
-  // projeto mas falta um dado pra avaliar (motivo_na === "sem_dado"). Itens onde o elemento
-  // simplesmente não existe no projeto (motivo_na === "nao_existe", ex: piscina, playground,
-  // consultório coletivo quando só há individuais) ficam de fora — decisão tomada com a
+  // projeto mas falta um dado pra avaliar. Itens com motivo_na oculto (nao_existe, dispensado,
+  // verificar_in_loco — ver src/lib/motivoNa.ts) ficam de fora, decisão tomada com a
   // Vigilância Sanitária pra reduzir ruído no relatório. Quando a IA não classificou o motivo
-  // (motivo null/undefined, ex: em análises antigas antes dessa mudança), o item aparece por
-  // padrão — nunca esconde algo por falta de classificação.
-  const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel" && motivosNaoAplicavel[r.id] !== "nao_existe");
+  // (null/undefined), o item aparece por padrão — nunca esconde algo por falta de classificação.
+  const pendenciasInformacao = regras.filter(r => respostas[r.id] === "nao_aplicavel" && ehPendenciaVisivel(motivosNaoAplicavel[r.id]));
   const pendenciasPorNorma = pendenciasInformacao.reduce((acc, r) => {
     const norma = r.norma_origem || "Norma não identificada";
     if (!acc[norma]) acc[norma] = [];
@@ -948,6 +948,7 @@ export default function Analise() {
                       <tr className="bg-muted/50 border-b border-border">
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Categoria</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Conformes</th>
+                        <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Não Conformes</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Pendências</th>
                         <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground uppercase w-48">Conformidade</th>
                         <th className="text-center px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Status</th>
@@ -961,6 +962,9 @@ export default function Analise() {
                           <td className="px-4 py-4 text-center">
                             {v.naoConformes > 0 ? <span className="text-destructive font-semibold">{v.naoConformes}</span> : <span className="text-muted-foreground">0</span>}
                           </td>
+                          <td className="px-4 py-4 text-center">
+                            {v.pendencias > 0 ? <span className="text-amber-500 font-semibold">{v.pendencias}</span> : <span className="text-muted-foreground">0</span>}
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 bg-muted rounded-full h-2">
@@ -970,7 +974,7 @@ export default function Analise() {
                             </div>
                           </td>
                           <td className="px-4 py-4 text-center">
-                            {v.naoConformes === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}
+                            {v.naoConformes === 0 && v.pendencias === 0 ? <CheckCircle className="w-5 h-5 text-green-500 mx-auto" /> : <AlertTriangle className="w-5 h-5 text-amber-500 mx-auto" />}
                           </td>
                         </tr>
                       ))}
