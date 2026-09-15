@@ -136,13 +136,19 @@ export default function ProjectDetails() {
             sugestao: regra?.artigo_referencia || "Consulte a norma vigente."
           };
         }));
+        // Motivos de "não aplicável" que não devem virar pendência visível no relatório:
+        // - "nao_existe": elemento simplesmente não existe nesse projeto (ex: piscina, playground,
+        //   cilindro portátil de gás quando só há compressor fixo, rampa quando não há desnível)
+        // - "dispensado": dispensa legal explícita já identificada no próprio projeto (ex: blindagem
+        //   de raio-x dispensada para consultório individual Classe I/II)
+        // - "verificar_in_loco": regra marcada como verificado_em_vistoria — falta de dado no papel
+        //   é esperada, o fiscal confere presencialmente (ex: material/acesso do abrigo de resíduos)
+        // Quando motivo_na é null (análises salvas antes dessa mudança), mostra por padrão — nunca
+        // esconde algo por falta de classificação.
+        const MOTIVOS_NA_OCULTOS = ["nao_existe", "dispensado", "verificar_in_loco"];
         setPendenciasInformacao(
           valData
-            // Mostra só pendência real (elemento existe, falta dado) — esconde os "óbvios"
-            // (motivo_na === "nao_existe", ex: piscina/playground numa clínica odontológica).
-            // Quando motivo_na é null (análises salvas antes dessa mudança), mostra por padrão
-            // — nunca esconde algo por falta de classificação.
-            .filter((v: any) => v.status === "nao_aplicavel" && v.motivo_na !== "nao_existe")
+            .filter((v: any) => v.status === "nao_aplicavel" && !MOTIVOS_NA_OCULTOS.includes(v.motivo_na))
             .map((v: any) => {
               const regra = v.regras_regulatorias;
               return {
@@ -166,7 +172,7 @@ export default function ProjectDetails() {
           const cat = v.regras_regulatorias?.categoria || "Geral";
           if (!categoriaMap[cat]) categoriaMap[cat] = { total: 0, conformes: 0, naoConformes: 0, pendencias: 0 };
           if (v.status === "nao_aplicavel") {
-            if (v.motivo_na !== "nao_existe") categoriaMap[cat].pendencias++;
+            if (!MOTIVOS_NA_OCULTOS.includes(v.motivo_na)) categoriaMap[cat].pendencias++;
             return;
           }
           categoriaMap[cat].total++;
@@ -191,7 +197,7 @@ export default function ProjectDetails() {
           const norma = v.regras_regulatorias?.norma_origem || "Norma não identificada";
           if (!normaMap[norma]) normaMap[norma] = { total: 0, conformes: 0, naoConformes: 0, pendencias: 0 };
           if (v.status === "nao_aplicavel") {
-            if (v.motivo_na !== "nao_existe") normaMap[norma].pendencias++;
+            if (!MOTIVOS_NA_OCULTOS.includes(v.motivo_na)) normaMap[norma].pendencias++;
             return;
           }
           normaMap[norma].total++;

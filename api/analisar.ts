@@ -30,7 +30,11 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // nova chamada a IA em vez de reaproveitar um resultado potencialmente errado.
   // v4: prompt agora pede motivo_na (nao_existe/sem_dado) para filtrar pendencias reais
   // v5: prompt agora pede no_limite (conforme com margem estreita) e valores encontrados na justificativa
-  const base = "v5\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v6: nova categoria motivo_na "dispensado" (dispensa legal, ex: blindagem de raio-x); reforco dos
+  // exemplos de "nao_existe" (cilindro portatil vs compressor fixo, rampa inexistente) e de sinonimos/
+  // simbolos (area de manobra com Ø = diametro de rotacao); regras com verificado_em_vistoria=true agora
+  // usam motivo_na "verificar_in_loco" quando falta dado, em vez de "sem_dado"
+  const base = "v6\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -72,7 +76,7 @@ async function buscarRegrasOficiaisComRetry(supabaseServidor, idsRegras, tentati
   for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
     const { data, error } = await supabaseServidor
       .from("regras_regulatorias")
-      .select("id, codigo, descricao, norma_origem, categoria")
+      .select("id, codigo, descricao, norma_origem, categoria, verificado_em_vistoria")
       .in("id", idsRegras);
     if (!error) return { data, error: null };
     ultimoErro = error;
@@ -148,26 +152,43 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
-    "- Antes de marcar uma regra como nao_aplicavel por falta de dado, procure no texto por termos equivalentes ou " +
-    "sinonimos do que a regra pede (ex: \"abertura telada\"/\"tela\" equivale a protecao contra vetores/insetos; " +
-    "\"Ø\" seguido de um numero indica diametro; \"resíduo comum\" equivale a \"resíduo do Grupo D\") antes de " +
-    "concluir que a informacao nao existe\n" +
+    "- OBRIGATORIO: antes de marcar qualquer regra como nao_aplicavel por falta de dado (sem_dado), releia o " +
+    "TEXTO DO PROJETO procurando especificamente por termos equivalentes ou sinonimos do que a regra pede — " +
+    "nao conclua que falta informacao so porque o termo exato da regra nao aparece literalmente no texto. " +
+    "Exemplos concretos (aplique esse mesmo raciocinio a qualquer termo parecido, mesmo que nao esteja " +
+    "listado aqui):\n" +
+    "  * \"abertura telada\"/\"tela\" equivale a protecao contra vetores/insetos/roedores\n" +
+    "  * \"Ø\" seguido de um numero (ex: \"Ø1,5\") indica diametro — se aparecer perto de um rotulo como " +
+    "\"area de manobra\" ou \"transferencias\", isso E a area/diametro de rotacao de cadeira de rodas exigida " +
+    "por regras de acessibilidade; use esse valor, nao marque sem_dado\n" +
+    "  * \"resíduo comum\" equivale a \"resíduo do Grupo D\"\n" +
     "- NAO invente ou reutilize siglas/abreviacoes que nao estejam escritas na propria descricao da regra sendo " +
     "avaliada (ex: nunca abrevie \"Consultorio(s) Odontologico(s) Coletivo(s)\" como \"CCO\" - essa sigla ja " +
     "significa \"Centro Cirurgico Odontologico\" em outras regras deste mesmo relatorio; escreva os nomes de " +
     "ambientes por extenso para evitar confundir o leitor)\n" +
     "- TODA regra, inclusive as marcadas como nao_aplicavel, precisa de uma justificativa objetiva de 1 frase " +
     "explicando o motivo (nunca deixe justificativa vazia ou generica)\n" +
-    "- Para toda regra com status nao_aplicavel, inclua tambem um campo \"motivo_na\" com um destes dois valores " +
+    "- Para toda regra com status nao_aplicavel, inclua tambem um campo \"motivo_na\" com um destes tres valores " +
     "exatos:\n" +
-    "  * \"nao_existe\" quando o elemento/ambiente da regra simplesmente NAO existe neste tipo de projeto e nunca " +
+    "  * \"nao_existe\" quando o elemento/ambiente da regra simplesmente NAO existe neste projeto e nunca " +
     "existiria (ex: piscina, playground, auditorio, consultorio coletivo quando o projeto so tem individuais, " +
-    "centro cirurgico quando o projeto nao tem um) — ou seja, nenhuma informacao adicional mudaria a resposta\n" +
+    "centro cirurgico quando o projeto nao tem um) — ou seja, nenhuma informacao adicional mudaria a resposta. " +
+    "Isso TAMBEM vale quando o projeto usa uma solucao diferente e incompativel com o que a regra pede (ex: a " +
+    "regra fala de cilindro portatil de gas, mas o projeto so tem abrigo de compressor fixo — o cilindro " +
+    "portatil nao existe nesse projeto; a regra fala de rampa, mas o projeto nao indica nenhuma rampa nem " +
+    "desnivel de piso a vencer — a rampa nao existe nesse projeto). Nesses casos NAO e \"sem_dado\": o projeto " +
+    "ja deixou claro, por omissao, que optou por outra solucao ou que aquele elemento nao se aplica\n" +
     "  * \"sem_dado\" quando o elemento/ambiente EXISTE no projeto mas falta uma medida ou especificacao pontual " +
     "para julgar a regra (ex: existe balcao de atendimento mas a altura nao foi informada; existe estacionamento " +
     "mas o numero de vagas PCD nao foi informado) — aqui a informacao poderia completar a analise se fosse " +
     "fornecida\n" +
-    "  * Na duvida entre os dois, use \"sem_dado\" (e melhor mostrar uma pendencia a mais do que esconder um " +
+    "  * \"dispensado\" quando o projeto informa uma caracteristica especifica que, pela propria norma, isenta " +
+    "aquele elemento do requisito (dispensa legal explicita, nao falta de dado) — ex: RDC-1002/2025 dispensa " +
+    "projeto de blindagem para consultorio odontologico individual Classe I/II com radiologia intraoral; use " +
+    "\"dispensado\" apenas quando o proprio texto do projeto informar a caracteristica que da direito a essa " +
+    "dispensa (ex: a classe/tipo do equipamento) — se essa caracteristica nao estiver informada, use \"sem_dado\" " +
+    "em vez de presumir a dispensa\n" +
+    "  * Na duvida entre as tres, use \"sem_dado\" (e melhor mostrar uma pendencia a mais do que esconder um " +
     "problema real)\n" +
     "- Para toda regra com status nao_conforme, inclua tambem um campo \"sugestao\" com 1 frase objetiva recomendando " +
     "a correcao necessaria para o projeto passar a atender a regra (omita esse campo para conforme/nao_aplicavel)\n" +
@@ -215,7 +236,17 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
         indicesInvalidos++;
         return null;
       }
-      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: r.motivo_na ?? null, no_limite: r.no_limite === true };
+      // Regras marcadas como verificado_em_vistoria (ex: material de construcao e acesso do abrigo
+      // externo de residuos) sao conferidas pelo fiscal presencialmente, nao a partir do papel do
+      // projeto. Se a IA nao achou o dado no texto (sem_dado), essa ausencia no papel e esperada e
+      // nao deve virar pendencia visivel no relatorio — reclassifica para "verificar_in_loco", que o
+      // front-end filtra do mesmo jeito que ja filtra "nao_existe". Isso e deterministico (baseado no
+      // cadastro da regra, nao em julgamento da IA) para nao depender da IA lembrar dessa excecao.
+      let motivoNa = r.motivo_na ?? null;
+      if (regraCorrespondente.verificado_em_vistoria && r.status === "nao_aplicavel" && motivoNa === "sem_dado") {
+        motivoNa = "verificar_in_loco";
+      }
+      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: motivoNa, no_limite: r.no_limite === true };
     })
     .filter(Boolean);
   if (indicesInvalidos > 0) {
