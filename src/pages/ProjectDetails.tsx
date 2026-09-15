@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { MOTIVOS_NA_OCULTOS } from "@/lib/motivoNa";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
 import { FeedbackButton } from "@/components/FeedbackButton";
@@ -145,7 +146,6 @@ export default function ProjectDetails() {
         //   é esperada, o fiscal confere presencialmente (ex: material/acesso do abrigo de resíduos)
         // Quando motivo_na é null (análises salvas antes dessa mudança), mostra por padrão — nunca
         // esconde algo por falta de classificação.
-        const MOTIVOS_NA_OCULTOS = ["nao_existe", "dispensado", "verificar_in_loco"];
         setPendenciasInformacao(
           valData
             .filter((v: any) => v.status === "nao_aplicavel" && !MOTIVOS_NA_OCULTOS.includes(v.motivo_na))
