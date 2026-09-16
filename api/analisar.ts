@@ -39,7 +39,9 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // vezes acerta o raciocínio no texto mas esquece de preencher o campo estruturado)
   // v8: override de verificado_em_vistoria agora cobre qualquer motivo_na (inclusive null),
   // nao so "sem_dado" — a IA as vezes marca nao_aplicavel sem preencher motivo_na nenhum
-  const base = "v8\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v9: max_tokens de 4096 para 8192 (resposta de lote grande estava sendo truncada, causando
+  // JSON malformado) + retry de 3 tentativas na chamada/parse de cada lote
+  const base = "v9\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -206,25 +208,41 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "RESPONDA APENAS COM JSON PURO sem markdown:\n" +
     "{\"resultados\":[{\"indice\":1,\"status\":\"conforme\",\"justificativa\":\"frase\"},{\"indice\":2,\"status\":\"conforme\",\"justificativa\":\"Consultorio 4: 9,00m² (minimo exigido: 9,0m²)\"},{\"indice\":3,\"status\":\"nao_conforme\",\"justificativa\":\"frase\",\"sugestao\":\"frase\"},{\"indice\":4,\"status\":\"nao_aplicavel\",\"justificativa\":\"frase\",\"motivo_na\":\"nao_existe\"}],\"resumo\":\"resumo 1 frase\"}";
 
-  const response = await fetch(ANTHROPIC_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 4096,
-      temperature: 0,
-      system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown, identificando cada regra pelo campo indice numerico (nunca por texto/id). Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!response.ok) {
-    const erro = await response.text();
-    throw new Error("Erro API Anthropic " + response.status + " lote " + numeroLote + ": " + erro.slice(0, 200));
+  // Tenta a chamada + parse do JSON até 3 vezes. Cobre dois casos: um erro passageiro da API
+  // (rede, sobrecarga) e um JSON malformado/truncado na resposta (a IA ocasionalmente corta a
+  // resposta ou erra a formatação numa saída longa) — pedir de novo geralmente resolve, já que
+  // é um problema de geração, não algo determinístico que vai se repetir sempre.
+  let bruto = null;
+  let ultimoErroLote = null;
+  for (let tentativa = 1; tentativa <= 3; tentativa++) {
+    try {
+      const response = await fetch(ANTHROPIC_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: 8192,
+          temperature: 0,
+          system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown, identificando cada regra pelo campo indice numerico (nunca por texto/id). Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
+          messages: [{ role: "user", content: prompt }],
+        }),
+      });
+      if (!response.ok) {
+        const erro = await response.text();
+        throw new Error("Erro API Anthropic " + response.status + " lote " + numeroLote + ": " + erro.slice(0, 200));
+      }
+      const data = await response.json();
+      const conteudo = data.content?.[0]?.text ?? "";
+      if (!conteudo) throw new Error("Lote " + numeroLote + ": resposta vazia");
+      bruto = extrairJSON(conteudo);
+      break;
+    } catch (erroTentativa) {
+      ultimoErroLote = erroTentativa;
+      console.warn(`[analisar] lote ${numeroLote}: tentativa ${tentativa}/3 falhou: ${erroTentativa.message}`);
+      if (tentativa < 3) await esperar(500 * tentativa);
+    }
   }
-  const data = await response.json();
-  const conteudo = data.content?.[0]?.text ?? "";
-  if (!conteudo) throw new Error("Lote " + numeroLote + ": resposta vazia");
-  const bruto = extrairJSON(conteudo);
+  if (!bruto) throw ultimoErroLote;
 
   // Traduz o "indice" que a IA devolveu de volta para o id real da regra,
   // usando a posicao dela na lista deste lote (regras[i-1] <-> indice i).
