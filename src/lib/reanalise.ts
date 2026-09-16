@@ -43,6 +43,21 @@ async function extrairTextoPDF(file: File): Promise<string> {
   return textoCompleto.trim();
 }
 
+// Mesma técnica de retry com backoff já usada em api/analisar.ts pra tolerar timeout
+// passageiro do Supabase — aqui protege especificamente o insert do laudo novo, que é o
+// passo mais longo (às vezes 40+ linhas de uma vez) e mais provável de esbarrar num timeout.
+async function inserirComRetry(query: () => Promise<{ error: any }>, tentativas = 3): Promise<{ error: any }> {
+  let ultimoErro: any = null;
+  for (let tentativa = 1; tentativa <= tentativas; tentativa++) {
+    const { error } = await query();
+    if (!error) return { error: null };
+    ultimoErro = error;
+    console.warn(`[reanalise] tentativa ${tentativa}/${tentativas} falhou ao salvar:`, error);
+    if (tentativa < tentativas) await new Promise((r) => setTimeout(r, 800 * tentativa));
+  }
+  return { error: ultimoErro };
+}
+
 async function uploadPdfCorrigido(userId: string, file: File): Promise<string | null> {
   try {
     const nomeSanitizado = file.name
@@ -133,8 +148,22 @@ export async function reanalisarProjeto(
   const status: ResultadoReanalise["status"] =
     scoreConformidade === 100 ? "aprovado" : totalNaoConformes > 0 ? "reprovado" : "pendente";
 
+  // Faz backup completo (conteúdo, não só IDs) do laudo antigo ANTES de apagar. Se o insert do
+  // laudo novo falhar mais abaixo, restaura esse backup em vez de deixar o projeto zerado — era
+  // o que acontecia antes: apagava primeiro, e se o insert falhasse no meio (ex: timeout
+  // passageiro do Supabase, já aconteceu antes nesse projeto), o projeto ficava sem nenhuma
+  // validação salva, mostrando "0 pendências" com um status antigo enganoso na tela.
+  onStatus?.("Preparando novo laudo...");
+  const { data: validacoesBackup } = await supabase.from("validacoes").select("*").eq("projeto_id", projetoId);
+  const { data: pareceresBackup } = await supabase.from("pareceres").select("*").eq("projeto_id", projetoId);
+  const restaurarLaudoAntigo = async () => {
+    await supabase.from("validacoes").delete().eq("projeto_id", projetoId);
+    await supabase.from("pareceres").delete().eq("projeto_id", projetoId);
+    if (validacoesBackup?.length) await supabase.from("validacoes").insert(validacoesBackup);
+    if (pareceresBackup?.length) await supabase.from("pareceres").insert(pareceresBackup);
+  };
+
   onStatus?.("Substituindo laudo anterior...");
-  // Remove o laudo antigo ligado a esse projeto antes de gravar o novo.
   await supabase.from("validacoes").delete().eq("projeto_id", projetoId);
   await supabase.from("pareceres").delete().eq("projeto_id", projetoId);
 
@@ -157,21 +186,33 @@ export async function reanalisarProjeto(
       no_limite: false,
     };
   });
-  if (validacoesNovas.length > 0) {
-    const { error: valError } = await supabase.from("validacoes").insert(validacoesNovas);
-    if (valError) throw valError;
-  }
+  try {
+    if (validacoesNovas.length > 0) {
+      const { error: valError } = await inserirComRetry(() => supabase.from("validacoes").insert(validacoesNovas));
+      if (valError) throw valError;
+    }
 
-  const resumo =
-    scoreConformidade === 100
-      ? `Projeto reanalisado atende a todas as especificações para ${tipoEstabelecimento}.`
-      : `Re-análise identificou ${totalNaoConformes} não-conformidades. Score: ${scoreConformidade}%.`;
-  const { error: parecerError } = await supabase.from("pareceres").insert({
-    projeto_id: projetoId,
-    parecer: resumo,
-    nivel_risco: scoreConformidade === 100 ? "baixo" : scoreConformidade >= 70 ? "medio" : "alto",
-  });
-  if (parecerError) throw parecerError;
+    const resumo =
+      scoreConformidade === 100
+        ? `Projeto reanalisado atende a todas as especificações para ${tipoEstabelecimento}.`
+        : `Re-análise identificou ${totalNaoConformes} não-conformidades. Score: ${scoreConformidade}%.`;
+    const { error: parecerError } = await inserirComRetry(() =>
+      supabase.from("pareceres").insert({
+        projeto_id: projetoId,
+        parecer: resumo,
+        nivel_risco: scoreConformidade === 100 ? "baixo" : scoreConformidade >= 70 ? "medio" : "alto",
+      })
+    );
+    if (parecerError) throw parecerError;
+  } catch (err) {
+    // O laudo novo não foi salvo por completo — restaura o laudo antigo em vez de deixar o
+    // projeto com um relatório pela metade ou zerado.
+    onStatus?.("Falha ao salvar — restaurando laudo anterior...");
+    await restaurarLaudoAntigo().catch((erroRestaurar) =>
+      console.error("[reanalise] falha ao restaurar laudo antigo após erro no laudo novo:", erroRestaurar)
+    );
+    throw err;
+  }
 
   onStatus?.("Atualizando o projeto...");
   const novoPdfPath = await uploadPdfCorrigido(user.id, pdfFile);
