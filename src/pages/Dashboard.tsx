@@ -73,6 +73,8 @@ export default function Dashboard() {
   const [projetoReanalise, setProjetoReanalise] = useState<Projeto | null>(null);
   const [pdfReanalise, setPdfReanalise] = useState<File | null>(null);
   const [pdfReanaliseNome, setPdfReanaliseNome] = useState("");
+  const [memorialReanalise, setMemorialReanalise] = useState<File | null>(null);
+  const [memorialReanaliseNome, setMemorialReanaliseNome] = useState("");
   const [reanalisando, setReanalisando] = useState(false);
   const [statusReanalise, setStatusReanalise] = useState("");
   const [erroReanalise, setErroReanalise] = useState("");
@@ -208,6 +210,8 @@ export default function Dashboard() {
     setProjetoReanalise(proj);
     setPdfReanalise(null);
     setPdfReanaliseNome("");
+    setMemorialReanalise(null);
+    setMemorialReanaliseNome("");
     setStatusReanalise("");
     setErroReanalise("");
     setReanaliseOpen(true);
@@ -222,6 +226,7 @@ export default function Dashboard() {
         projetoReanalise.id,
         projetoReanalise.tipo_estabelecimento,
         pdfReanalise,
+        memorialReanalise,
         (msg) => setStatusReanalise(msg)
       );
       setReanaliseOpen(false);
@@ -590,6 +595,37 @@ export default function Dashboard() {
                 }}
               />
               <p className="text-[10px] text-muted-foreground">Apenas PDF com camada de texto (não escaneado).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="memorial-reanalise-file">Memorial Descritivo (PDF) — opcional</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="memorial-reanalise-file-dummy"
+                  type="text"
+                  placeholder="Selecione um arquivo..."
+                  value={memorialReanaliseNome}
+                  readOnly
+                  className="bg-muted cursor-pointer flex-1"
+                  onClick={() => document.getElementById("memorial-reanalise-file-input")?.click()}
+                />
+                <Button type="button" variant="outline" onClick={() => document.getElementById("memorial-reanalise-file-input")?.click()}>
+                  Procurar
+                </Button>
+              </div>
+              <input
+                id="memorial-reanalise-file-input"
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) { setMemorialReanalise(file); setMemorialReanaliseNome(file.name); }
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Se este projeto já foi analisado com memorial antes, reenvie-o aqui — a reanálise não reaproveita o memorial da análise anterior.
+              </p>
             </div>
 
             {reanalisando && statusReanalise && (
