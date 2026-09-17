@@ -86,12 +86,15 @@ async function uploadPdfCorrigido(userId: string, file: File): Promise<string | 
  * - Atualiza `status` e `score_conformidade` em `projetos`.
  * - Se o upload do novo PDF funcionar, atualiza `pdf_path`/`pdf_nome` também.
  *
+ * @param memorialFile Memorial Descritivo (PDF) opcional — mesmo papel que na Nova Análise:
+ *   fonte complementar pra IA quando a planta não trouxer o dado necessário.
  * @param onStatus callback opcional pra mostrar progresso na tela ("Lendo PDF...", etc.)
  */
 export async function reanalisarProjeto(
   projetoId: string,
   tipoEstabelecimento: string,
   pdfFile: File,
+  memorialFile?: File | null,
   onStatus?: (msg: string) => void
 ): Promise<ResultadoReanalise> {
   const {
@@ -113,6 +116,27 @@ export async function reanalisarProjeto(
     );
   }
 
+  // Memorial Descritivo é opcional e "best-effort" — mesma lógica usada na Nova Análise
+  // (src/pages/Analise.tsx): se não vier, vier vazio/escaneado, ou a extração falhar, a
+  // reanálise segue normalmente só com a planta (nunca bloqueia o fluxo principal por
+  // causa de um documento opcional). Antes desta correção, a reanálise nunca lia o
+  // memorial, mesmo quando ele já tinha sido usado na análise original do projeto —
+  // fazendo a IA reportar como "sem_dado" itens que só estavam descritos no memorial.
+  let textoMemorial: string | null = null;
+  if (memorialFile) {
+    onStatus?.("Lendo o Memorial Descritivo...");
+    try {
+      const textoMemorialBruto = await extrairTextoPDF(memorialFile);
+      if (textoMemorialBruto && textoMemorialBruto.length >= 30) {
+        textoMemorial = textoMemorialBruto;
+      } else {
+        console.warn("Memorial Descritivo sem texto extraível (pode ser PDF escaneado) — reanálise seguirá apenas com o projeto.");
+      }
+    } catch (errMemorial) {
+      console.warn("Falha ao ler o Memorial Descritivo — reanálise seguirá apenas com o projeto:", errMemorial);
+    }
+  }
+
   onStatus?.("IA analisando o projeto corrigido...");
   const regrasMapeadas = regras.map((r) => ({
     id: String(r.id),
@@ -120,7 +144,7 @@ export async function reanalisarProjeto(
     descricao: r.descricao ?? "",
     norma_origem: r.norma_origem ?? null,
   }));
-  const resultado = await analisarProjetoComIA(textoPDF, tipoEstabelecimento, regrasMapeadas);
+  const resultado = await analisarProjetoComIA(textoPDF, tipoEstabelecimento, regrasMapeadas, textoMemorial);
 
   const respostas: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
   const observacoes: Record<string, string> = {};
