@@ -18,6 +18,21 @@ function extrairJSON(texto) {
   return JSON.parse(texto.slice(inicio, fim + 1));
 }
 
+const STATUS_VALIDOS = new Set(["conforme", "nao_conforme", "nao_aplicavel"]);
+
+// Corrige uma inconsistencia de formato que a IA as vezes comete: preencher o campo
+// "status" com um valor que deveria estar em "motivo_na" (ex: status="sem_dado" em vez
+// de status="nao_aplicavel" + motivo_na="sem_dado"). Sem essa normalizacao, o item nunca
+// bate na condicao "status === nao_aplicavel" usada tanto pelo override de
+// verificado_em_vistoria quanto pelo resto do relatorio, e fica pra sempre visivel como
+// pendencia mesmo quando a regra deveria ser escondida.
+function normalizarStatus(resultados) {
+  return resultados.map(r => {
+    if (STATUS_VALIDOS.has(r.status)) return r;
+    return { ...r, status: "nao_aplicavel", motivo_na: r.motivo_na ?? r.status };
+  });
+}
+
 // Reaplica a reclassificacao de verificado_em_vistoria a um conjunto de resultados ja
 // calculados (tanto os que acabaram de sair da IA quanto os que vieram do cache). O
 // hash do cache (calcularHashAnalise) NAO inclui verificado_em_vistoria — de proposito,
@@ -281,13 +296,20 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       // nao deve virar pendencia visivel no relatorio — reclassifica para "verificar_in_loco", que o
       // front-end filtra do mesmo jeito que ja filtra "nao_existe". Isso e deterministico (baseado no
       // cadastro da regra, nao em julgamento da IA) para nao depender da IA lembrar dessa excecao.
+      // Corrige de cara um status invalido (ex: "sem_dado" no lugar de "nao_aplicavel") antes
+      // de qualquer checagem que dependa de status === "nao_aplicavel" — ver normalizarStatus.
+      let status = r.status;
       let motivoNa = r.motivo_na ?? null;
+      if (!STATUS_VALIDOS.has(status)) {
+        motivoNa = motivoNa ?? status;
+        status = "nao_aplicavel";
+      }
       // Rede de segurança: às vezes a IA acerta o raciocínio na justificativa (menciona
       // "dispensado"/"dispensada") mas esquece de preencher o campo motivo_na correspondente
       // (fica null), fazendo a pendência vazar pro relatório mesmo com o texto já explicando a
       // dispensa. Se a justificativa cita dispensa e a IA não classificou o motivo, usa o
       // próprio texto como sinal em vez de depender só do campo estruturado.
-      if (r.status === "nao_aplicavel" && !motivoNa && typeof r.justificativa === "string" && /dispensad/i.test(r.justificativa)) {
+      if (status === "nao_aplicavel" && !motivoNa && typeof r.justificativa === "string" && /dispensad/i.test(r.justificativa)) {
         motivoNa = "dispensado";
       }
       // Regras marcadas como verificado_em_vistoria (ex: material de construcao e acesso do abrigo
@@ -298,10 +320,10 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       // preencher motivo_na nenhum (fica null), e mesmo assim isso precisa ser tratado como
       // verificar_in_loco, ja que essa e uma caracteristica da REGRA (metadado conhecido de
       // antemao), nao um julgamento que dependa da IA acertar um campo especifico.
-      if (regraCorrespondente.verificado_em_vistoria && r.status === "nao_aplicavel" && motivoNa !== "nao_existe" && motivoNa !== "dispensado") {
+      if (regraCorrespondente.verificado_em_vistoria && status === "nao_aplicavel" && motivoNa !== "nao_existe" && motivoNa !== "dispensado") {
         motivoNa = "verificar_in_loco";
       }
-      return { id: regraCorrespondente.id, status: r.status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: motivoNa, no_limite: r.no_limite === true };
+      return { id: regraCorrespondente.id, status, justificativa: r.justificativa, sugestao: r.sugestao ?? null, motivo_na: motivoNa, no_limite: r.no_limite === true };
     })
     .filter(Boolean);
   if (indicesInvalidos > 0) {
@@ -366,7 +388,8 @@ export default async function handler(req, res) {
         .maybeSingle();
       if (erroCache) console.error("[cache] Erro ao consultar cache:", JSON.stringify(erroCache));
       if (cacheHit) {
-        const resultadosAtualizados = aplicarOverrideVistoria(cacheHit.resultados, mapaRegrasOficiais);
+        const resultadosNormalizados = normalizarStatus(cacheHit.resultados);
+        const resultadosAtualizados = aplicarOverrideVistoria(resultadosNormalizados, mapaRegrasOficiais);
         return res.status(200).json({ resultados: resultadosAtualizados, resumo: cacheHit.resumo, deCache: true });
       }
     }
