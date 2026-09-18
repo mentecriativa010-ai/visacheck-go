@@ -9,6 +9,7 @@ const Sobre            = lazy(() => import("./pages/marketing/Sobre"));
 const ComingSoon       = lazy(() => import("./pages/marketing/ComingSoon"));
 const Login           = lazy(() => import("./pages/Login"));
 const Signup          = lazy(() => import("./pages/Signup"));
+const Convite          = lazy(() => import("./pages/Convite"));
 const ResetPassword    = lazy(() => import("./pages/ResetPassword"));
 const Dashboard       = lazy(() => import("./pages/Dashboard"));
 const ProjectDetails  = lazy(() => import("./pages/ProjectDetails"));
@@ -46,6 +47,7 @@ function App() {
           <Route path="/sobre" element={<Sobre />} />
           <Route path="/login"          element={<Login />} />
           <Route path="/signup"         element={<Signup />} />
+          <Route path="/convite/:token" element={<Convite />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/dashboard"      element={<Dashboard />} />
           <Route path="/projetos/:id"   element={<ProjectDetails />} />
