@@ -18,6 +18,22 @@ function extrairJSON(texto) {
   return JSON.parse(texto.slice(inicio, fim + 1));
 }
 
+// Reaplica a reclassificacao de verificado_em_vistoria a um conjunto de resultados ja
+// calculados (tanto os que acabaram de sair da IA quanto os que vieram do cache). O
+// hash do cache (calcularHashAnalise) NAO inclui verificado_em_vistoria — de proposito,
+// pra nao invalidar o cache toda vez que alguem faz curadoria manual dessa flag via SQL
+// — entao sem essa reaplicacao aqui, um cache hit devolveria pra sempre o motivo_na
+// antigo, ignorando qualquer atualizacao feita depois na tabela regras_regulatorias.
+function aplicarOverrideVistoria(resultados, mapaRegrasOficiais) {
+  return resultados.map(r => {
+    const regra = mapaRegrasOficiais.get(r.id);
+    if (regra?.verificado_em_vistoria && r.status === "nao_aplicavel" && r.motivo_na !== "nao_existe" && r.motivo_na !== "dispensado") {
+      return { ...r, motivo_na: "verificar_in_loco" };
+    }
+    return r;
+  });
+}
+
 function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   const textoConsiderado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
   const memorialConsiderado = textoMemorial ? String(textoMemorial).slice(0, LIMITE_CARACTERES_MEMORIAL) : "";
@@ -350,7 +366,8 @@ export default async function handler(req, res) {
         .maybeSingle();
       if (erroCache) console.error("[cache] Erro ao consultar cache:", JSON.stringify(erroCache));
       if (cacheHit) {
-        return res.status(200).json({ resultados: cacheHit.resultados, resumo: cacheHit.resumo, deCache: true });
+        const resultadosAtualizados = aplicarOverrideVistoria(cacheHit.resultados, mapaRegrasOficiais);
+        return res.status(200).json({ resultados: resultadosAtualizados, resumo: cacheHit.resumo, deCache: true });
       }
     }
 
