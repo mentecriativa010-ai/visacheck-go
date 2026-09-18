@@ -72,7 +72,11 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // nao so "sem_dado" — a IA as vezes marca nao_aplicavel sem preencher motivo_na nenhum
   // v9: max_tokens de 4096 para 8192 (resposta de lote grande estava sendo truncada, causando
   // JSON malformado) + retry de 3 tentativas na chamada/parse de cada lote
-  const base = "v9\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v10: prompt agora exige verificar item por item em regras com multiplos itens/exigencias na
+  // mesma descricao (ex: "lavatorio, sabao, toalha, lixeira com pedal e dispensador de alcool
+  // gel"); antes a IA marcava conforme confirmando so parte dos itens e omitia da justificativa
+  // o(s) item(ns) que faltou(aram) verificar
+  const base = "v10\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -187,6 +191,21 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "permite comparar diretamente com o criterio da regra (ex: a regra pede \"minimo X\" e o texto informa um " +
     "valor), NUNCA marque como nao_aplicavel - marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
     "unidade ou formato, contanto que seja possivel comparar.\n\n" +
+    "REGRAS COM MULTIPLOS ITENS/EXIGENCIAS NA MESMA DESCRICAO (ex: uma regra que pede \"lavatorio, sabao liquido, " +
+    "toalha descartavel, lixeira com pedal E dispensador de preparacao alcoolica\" no mesmo consultorio, ou " +
+    "\"revestimento de piso, parede, teto E bancadas\" no mesmo ambiente):\n" +
+    "- Trate cada item citado na descricao da regra como uma exigencia SEPARADA que precisa ser verificada " +
+    "individualmente no texto do projeto" + (temMemorial ? " e do memorial" : "") + " antes de decidir o status geral da regra.\n" +
+    "- So marque status = conforme se TODOS os itens listados na descricao da regra forem confirmados. Confirmar 4 " +
+    "de 5 itens NAO e conforme.\n" +
+    "- Se PELO MENOS UM item da lista nao aparecer em nenhum dos textos fornecidos, NAO marque conforme mesmo que " +
+    "os demais itens estejam claramente presentes -> use nao_aplicavel com motivo_na \"sem_dado\", e na " +
+    "justificativa cite explicitamente QUAL(IS) item(ns) especifico(s) da lista faltou(aram), mencionando tambem " +
+    "quais ja foram confirmados (ex: \"Memorial confirma lavatorio, sabao liquido, toalha descartavel e lixeira " +
+    "com pedal em todos os consultorios, mas nao menciona dispensador de preparacao alcoolica em nenhum deles\").\n" +
+    "- NUNCA escreva uma justificativa de conforme que simplesmente omita, sem mencionar, um dos itens exigidos " +
+    "pela descricao da regra - se voce nao encontrou seguranca pra confirmar um item, ele precisa aparecer " +
+    "explicitamente na justificativa como o motivo da pendencia, nunca ser silenciosamente deixado de fora.\n\n" +
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
