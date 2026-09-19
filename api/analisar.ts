@@ -78,7 +78,11 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial, pdfB
   // v11: quando o cliente manda o PDF original em base64, ele passa a ser anexado como bloco
   // "document" nativo (visao da Anthropic sobre o desenho, nao so o texto extraido) — inclui no
   // hash pra nao reaproveitar cache de uma analise que rodou so com texto
-  const base = "v11\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
+  // v12: prompt agora deixa explicito que "Sala de DM/processamento" e "Laboratorio de Protese
+  // Dentaria" sao ambientes diferentes - a IA ocasionalmente (visto em ~1 de 5 execucoes)
+  // confundia os dois e reprovava a Sala de DM por nao ter decantacao de gesso, arquivo de
+  // requisicoes etc., exigencias que sao exclusivas de um laboratorio dedicado
+  const base = "v12\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -213,6 +217,17 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "permite comparar diretamente com o criterio da regra (ex: a regra pede \"minimo X\" e o texto informa um " +
     "valor), NUNCA marque como nao_aplicavel - marque conforme ou nao_conforme, mesmo que o valor esteja em outra " +
     "unidade ou formato, contanto que seja possivel comparar.\n\n" +
+    "DISTINCAO ENTRE AMBIENTES PARECIDOS (NAO CONFUNDA):\n" +
+    "- \"Sala de Processamento de Dispositivos Medicos\" (tambem chamada Sala de DM, ou CME) e \"Laboratorio de " +
+    "Protese Dentaria\" sao ambientes DIFERENTES, com propositos distintos, mesmo compartilhando elementos como " +
+    "pia e bancada.\n" +
+    "- Regras que mencionam explicitamente \"laboratorio\" (ex: bancada de trabalho, pia com decantacao de gesso, " +
+    "arquivo de requisicoes de servico) referem-se exclusivamente a um Laboratorio de Protese Dentaria dedicado. " +
+    "NUNCA avalie essas regras contra a Sala de DM/processamento/CME, mesmo que o projeto nao tenha um " +
+    "laboratorio separado.\n" +
+    "- Se o projeto nao tem um ambiente claramente identificado como \"Laboratorio de Protese\" (nomeado assim na " +
+    "planta ou no memorial), marque essas regras como nao_aplicavel com motivo_na \"nao_existe\" - nunca como " +
+    "nao_conforme por comparacao com outro ambiente que exista mas nao seja o laboratorio.\n\n" +
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
