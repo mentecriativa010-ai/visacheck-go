@@ -1,5 +1,5 @@
-﻿import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ function formatCNPJ(value: string) {
 
 export default function Signup() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const conviteToken = searchParams.get("convite") ?? "";
   const [tab, setTab] = useState<"profissional" | "empresa">("profissional");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -31,7 +33,9 @@ export default function Signup() {
   const [cnpj, setCnpj] = useState("");
   const [responsavel, setResponsavel] = useState("");
   // comuns
-  const [email, setEmail] = useState("");
+  // Pré-preenchido quando a pessoa chega pelo link de convite
+  // (/convite/:token -> /signup?convite=...&email=...)
+  const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   // LGPD — consentimento específico para transferência internacional de dados
@@ -67,6 +71,7 @@ export default function Signup() {
             consentimento_lgpd: true,
             consentimento_lgpd_data: new Date().toISOString(),
             consentimento_lgpd_versao: VERSAO_TERMOS,
+            convite_token: conviteToken,
           }
         : {
             tipo_usuario: "empresa",
@@ -76,6 +81,7 @@ export default function Signup() {
             consentimento_lgpd: true,
             consentimento_lgpd_data: new Date().toISOString(),
             consentimento_lgpd_versao: VERSAO_TERMOS,
+            convite_token: conviteToken,
           };
 
     const { error: signUpError } = await supabase.auth.signUp({
@@ -88,12 +94,43 @@ export default function Signup() {
     });
     setLoading(false);
     if (signUpError) {
-      setError(signUpError.message);
+      // O bloqueio de convite acontece no banco (trigger em auth.users);
+      // a mensagem exata que chega aqui pode variar, então tratamos
+      // qualquer erro nesse fluxo com convite de forma amigável.
+      if (!conviteToken || /convite/i.test(signUpError.message)) {
+        setError(
+          "Não foi possível confirmar seu convite. Ele pode ter expirado — entre em contato para receber um novo."
+        );
+      } else {
+        setError(signUpError.message);
+      }
       return;
     }
     setSuccess("Conta criada! Verifique seu email para confirmar o cadastro.");
     setTimeout(() => navigate("/login"), 2500);
   };
+
+  // Durante o teste fechado, só se cadastra quem chega com um link de
+  // convite válido (/convite/:token -> /signup?convite=...). A checagem
+  // de verdade acontece no banco (trigger em auth.users); isto aqui é só
+  // para não deixar a pessoa preencher o formulário à toa.
+  if (!conviteToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 shadow-xl text-center">
+          <ShieldCheck className="w-8 h-8 text-primary mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-foreground mb-2">
+            Cadastro por convite
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            O VISAcheck GO está em teste fechado no momento. Para se cadastrar,
+            você precisa de um link de convite. Entre em contato para
+            solicitar o seu.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background relative overflow-hidden py-12">
