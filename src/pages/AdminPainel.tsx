@@ -24,6 +24,16 @@ interface Feedback {
   mensagem: string;
   criado_em: string;
 }
+
+interface Convite {
+  id: string;
+  nome: string | null;
+  email: string;
+  token: string;
+  criado_em: string;
+  expira_em: string;
+  usado: boolean;
+}
 const CHAVE_SESSAO = 'visacheck_admin_secret';
 
 async function chamarApiAdmin(action: string, senha: string, opcoes: RequestInit = {}) {
@@ -66,6 +76,15 @@ export default function AdminPainel() {
   const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
   const [carregandoFeedbacks, setCarregandoFeedbacks] = useState(false);
 
+  const [convites, setConvites] = useState<Convite[]>([]);
+  const [carregandoConvites, setCarregandoConvites] = useState(false);
+  const [novoNomeConvite, setNovoNomeConvite] = useState('');
+  const [novoEmailConvite, setNovoEmailConvite] = useState('');
+  const [criandoConvite, setCriandoConvite] = useState(false);
+  const [mensagemConvite, setMensagemConvite] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+  const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
+
   const carregarStats = useCallback(async (senhaAtual: string) => {
     setCarregandoStats(true);
     try {
@@ -87,6 +106,67 @@ export default function AdminPainel() {
       setMensagem({ tipo: 'erro', texto: erro.message });
     } finally {
       setCarregandoFeedbacks(false);
+    }
+  }
+
+  async function carregarConvites(senhaAtual: string) {
+    setCarregandoConvites(true);
+    try {
+      const dados = await chamarApiAdmin('convites', senhaAtual);
+      setConvites(dados.convites || []);
+    } catch (erro: any) {
+      setMensagemConvite({ tipo: 'erro', texto: erro.message });
+    } finally {
+      setCarregandoConvites(false);
+    }
+  }
+
+  async function handleCriarConvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!novoEmailConvite.trim()) return;
+    setCriandoConvite(true);
+    setMensagemConvite(null);
+    try {
+      const dados = await chamarApiAdmin('criar-convite', senha, {
+        method: 'POST',
+        body: JSON.stringify({ nome: novoNomeConvite.trim(), email: novoEmailConvite.trim() }),
+      });
+      setConvites((atual) => [dados.convite, ...atual]);
+      setNovoNomeConvite('');
+      setNovoEmailConvite('');
+      setMensagemConvite({ tipo: 'sucesso', texto: 'Convite criado — copie o link abaixo.' });
+    } catch (erro: any) {
+      setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao criar convite.' });
+    } finally {
+      setCriandoConvite(false);
+    }
+  }
+
+  function copiarLink(token: string) {
+    const link = `${window.location.origin}/convite/${token}`;
+    navigator.clipboard.writeText(link);
+    setLinkCopiado(token);
+    setTimeout(() => setLinkCopiado((atual) => (atual === token ? null : atual)), 2000);
+  }
+
+  async function excluirConvite(c: Convite) {
+    const confirmar = window.confirm(
+      `Excluir o convite de ${c.nome || c.email}? Essa ação não pode ser desfeita.`
+    );
+    if (!confirmar) return;
+
+    setExcluindoId(c.id);
+    try {
+      await chamarApiAdmin('excluir-convite', senha, {
+        method: 'POST',
+        body: JSON.stringify({ id: c.id }),
+      });
+      setConvites((atual) => atual.filter((item) => item.id !== c.id));
+      setMensagemConvite({ tipo: 'sucesso', texto: 'Convite excluído.' });
+    } catch (erro: any) {
+      setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao excluir convite.' });
+    } finally {
+      setExcluindoId(null);
     }
   }
    useEffect(() => {
@@ -347,6 +427,96 @@ export default function AdminPainel() {
             ))}
             {resultados.length === 0 && termoBusca && !buscando && (
               <p className="text-sm text-slate-400 py-3">Nenhum resultado encontrado.</p>
+            )}
+          </div>
+        </div>
+
+        {/* Convites de teste */}
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-[#1E3A5F] dark:text-white">
+              Convites de teste (link pessoal, validade de 7 dias)
+            </h2>
+            <button
+              onClick={() => carregarConvites(senha)}
+              className="text-sm text-[#1E3A5F] dark:text-blue-300 underline"
+            >
+              {carregandoConvites ? 'Carregando...' : 'Ver convites'}
+            </button>
+          </div>
+
+          <form onSubmit={handleCriarConvite} className="flex flex-col sm:flex-row gap-2 mb-4">
+            <input
+              type="text"
+              value={novoNomeConvite}
+              onChange={(e) => setNovoNomeConvite(e.target.value)}
+              placeholder="Nome (opcional)"
+              className="flex-1 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <input
+              type="email"
+              value={novoEmailConvite}
+              onChange={(e) => setNovoEmailConvite(e.target.value)}
+              placeholder="E-mail"
+              className="flex-1 rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <button
+              type="submit"
+              disabled={criandoConvite}
+              className="rounded-md bg-[#1E3A5F] text-white text-sm font-medium px-4 py-2 hover:opacity-90 transition disabled:opacity-50 whitespace-nowrap"
+            >
+              {criandoConvite ? 'Gerando…' : 'Gerar convite'}
+            </button>
+          </form>
+
+          {mensagemConvite && (
+            <p
+              className={`text-sm mb-3 ${
+                mensagemConvite.tipo === 'sucesso' ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {mensagemConvite.texto}
+            </p>
+          )}
+
+          <div className="divide-y divide-slate-200 dark:divide-slate-700">
+            {convites.map((c) => {
+              const expirado = new Date(c.expira_em) < new Date();
+              return (
+                <div key={c.id} className="py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">
+                      {c.nome || c.email}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">
+                      {c.email} • expira em {new Date(c.expira_em).toLocaleString('pt-BR')}
+                      {expirado ? ' (expirado)' : ''}
+                      {c.usado ? ' • já acessado' : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => copiarLink(c.token)}
+                      disabled={expirado}
+                      className="text-sm text-[#1E3A5F] dark:text-blue-300 underline disabled:opacity-40 disabled:no-underline"
+                    >
+                      {linkCopiado === c.token ? 'Copiado!' : 'Copiar link'}
+                    </button>
+                    <button
+                      onClick={() => excluirConvite(c)}
+                      disabled={excluindoId === c.id}
+                      className="text-sm text-red-600 underline disabled:opacity-40"
+                    >
+                      {excluindoId === c.id ? 'Excluindo…' : 'Excluir'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {convites.length === 0 && !carregandoConvites && (
+              <p className="text-sm text-slate-400 py-3">
+                Nenhum convite carregado ainda. Clique em "Ver convites".
+              </p>
             )}
           </div>
         </div>
