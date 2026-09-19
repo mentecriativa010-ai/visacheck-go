@@ -150,6 +150,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ convite: data });
     }
 
+    // ---------- Excluir convite ----------
+    if (action === 'excluir-convite') {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ erro: 'id é obrigatório.' });
+      }
+
+      const { error } = await supabaseAdmin.from('convites').delete().eq('id', id);
+
+      if (error) throw error;
+
+      return res.status(200).json({ sucesso: true });
+    }
+
     return res.status(400).json({ erro: 'Ação inválida.' });
   } catch (erro: any) {
     console.error('Erro no endpoint admin:', erro);

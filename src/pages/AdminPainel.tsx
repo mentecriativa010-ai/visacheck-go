@@ -83,6 +83,7 @@ export default function AdminPainel() {
   const [criandoConvite, setCriandoConvite] = useState(false);
   const [mensagemConvite, setMensagemConvite] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
 
   const carregarStats = useCallback(async (senhaAtual: string) => {
     setCarregandoStats(true);
@@ -146,6 +147,27 @@ export default function AdminPainel() {
     navigator.clipboard.writeText(link);
     setLinkCopiado(token);
     setTimeout(() => setLinkCopiado((atual) => (atual === token ? null : atual)), 2000);
+  }
+
+  async function excluirConvite(c: Convite) {
+    const confirmar = window.confirm(
+      `Excluir o convite de ${c.nome || c.email}? Essa ação não pode ser desfeita.`
+    );
+    if (!confirmar) return;
+
+    setExcluindoId(c.id);
+    try {
+      await chamarApiAdmin('excluir-convite', senha, {
+        method: 'POST',
+        body: JSON.stringify({ id: c.id }),
+      });
+      setConvites((atual) => atual.filter((item) => item.id !== c.id));
+      setMensagemConvite({ tipo: 'sucesso', texto: 'Convite excluído.' });
+    } catch (erro: any) {
+      setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao excluir convite.' });
+    } finally {
+      setExcluindoId(null);
+    }
   }
    useEffect(() => {
     if (senha) {
@@ -472,13 +494,22 @@ export default function AdminPainel() {
                       {c.usado ? ' • já acessado' : ''}
                     </p>
                   </div>
-                  <button
-                    onClick={() => copiarLink(c.token)}
-                    disabled={expirado}
-                    className="text-sm text-[#1E3A5F] dark:text-blue-300 underline shrink-0 disabled:opacity-40 disabled:no-underline"
-                  >
-                    {linkCopiado === c.token ? 'Copiado!' : 'Copiar link'}
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => copiarLink(c.token)}
+                      disabled={expirado}
+                      className="text-sm text-[#1E3A5F] dark:text-blue-300 underline disabled:opacity-40 disabled:no-underline"
+                    >
+                      {linkCopiado === c.token ? 'Copiado!' : 'Copiar link'}
+                    </button>
+                    <button
+                      onClick={() => excluirConvite(c)}
+                      disabled={excluindoId === c.id}
+                      className="text-sm text-red-600 underline disabled:opacity-40"
+                    >
+                      {excluindoId === c.id ? 'Excluindo…' : 'Excluir'}
+                    </button>
+                  </div>
                 </div>
               );
             })}
