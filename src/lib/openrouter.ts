@@ -25,7 +25,8 @@ export async function analisarProjetoComIA(
   textoPDF: string,
   tipoAmbiente: string,
   regras: Array<{ id: string; codigo: string; descricao: string; norma_origem: string | null }>,
-  textoMemorial?: string | null
+  textoMemorial?: string | null,
+  pdfBase64?: string | null
 ): Promise<RespostaAnalise> {
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
@@ -39,7 +40,7 @@ export async function analisarProjetoComIA(
       "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`,
     },
-    body: JSON.stringify({ textoPDF, tipoAmbiente, regras, textoMemorial: textoMemorial ?? null }),
+    body: JSON.stringify({ textoPDF, tipoAmbiente, regras, textoMemorial: textoMemorial ?? null, pdfBase64: pdfBase64 ?? null }),
   });
   if (!response.ok) {
     const erro = await response.json().catch(() => ({ error: response.statusText }));
