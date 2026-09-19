@@ -1,4 +1,4 @@
-ï»¿import { useState } from "react";
+import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -33,12 +33,12 @@ export default function Signup() {
   const [cnpj, setCnpj] = useState("");
   const [responsavel, setResponsavel] = useState("");
   // comuns
-  // PrÃ©-preenchido quando a pessoa chega pelo link de convite
+  // Pré-preenchido quando a pessoa chega pelo link de convite
   // (/convite/:token -> /signup?convite=...&email=...)
   const [email, setEmail] = useState(searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  // LGPD â€” consentimento especÃ­fico para transferÃªncia internacional de dados
+  // LGPD — consentimento específico para transferência internacional de dados
   const [aceiteLGPD, setAceiteLGPD] = useState(false);
   const VERSAO_TERMOS = "2026-06-29"; // deve bater com ULTIMA_ATUALIZACAO em Termos.tsx/Privacidade.tsx
 
@@ -51,11 +51,11 @@ export default function Signup() {
       return;
     }
     if (password !== confirm) {
-      setError("As senhas nÃ£o coincidem.");
+      setError("As senhas não coincidem.");
       return;
     }
     if (!aceiteLGPD) {
-      setError("Ã‰ necessÃ¡rio aceitar os Termos de Uso e a PolÃ­tica de Privacidade para continuar.");
+      setError("É necessário aceitar os Termos de Uso e a Política de Privacidade para continuar.");
       return;
     }
     setLoading(true);
@@ -65,9 +65,9 @@ export default function Signup() {
             tipo_usuario: "profissional",
             nome,
             crea_cau: conselho.trim(),
-            // EvidÃªncia de consentimento LGPD (Art. 33, VIII) â€” registrado no
-            // momento do cadastro, com timestamp e versÃ£o dos Termos aceitos,
-            // para servir de comprovaÃ§Ã£o em caso de auditoria/fiscalizaÃ§Ã£o.
+            // Evidência de consentimento LGPD (Art. 33, VIII) — registrado no
+            // momento do cadastro, com timestamp e versão dos Termos aceitos,
+            // para servir de comprovação em caso de auditoria/fiscalização.
             consentimento_lgpd: true,
             consentimento_lgpd_data: new Date().toISOString(),
             consentimento_lgpd_versao: VERSAO_TERMOS,
@@ -95,11 +95,11 @@ export default function Signup() {
     setLoading(false);
     if (signUpError) {
       // O bloqueio de convite acontece no banco (trigger em auth.users);
-      // a mensagem exata que chega aqui pode variar, entÃ£o tratamos
-      // qualquer erro nesse fluxo com convite de forma amigÃ¡vel.
+      // a mensagem exata que chega aqui pode variar, então tratamos
+      // qualquer erro nesse fluxo com convite de forma amigável.
       if (!conviteToken || /convite/i.test(signUpError.message)) {
         setError(
-          "NÃ£o foi possÃ­vel confirmar seu convite. Ele pode ter expirado â€” entre em contato para receber um novo."
+          "Não foi possível confirmar seu convite. Ele pode ter expirado — entre em contato para receber um novo."
         );
       } else {
         setError(signUpError.message);
@@ -110,10 +110,10 @@ export default function Signup() {
     setTimeout(() => navigate("/login"), 2500);
   };
 
-  // Durante o teste fechado, sÃ³ se cadastra quem chega com um link de
-  // convite vÃ¡lido (/convite/:token -> /signup?convite=...). A checagem
-  // de verdade acontece no banco (trigger em auth.users); isto aqui Ã© sÃ³
-  // para nÃ£o deixar a pessoa preencher o formulÃ¡rio Ã  toa.
+  // Durante o teste fechado, só se cadastra quem chega com um link de
+  // convite válido (/convite/:token -> /signup?convite=...). A checagem
+  // de verdade acontece no banco (trigger em auth.users); isto aqui é só
+  // para não deixar a pessoa preencher o formulário à toa.
   if (!conviteToken) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-6">
@@ -123,8 +123,8 @@ export default function Signup() {
             Cadastro por convite
           </h1>
           <p className="text-sm text-muted-foreground">
-            O VISAcheck GO estÃ¡ em teste fechado no momento. Para se cadastrar,
-            vocÃª precisa de um link de convite. Entre em contato para
+            O VISAcheck GO está em teste fechado no momento. Para se cadastrar,
+            você precisa de um link de convite. Entre em contato para
             solicitar o seu.
           </p>
         </div>
@@ -186,7 +186,7 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="conselho">NÃºmero do Conselho</Label>
+                  <Label htmlFor="conselho">Número do Conselho</Label>
                   <Input
                     id="conselho"
                     placeholder="CREA 1234-5 ou CAU 1234-5"
@@ -199,7 +199,7 @@ export default function Signup() {
             ) : (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="razao">RazÃ£o Social</Label>
+                  <Label htmlFor="razao">Razão Social</Label>
                   <Input
                     id="razao"
                     value={razaoSocial}
@@ -220,7 +220,7 @@ export default function Signup() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="responsavel">ResponsÃ¡vel TÃ©cnico</Label>
+                  <Label htmlFor="responsavel">Responsável Técnico</Label>
                   <Input
                     id="responsavel"
                     value={responsavel}
@@ -247,7 +247,7 @@ export default function Signup() {
               <Label htmlFor="password">Senha</Label>
               <PasswordInput
                 id="password"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -258,15 +258,15 @@ export default function Signup() {
               <Label htmlFor="confirm">Confirmar senha</Label>
               <PasswordInput
                 id="confirm"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="••••••••"
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
               />
             </div>
 
-            {/* Consentimento LGPD â€” especÃ­fico, em destaque, mencionando a
-                transferÃªncia internacional de dados (Art. 33, VIII da LGPD) */}
+            {/* Consentimento LGPD — específico, em destaque, mencionando a
+                transferência internacional de dados (Art. 33, VIII da LGPD) */}
             <div className="flex items-start gap-3 bg-muted border border-border rounded-lg p-3.5">
               <input
                 id="aceiteLGPD"
@@ -282,12 +282,12 @@ export default function Signup() {
                 </Link>{" "}
                 e a{" "}
                 <Link to="/privacidade" target="_blank" className="text-primary hover:underline">
-                  PolÃ­tica de Privacidade
+                  Política de Privacidade
                 </Link>
                 , e estou ciente de que dados do meu projeto podem ser{" "}
                 <strong className="text-foreground/80">transferidos para servidores
-                fora do Brasil</strong> (incluindo provedores de inteligÃªncia
-                artificial) para a realizaÃ§Ã£o da anÃ¡lise regulatÃ³ria.
+                fora do Brasil</strong> (incluindo provedores de inteligência
+                artificial) para a realização da análise regulatória.
               </Label>
             </div>
 
@@ -311,7 +311,7 @@ export default function Signup() {
         </div>
 
         <p className="text-center text-sm text-muted-foreground mt-6">
-          JÃ¡ tem conta?{" "}
+          Já tem conta?{" "}
           <Link
             to="/login"
             className="text-primary font-medium hover:underline underline-offset-4"
