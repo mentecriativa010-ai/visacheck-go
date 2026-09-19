@@ -129,6 +129,20 @@ export default function Analise() {
     return textoCompleto.trim();
   };
 
+  // Converte o arquivo pra base64 pra leitura visual nativa de PDF da Anthropic (bloco
+  // "document"). Em blocos, pra não estourar a pilha com String.fromCharCode(...array) num
+  // arquivo grande.
+  const arquivoParaBase64 = async (file) => {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binario = "";
+    const tamanhoBloco = 0x8000;
+    for (let i = 0; i < bytes.length; i += tamanhoBloco) {
+      binario += String.fromCharCode(...bytes.subarray(i, i + tamanhoBloco));
+    }
+    return btoa(binario);
+  };
+
   // ─── Análise por IA — via openrouter.ts ──────────────────────────────────
   // Ao concluir com sucesso, salva direto no banco e já leva para a página de
   // resultado (passo 3), sem exigir clique manual categoria por categoria.
@@ -142,6 +156,23 @@ export default function Analise() {
 
       if (!textoPDF || textoPDF.length < 30) {
         throw new Error("Não foi possível extrair texto do PDF (pode ser um PDF escaneado/imagem, sem camada de texto).");
+      }
+
+      // Leitura visual do PDF (bloco "document" nativo da Anthropic, que vê texto E desenho) é
+      // opcional e best-effort: se o arquivo for grande demais ou a conversão falhar, a análise
+      // segue normalmente só com o texto extraído de sempre — nunca bloqueia o fluxo principal
+      // por causa de um recurso adicional. Resolve itens que só existem graficamente na prancha
+      // (tipo de abertura de porta, proteção contra vetores, cotas não escritas como texto).
+      const LIMITE_PDF_VISUAL_BYTES = 3 * 1024 * 1024;
+      let pdfBase64 = null;
+      if (file.size <= LIMITE_PDF_VISUAL_BYTES) {
+        try {
+          pdfBase64 = await arquivoParaBase64(file);
+        } catch (errBase64) {
+          console.warn("Falha ao preparar leitura visual do PDF — análise seguirá apenas com o texto extraído:", errBase64);
+        }
+      } else {
+        console.warn(`PDF maior que ${(LIMITE_PDF_VISUAL_BYTES / 1024 / 1024).toFixed(0)}MB — análise seguirá apenas com o texto extraído, sem leitura visual.`);
       }
 
       // Memorial Descritivo é opcional e "best-effort": se não vier, se vier vazio/escaneado,
@@ -171,7 +202,7 @@ export default function Analise() {
         norma_origem: r.norma_origem ?? null,
       }));
 
-      const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas, textoMemorial);
+      const resultado = await analisarProjetoComIA(textoPDF, tipoSelecionado, regrasMapeadas, textoMemorial, pdfBase64);
       const memorialFoiUsado = !!textoMemorial;
       setMemorialUsado(memorialFoiUsado);
 

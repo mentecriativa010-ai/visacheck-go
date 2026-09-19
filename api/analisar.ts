@@ -49,9 +49,10 @@ function aplicarOverrideVistoria(resultados, mapaRegrasOficiais) {
   });
 }
 
-function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
+function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial, pdfBase64) {
   const textoConsiderado = String(textoPDF).slice(0, LIMITE_CARACTERES_PDF);
   const memorialConsiderado = textoMemorial ? String(textoMemorial).slice(0, LIMITE_CARACTERES_MEMORIAL) : "";
+  const pdfVisualConsiderado = pdfBase64 ? String(pdfBase64) : "";
   const regrasOrdenadas = [...regras]
     .map(r => r.id + "|" + r.codigo + "|" + r.descricao + "|" + (r.norma_origem ?? ""))
     .sort()
@@ -72,7 +73,12 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial) {
   // nao so "sem_dado" — a IA as vezes marca nao_aplicavel sem preencher motivo_na nenhum
   // v9: max_tokens de 4096 para 8192 (resposta de lote grande estava sendo truncada, causando
   // JSON malformado) + retry de 3 tentativas na chamada/parse de cada lote
-  const base = "v9\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado;
+  // v10: prompt agora exige verificar item por item em regras com multiplos itens/exigencias na
+  // mesma descricao (aplicado separadamente, branch fix/regras-compostas-multiplos-itens)
+  // v11: quando o cliente manda o PDF original em base64, ele passa a ser anexado como bloco
+  // "document" nativo (visao da Anthropic sobre o desenho, nao so o texto extraido) — inclui no
+  // hash pra nao reaproveitar cache de uma analise que rodou so com texto
+  const base = "v11\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -124,7 +130,7 @@ async function buscarRegrasOficiaisComRetry(supabaseServidor, idsRegras, tentati
   return { data: null, error: ultimoErro };
 }
 
-async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes, textoMemorial) {
+async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, totalLotes, textoMemorial, pdfBase64) {
   const listaRegras = regras
     .map((r, i) => "- Indice: " + (i + 1) + " | Codigo: " + r.codigo + " | Norma: " + (r.norma_origem ?? "-") + " | Descricao: " + r.descricao)
     .join("\n");
@@ -150,6 +156,25 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       "o valor de cada documento (ex: \"Divergencia entre memorial (1,50m) e planta (1,20m) para o corredor X\").\n\n"
     : "";
 
+  const temPdfVisual = !!pdfBase64;
+  const instrucoesPdfVisual = temPdfVisual
+    ? "LEITURA VISUAL DO PDF ANEXADO:\n" +
+      "- Alem do TEXTO DO PROJETO acima (extraido automaticamente e por isso as vezes incompleto ou desorganizado), " +
+      "voce recebeu o arquivo PDF original da prancha anexado nesta mensagem, com visao sobre o desenho tecnico " +
+      "completo.\n" +
+      "- Use a visao sobre o PDF para verificar detalhes que so aparecem graficamente, nao no texto extraido: tipo " +
+      "de abertura de porta (arco de batente = porta de giro; sem arco/com trilho = porta de correr) e a direcao " +
+      "do batente; presenca de tela/protecao contra vetores em aberturas externas; cotas de rampas, larguras e " +
+      "outras medidas desenhadas mas nao escritas como texto; simbolos de instalacao hidraulica/eletrica (pontos " +
+      "de agua, registros, tomadas) proximos a moveis e equipamentos.\n" +
+      "- Ao usar uma informacao lida visualmente do PDF que nao aparece no texto extraido, diga isso na " +
+      "justificativa (ex: \"Desenho mostra arco de abertura de porta indicando porta de giro, nao correr\"), pra " +
+      "deixar claro que veio da leitura do desenho.\n" +
+      "- Se uma medida so puder ser estimada por comparacao de escala no desenho (sem cota numerica escrita nem no " +
+      "desenho nem no texto), seja conservador: so marque conforme se a diferenca for grande o suficiente pra ter " +
+      "certeza visual; na duvida, marque sem_dado em vez de arriscar uma leitura de escala imprecisa.\n\n"
+    : "";
+
   const prompt = "Analise o projeto para o ambiente: " + tipoAmbiente + " (lote " + numeroLote + "/" + totalLotes + ")\n\n" +
     "ESCOPO DA ANALISE - LEIA COM ATENCAO:\n" +
     "Este projeto arquitetonico pode conter, alem do ambiente analisado, a representacao de OUTRAS areas do " +
@@ -168,6 +193,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "TEXTO DO PROJETO:\n" + textoLimitado + "\n" + blocoMemorial + "\n" +
     "REGRAS A VERIFICAR (" + regras.length + " regras):\n" + listaRegras + "\n\n" +
     instrucoesMemorial +
+    instrucoesPdfVisual +
     "COMO DECIDIR O STATUS DE CADA REGRA - SIGA ESTA ORDEM EXATA:\n" +
     "1) O elemento/ambiente a que a regra se refere EXISTE no projeto (dentro do escopo do \"" + tipoAmbiente + "\")?\n" +
     "   - NAO existe no projeto (ex: a regra fala de um ambiente que este projeto simplesmente nao tem, como " +
@@ -247,6 +273,18 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
   let ultimoErroLote = null;
   for (let tentativa = 1; tentativa <= 3; tentativa++) {
     try {
+      // Quando ha pdfBase64, o PDF original vai anexado como bloco "document" (visao nativa da
+      // Anthropic sobre PDF: le texto E desenho, sem precisar de OCR/pipeline separado). Marcado
+      // com cache_control porque o MESMO arquivo se repete em todo lote desta analise (ate 3
+      // lotes) — sem cache, o custo de imagem seria pago 3x pelo mesmo conteudo. So funciona
+      // acima de um minimo de tokens (2048 pros modelos Haiku); abaixo disso e so um cache miss
+      // silencioso, sem quebrar nada.
+      const content = temPdfVisual
+        ? [
+            { type: "document", source: { type: "base64", media_type: "application/pdf", data: pdfBase64 }, cache_control: { type: "ephemeral" } },
+            { type: "text", text: prompt },
+          ]
+        : prompt;
       const response = await fetch(ANTHROPIC_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-api-key": apiKey, "anthropic-version": ANTHROPIC_VERSION },
@@ -255,7 +293,7 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
           max_tokens: 8192,
           temperature: 0,
           system: "Especialista ANVISA/ABNT. Responda SEMPRE com JSON puro valido sem markdown, identificando cada regra pelo campo indice numerico (nunca por texto/id). Atenha-se estritamente ao escopo do ambiente informado pelo usuario, ignorando outras areas do edificio mencionadas apenas como contexto de implantacao. Quando houver memorial descritivo, use-o como fonte complementar a planta e sinalize divergencias entre os dois documentos.",
-          messages: [{ role: "user", content: prompt }],
+          messages: [{ role: "user", content }],
         }),
       });
       if (!response.ok) {
@@ -347,13 +385,24 @@ export default async function handler(req, res) {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "ANTHROPIC_API_KEY nao configurada no Vercel." });
-  const { textoPDF, tipoAmbiente, regras: regrasRecebidas, textoMemorial } = req.body ?? {};
+  const { textoPDF, tipoAmbiente, regras: regrasRecebidas, textoMemorial, pdfBase64: pdfBase64Recebido } = req.body ?? {};
   const LIMITE_REGRAS = 150;
   if (Array.isArray(regrasRecebidas) && regrasRecebidas.length > LIMITE_REGRAS) {
     return res.status(400).json({ error: `Numero de regras excede o limite de ${LIMITE_REGRAS} por analise.` });
   }
   if (!textoPDF || !tipoAmbiente || !regrasRecebidas || !Array.isArray(regrasRecebidas)) {
     return res.status(400).json({ error: "Parametros obrigatorios ausentes." });
+  }
+  // Leitura visual do PDF (bloco "document" nativo) e opcional e "best-effort": se o arquivo em
+  // base64 vier grande demais, so ignoramos a visao e seguimos com o texto extraido de sempre -
+  // nunca falha a analise inteira por causa de um recurso adicional. O limite de ~4MB de base64
+  // (~3MB de arquivo original) da margem segura abaixo do limite de payload de functions do Vercel.
+  const LIMITE_PDF_BASE64 = 4 * 1024 * 1024;
+  const pdfBase64 = typeof pdfBase64Recebido === "string" && pdfBase64Recebido.length > 0 && pdfBase64Recebido.length <= LIMITE_PDF_BASE64
+    ? pdfBase64Recebido
+    : null;
+  if (typeof pdfBase64Recebido === "string" && pdfBase64Recebido.length > LIMITE_PDF_BASE64) {
+    console.warn("[analisar] pdfBase64 excede o limite (" + pdfBase64Recebido.length + " bytes) - seguindo sem leitura visual.");
   }
 
   // Busca as regras oficiais no banco usando so os ids recebidos - o
@@ -377,7 +426,7 @@ export default async function handler(req, res) {
   }
 
   const supabase = obterClienteSupabase();
-  const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial);
+  const hash = calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial, pdfBase64);
 
   try {
     if (supabase) {
@@ -399,7 +448,7 @@ export default async function handler(req, res) {
     const todosResultados = [];
     let ultimoResumo = "";
     for (let i = 0; i < lotes.length; i++) {
-      const resultado = await analisarLote(apiKey, textoPDF, tipoAmbiente, lotes[i], i + 1, lotes.length, textoMemorial);
+      const resultado = await analisarLote(apiKey, textoPDF, tipoAmbiente, lotes[i], i + 1, lotes.length, textoMemorial, pdfBase64);
       todosResultados.push(...(resultado.resultados ?? []));
       if (i === lotes.length - 1) ultimoResumo = resultado.resumo ?? "";
     }

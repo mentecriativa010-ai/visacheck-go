@@ -43,6 +43,19 @@ async function extrairTextoPDF(file: File): Promise<string> {
   return textoCompleto.trim();
 }
 
+// Converte o arquivo pra base64 pra leitura visual nativa de PDF da Anthropic (bloco "document").
+// Em blocos, pra nao estourar a pilha com String.fromCharCode(...array) num arquivo grande.
+async function arquivoParaBase64(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binario = "";
+  const tamanhoBloco = 0x8000;
+  for (let i = 0; i < bytes.length; i += tamanhoBloco) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + tamanhoBloco));
+  }
+  return btoa(binario);
+}
+
 // Mesma técnica de retry com backoff já usada em api/analisar.ts pra tolerar timeout
 // passageiro do Supabase — aqui protege especificamente o insert do laudo novo, que é o
 // passo mais longo (às vezes 40+ linhas de uma vez) e mais provável de esbarrar num timeout.
@@ -116,6 +129,23 @@ export async function reanalisarProjeto(
     );
   }
 
+  // Leitura visual do PDF (bloco "document" nativo da Anthropic, que vê texto E desenho) é
+  // opcional e best-effort: se o arquivo for grande demais ou a conversão falhar, a reanálise
+  // segue normalmente só com o texto extraído de sempre — nunca bloqueia o fluxo principal por
+  // causa de um recurso adicional. Resolve itens que só existem graficamente na prancha (tipo de
+  // abertura de porta, proteção contra vetores, cotas não escritas como texto).
+  const LIMITE_PDF_VISUAL_BYTES = 3 * 1024 * 1024;
+  let pdfBase64: string | null = null;
+  if (pdfFile.size <= LIMITE_PDF_VISUAL_BYTES) {
+    try {
+      pdfBase64 = await arquivoParaBase64(pdfFile);
+    } catch (errBase64) {
+      console.warn("Falha ao preparar leitura visual do PDF — reanálise seguirá apenas com o texto extraído:", errBase64);
+    }
+  } else {
+    console.warn(`PDF maior que ${(LIMITE_PDF_VISUAL_BYTES / 1024 / 1024).toFixed(0)}MB — reanálise seguirá apenas com o texto extraído, sem leitura visual.`);
+  }
+
   // Memorial Descritivo é opcional e "best-effort" — mesma lógica usada na Nova Análise
   // (src/pages/Analise.tsx): se não vier, vier vazio/escaneado, ou a extração falhar, a
   // reanálise segue normalmente só com a planta (nunca bloqueia o fluxo principal por
@@ -144,7 +174,7 @@ export async function reanalisarProjeto(
     descricao: r.descricao ?? "",
     norma_origem: r.norma_origem ?? null,
   }));
-  const resultado = await analisarProjetoComIA(textoPDF, tipoEstabelecimento, regrasMapeadas, textoMemorial);
+  const resultado = await analisarProjetoComIA(textoPDF, tipoEstabelecimento, regrasMapeadas, textoMemorial, pdfBase64);
 
   const respostas: Record<string, "conforme" | "nao_conforme" | "nao_aplicavel"> = {};
   const observacoes: Record<string, string> = {};
