@@ -115,41 +115,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
       return res.status(200).json({ feedbacks: resultado });
-    }    // Feedbacks enviados pelos profissionais
-    if (action === 'feedbacks') {
-      const { data: feedbacksData, error: erroFeedbacks } = await supabaseAdmin
-        .from('feedbacks')
-        .select('id, user_id, pagina, mensagem, criado_em')
+    }
+
+    // ---------- Listar convites (mais recentes primeiro) ----------
+    if (action === 'convites') {
+      const { data, error } = await supabaseAdmin
+        .from('convites')
+        .select('id, nome, email, token, criado_em, expira_em, usado')
         .order('criado_em', { ascending: false })
         .limit(100);
 
-      if (erroFeedbacks) throw erroFeedbacks;
+      if (error) throw error;
 
-      const userIds = [...new Set((feedbacksData || []).map((f) => f.user_id).filter(Boolean))];
+      return res.status(200).json({ convites: data });
+    }
 
-      let perfisPorId: Record<string, string> = {};
-      if (userIds.length > 0) {
-        const { data: perfisData, error: erroPerfis } = await supabaseAdmin
-          .from('perfis')
-          .select('id, nome')
-          .in('id', userIds);
-
-        if (erroPerfis) throw erroPerfis;
-
-        perfisPorId = Object.fromEntries((perfisData || []).map((p) => [p.id, p.nome]));
+    // ---------- Criar convite novo (validade de 7 dias) ----------
+    if (action === 'criar-convite') {
+      const { nome, email } = req.body;
+      if (!email || !String(email).includes('@')) {
+        return res.status(400).json({ erro: 'Informe um e-mail válido.' });
       }
 
-      const resultado = (feedbacksData || []).map((f) => ({
-        id: f.id,
-        nome: perfisPorId[f.user_id] || 'Usuario desconhecido',
-        pagina: f.pagina,
-        mensagem: f.mensagem,
-        criado_em: f.criado_em,
-      }));
+      const expiraEm = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-      return res.status(200).json({ feedbacks: resultado });
+      const { data, error } = await supabaseAdmin
+        .from('convites')
+        .insert({ nome: nome || null, email, expira_em: expiraEm })
+        .select('id, nome, email, token, criado_em, expira_em, usado')
+        .single();
+
+      if (error) throw error;
+
+      return res.status(200).json({ convite: data });
     }
-     return res.status(400).json({ erro: 'Ação inválida.' });
+
+    return res.status(400).json({ erro: 'Ação inválida.' });
   } catch (erro: any) {
     console.error('Erro no endpoint admin:', erro);
     return res.status(500).json({ erro: 'Erro interno ao processar a solicitação.' });
