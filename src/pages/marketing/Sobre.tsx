@@ -78,7 +78,7 @@ export default function Sobre() {
             troca de feedback direto sobre o produto.
           </p>
           <Link
-            to="/login"
+            to="/signup"
             className="inline-flex items-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-8 py-3.5 font-medium hover:bg-[#153A63] transition-colors"
           >
             Testar grátis

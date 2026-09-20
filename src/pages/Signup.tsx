@@ -122,11 +122,16 @@ export default function Signup() {
           <h1 className="text-xl font-semibold text-foreground mb-2">
             Cadastro por convite
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             O VISAcheck GO está em teste fechado no momento. Para se cadastrar,
-            você precisa de um link de convite. Entre em contato para
-            solicitar o seu.
+            você precisa de um link de convite.
           </p>
+          <a
+            href="mailto:visacheck.go@gmail.com?subject=Quero%20um%20convite%20para%20testar%20o%20VISAcheck%20GO"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
+          >
+            Solicitar convite
+          </a>
         </div>
       </div>
     );

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { MarketingNavbar } from "@/components/marketing/MarketingNavbar";
@@ -84,7 +84,7 @@ export default function Home() {
           </p>
           <div className="flex flex-wrap items-center gap-4">
             <Link
-              to="/login"
+              to="/signup"
               className="inline-flex items-center rounded-full bg-[#22C79A] text-[#04342C] px-7 py-3.5 font-medium hover:bg-[#1DB88C] transition-colors"
             >
               Testar grátis
@@ -209,7 +209,7 @@ export default function Home() {
             troca de feedback direto sobre o produto.
           </p>
           <Link
-            to="/login"
+            to="/signup"
             className="inline-flex items-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-8 py-3.5 font-medium hover:bg-[#153A63] transition-colors"
           >
             Testar grátis

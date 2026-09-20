@@ -39,7 +39,7 @@ export function MarketingNavbar() {
             ENTRAR
           </Link>
           <Link
-            to="/login"
+            to="/signup"
             className="inline-flex items-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-5 py-2.5 text-sm font-medium hover:bg-[#153A63] transition-colors"
           >
             Testar grátis
@@ -82,7 +82,7 @@ export function MarketingNavbar() {
             ENTRAR
           </Link>
           <Link
-            to="/login"
+            to="/signup"
             onClick={() => setOpen(false)}
             className="inline-flex items-center justify-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-5 py-2.5 text-sm font-medium"
           >
