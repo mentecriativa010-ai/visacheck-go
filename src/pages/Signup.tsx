@@ -19,6 +19,7 @@ function formatCNPJ(value: string) {
 export default function Signup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [emailConviteCopiado, setEmailConviteCopiado] = useState(false);
   const conviteToken = searchParams.get("convite") ?? "";
   const [tab, setTab] = useState<"profissional" | "empresa">("profissional");
   const [loading, setLoading] = useState(false);
@@ -132,6 +133,22 @@ export default function Signup() {
           >
             Solicitar convite
           </a>
+          <p className="text-xs text-muted-foreground mt-3">
+            Se não abrir seu e-mail automaticamente, escreva pra{" "}
+            <span className="font-medium text-foreground">visacheck.go@gmail.com</span>
+            {" "}—{" "}
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText("visacheck.go@gmail.com");
+                setEmailConviteCopiado(true);
+                setTimeout(() => setEmailConviteCopiado(false), 2000);
+              }}
+              className="underline text-primary"
+            >
+              {emailConviteCopiado ? "copiado!" : "copiar e-mail"}
+            </button>
+          </p>
         </div>
       </div>
     );
