@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { SEO } from "@/components/seo/SEO";
 import { MarketingNavbar } from "@/components/marketing/MarketingNavbar";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
@@ -23,7 +23,7 @@ export default function ComingSoon({ title, seoDescription }: ComingSoonProps) {
             pode testar o VISAcheck GO gratuitamente.
           </p>
           <Link
-            to="/login"
+            to="/signup"
             className="inline-flex items-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-7 py-3.5 font-medium hover:bg-[#153A63] transition-colors"
           >
             Testar grátis

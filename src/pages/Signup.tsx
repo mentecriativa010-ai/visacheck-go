@@ -19,6 +19,7 @@ function formatCNPJ(value: string) {
 export default function Signup() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const [emailConviteCopiado, setEmailConviteCopiado] = useState(false);
   const conviteToken = searchParams.get("convite") ?? "";
   const [tab, setTab] = useState<"profissional" | "empresa">("profissional");
   const [loading, setLoading] = useState(false);
@@ -122,10 +123,31 @@ export default function Signup() {
           <h1 className="text-xl font-semibold text-foreground mb-2">
             Cadastro por convite
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground mb-4">
             O VISAcheck GO está em teste fechado no momento. Para se cadastrar,
-            você precisa de um link de convite. Entre em contato para
-            solicitar o seu.
+            você precisa de um link de convite.
+          </p>
+          <a
+            href="mailto:visacheck.go@gmail.com?subject=Quero%20um%20convite%20para%20testar%20o%20VISAcheck%20GO"
+            className="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-white hover:opacity-90 transition"
+          >
+            Solicitar convite
+          </a>
+          <p className="text-xs text-muted-foreground mt-3">
+            Se não abrir seu e-mail automaticamente, escreva pra{" "}
+            <span className="font-medium text-foreground">visacheck.go@gmail.com</span>
+            {" "}—{" "}
+            <button
+              type="button"
+              onClick={() => {
+                navigator.clipboard.writeText("visacheck.go@gmail.com");
+                setEmailConviteCopiado(true);
+                setTimeout(() => setEmailConviteCopiado(false), 2000);
+              }}
+              className="underline text-primary"
+            >
+              {emailConviteCopiado ? "copiado!" : "copiar e-mail"}
+            </button>
           </p>
         </div>
       </div>

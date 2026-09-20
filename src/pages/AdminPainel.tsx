@@ -197,6 +197,14 @@ export default function AdminPainel() {
       .catch(() => setErroLogin('Senha incorreta.'));
   }
 
+  function handleLogout() {
+    sessionStorage.removeItem(CHAVE_SESSAO);
+    setSenha('');
+    setSenhaDigitada('');
+    setAutenticado(false);
+    setStats(null);
+  }
+
   async function handleBuscar(e: React.FormEvent) {
     e.preventDefault();
     if (termoBusca.trim().length < 2) return;
@@ -281,9 +289,17 @@ export default function AdminPainel() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 px-6 py-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-xl font-semibold text-[#1E3A5F] dark:text-white mb-6">
-          Painel administrativo
-        </h1>
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-[#1E3A5F] dark:text-white">
+            Painel administrativo
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="text-sm font-medium text-red-600 hover:text-red-700 underline"
+          >
+            LOGOUT
+          </button>
+        </div>
 
         {/* Estatísticas */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
