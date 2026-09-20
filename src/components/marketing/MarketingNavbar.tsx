@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useState } from "react";
 
 const navLinks = [
@@ -31,7 +31,13 @@ export function MarketingNavbar() {
           ))}
         </div>
 
-        <div className="hidden md:block">
+        <div className="hidden md:flex items-center gap-4">
+          <Link
+            to="/login"
+            className="text-sm font-medium text-[#0F2A4A] hover:text-[#0F2A4A]/70 transition-colors"
+          >
+            ENTRAR
+          </Link>
           <Link
             to="/login"
             className="inline-flex items-center rounded-full bg-[#0F2A4A] text-[#F7F4EC] px-5 py-2.5 text-sm font-medium hover:bg-[#153A63] transition-colors"
@@ -68,6 +74,13 @@ export function MarketingNavbar() {
               {link.label}
             </Link>
           ))}
+          <Link
+            to="/login"
+            onClick={() => setOpen(false)}
+            className="text-sm font-medium text-[#0F2A4A]"
+          >
+            ENTRAR
+          </Link>
           <Link
             to="/login"
             onClick={() => setOpen(false)}
