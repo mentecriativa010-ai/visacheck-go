@@ -164,6 +164,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ sucesso: true });
     }
 
+    // ---------- Renovar convite (mais 7 dias a partir de agora) ----------
+    if (action === 'renovar-convite') {
+      const { id } = req.body;
+      if (!id) {
+        return res.status(400).json({ erro: 'id é obrigatório.' });
+      }
+
+      const expiraEm = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+      const { data, error } = await supabaseAdmin
+        .from('convites')
+        .update({ expira_em: expiraEm })
+        .eq('id', id)
+        .select('id, nome, email, token, criado_em, expira_em, usado')
+        .single();
+
+      if (error) throw error;
+
+      return res.status(200).json({ convite: data });
+    }
+
     return res.status(400).json({ erro: 'Ação inválida.' });
   } catch (erro: any) {
     console.error('Erro no endpoint admin:', erro);

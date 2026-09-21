@@ -84,6 +84,7 @@ export default function AdminPainel() {
   const [mensagemConvite, setMensagemConvite] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
   const [linkCopiado, setLinkCopiado] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [renovandoId, setRenovandoId] = useState<string | null>(null);
 
   const carregarStats = useCallback(async (senhaAtual: string) => {
     setCarregandoStats(true);
@@ -167,6 +168,24 @@ export default function AdminPainel() {
       setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao excluir convite.' });
     } finally {
       setExcluindoId(null);
+    }
+  }
+
+  async function renovarConvite(c: Convite) {
+    setRenovandoId(c.id);
+    try {
+      const dados = await chamarApiAdmin('renovar-convite', senha, {
+        method: 'POST',
+        body: JSON.stringify({ id: c.id }),
+      });
+      setConvites((atual) =>
+        atual.map((item) => (item.id === c.id ? dados.convite : item))
+      );
+      setMensagemConvite({ tipo: 'sucesso', texto: 'Convite renovado por mais 7 dias.' });
+    } catch (erro: any) {
+      setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao renovar convite.' });
+    } finally {
+      setRenovandoId(null);
     }
   }
    useEffect(() => {
@@ -518,6 +537,15 @@ export default function AdminPainel() {
                     >
                       {linkCopiado === c.token ? 'Copiado!' : 'Copiar link'}
                     </button>
+                    {expirado && (
+                      <button
+                        onClick={() => renovarConvite(c)}
+                        disabled={renovandoId === c.id}
+                        className="text-sm text-green-600 underline disabled:opacity-40"
+                      >
+                        {renovandoId === c.id ? 'Renovando…' : 'Renovar'}
+                      </button>
+                    )}
                     <button
                       onClick={() => excluirConvite(c)}
                       disabled={excluindoId === c.id}
