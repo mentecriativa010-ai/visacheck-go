@@ -86,7 +86,12 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial, pdfB
   // seta" (alem do arco de quarto de circulo) - projeto real (CClínica Brasil/Goiás) usava esse
   // estilo e a IA nao reconheceu como indicacao de porta de giro, mantendo NBR9050-017 como
   // pendencia mesmo com a cota e o simbolo presentes no desenho
-  const base = "v13\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
+  // v14: prompt agora explica que multiplos "Box" com divisoria parcial no mesmo ambiente
+  // configuram Consultorio Coletivo (nao consultorios individuais) - projeto real (CClínica
+  // Brasil/Goiás) tinha 4 boxes de 6,00-6,30m² com divisoria de vidro h=1,80m, e a IA marcou
+  // nao_existe pra RDC1002-019/020/021 por entender "coletivo" como "sem nenhuma divisoria",
+  // exatamente o sentido invertido do que a norma define
+  const base = "v14\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -235,7 +240,15 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
     "laboratorio separado.\n" +
     "- Se o projeto nao tem um ambiente claramente identificado como \"Laboratorio de Protese\" (nomeado assim na " +
     "planta ou no memorial), marque essas regras como nao_aplicavel com motivo_na \"nao_existe\" - nunca como " +
-    "nao_conforme por comparacao com outro ambiente que exista mas nao seja o laboratorio.\n\n" +
+    "nao_conforme por comparacao com outro ambiente que exista mas nao seja o laboratorio.\n" +
+    "- CUIDADO COM O SENTIDO INVERSO NESTE PROXIMO CASO: multiplos \"boxes\" ou postos de atendimento numerados " +
+    "(Box 1, Box 2...) dentro do MESMO ambiente/sala compartilhada, separados apenas por divisoria PARCIAL (nao " +
+    "vai ate o teto - biombo, vidro, painel com altura definida tipo 1,80m ou 2,0m), SAO um Consultorio " +
+    "Odontologico Coletivo, mesmo que cada box tenha area calculada e numeracao propria. Divisoria parcial entre " +
+    "boxes NAO significa consultorios individuais separados - e exatamente a configuracao que a norma chama de " +
+    "\"coletivo\". So considere consultorio individual quando for uma sala fechada com parede ate o teto e porta " +
+    "propria. Ao identificar boxes nessa configuracao, aplique as regras de Consultorio Coletivo comparando a " +
+    "area de CADA box e a altura da divisoria contra os minimos exigidos, em vez de marcar nao_existe.\n\n" +
     "INSTRUCOES GERAIS:\n" +
     "- Seja consistente e literal: baseie-se apenas no que esta explicitamente escrito nos textos fornecidos, sem " +
     "suposicoes ou inferencias alem do que foi informado\n" +
