@@ -82,7 +82,11 @@ function calcularHashAnalise(textoPDF, tipoAmbiente, regras, textoMemorial, pdfB
   // Dentaria" sao ambientes diferentes - a IA ocasionalmente (visto em ~1 de 5 execucoes)
   // confundia os dois e reprovava a Sala de DM por nao ter decantacao de gesso, arquivo de
   // requisicoes etc., exigencias que sao exclusivas de um laboratorio dedicado
-  const base = "v12\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
+  // v13: instrucao de leitura visual de porta agora descreve tambem o simbolo de "linha reta +
+  // seta" (alem do arco de quarto de circulo) - projeto real (CClínica Brasil/Goiás) usava esse
+  // estilo e a IA nao reconheceu como indicacao de porta de giro, mantendo NBR9050-017 como
+  // pendencia mesmo com a cota e o simbolo presentes no desenho
+  const base = "v13\n" + tipoAmbiente + "\n---REGRAS---\n" + regrasOrdenadas + "\n---PDF---\n" + textoConsiderado + "\n---MEMORIAL---\n" + memorialConsiderado + "\n---PDFVISUAL---\n" + pdfVisualConsiderado;
   return crypto.createHash("sha256").update(base).digest("hex");
 }
 
@@ -167,10 +171,14 @@ async function analisarLote(apiKey, textoPDF, tipoAmbiente, regras, numeroLote, 
       "voce recebeu o arquivo PDF original da prancha anexado nesta mensagem, com visao sobre o desenho tecnico " +
       "completo.\n" +
       "- Use a visao sobre o PDF para verificar detalhes que so aparecem graficamente, nao no texto extraido: tipo " +
-      "de abertura de porta (arco de batente = porta de giro; sem arco/com trilho = porta de correr) e a direcao " +
-      "do batente; presenca de tela/protecao contra vetores em aberturas externas; cotas de rampas, larguras e " +
-      "outras medidas desenhadas mas nao escritas como texto; simbolos de instalacao hidraulica/eletrica (pontos " +
-      "de agua, registros, tomadas) proximos a moveis e equipamentos.\n" +
+      "de abertura de porta e a direcao do batente (portas de giro podem ser desenhadas de formas diferentes " +
+      "dependendo do escritorio/software: como um arco de quarto de circulo saindo do batente, OU como uma linha " +
+      "reta simples com uma pequena seta na ponta indicando o sentido de abertura - repare no sentido da seta ou " +
+      "do arco em relacao a parede pra saber se abre pra dentro ou pra fora do ambiente; ausencia de arco/seta " +
+      "e presenca de trilho/friso paralelo a parede geralmente indica porta de correr); presenca de " +
+      "tela/protecao contra vetores em aberturas externas; cotas de rampas, larguras e outras medidas desenhadas " +
+      "mas nao escritas como texto; simbolos de instalacao hidraulica/eletrica (pontos de agua, registros, " +
+      "tomadas) proximos a moveis e equipamentos.\n" +
       "- Ao usar uma informacao lida visualmente do PDF que nao aparece no texto extraido, diga isso na " +
       "justificativa (ex: \"Desenho mostra arco de abertura de porta indicando porta de giro, nao correr\"), pra " +
       "deixar claro que veio da leitura do desenho.\n" +
