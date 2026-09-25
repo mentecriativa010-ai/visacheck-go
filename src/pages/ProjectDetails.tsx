@@ -447,7 +447,7 @@ export default function ProjectDetails() {
       }
 
       desenharRodapes();
-      doc.save(`VISAcheck_${projeto.nome_projeto.replace(/\s+/g, "_")}.pdf`);
+      doc.save(`Relatório_${projeto.nome_projeto.replace(/\s+/g, "_")}.pdf`);
     } finally {
       setExportando(false);
     }
