@@ -185,6 +185,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({ convite: data });
     }
 
+    // ---------- Criar conta de teste (login direto, sem link de convite) ----------
+    if (action === 'criar-conta-teste') {
+      const { nome, creaCau, email, senha } = req.body;
+
+      if (!nome || !creaCau || !email || !senha) {
+        return res.status(400).json({ erro: 'Preencha nome, CAU/CREA, e-mail e senha.' });
+      }
+      if (String(senha).length < 6) {
+        return res.status(400).json({ erro: 'A senha precisa ter pelo menos 6 caracteres.' });
+      }
+
+      // O cadastro exige um convite válido (trigger no banco). Como esta conta
+      // é criada direto pelo admin, geramos um convite já marcado como usado
+      // só pra satisfazer essa checagem — não é enviado a ninguém.
+      const expiraEm = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data: convite, error: erroConvite } = await supabaseAdmin
+        .from('convites')
+        .insert({ nome, email, expira_em: expiraEm, usado: true })
+        .select('token')
+        .single();
+
+      if (erroConvite) throw erroConvite;
+
+      const { error: erroUser } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password: senha,
+        email_confirm: true,
+        user_metadata: {
+          tipo_usuario: 'profissional',
+          nome,
+          crea_cau: creaCau,
+          consentimento_lgpd: true,
+          consentimento_lgpd_data: new Date().toISOString(),
+          consentimento_lgpd_versao: '2026-06-29',
+          convite_token: convite.token,
+        },
+      });
+
+      if (erroUser) throw erroUser;
+
+      return res.status(200).json({ sucesso: true, email, senha });
+    }
+
     return res.status(400).json({ erro: 'Ação inválida.' });
   } catch (erro: any) {
     console.error('Erro no endpoint admin:', erro);

@@ -86,6 +86,13 @@ export default function AdminPainel() {
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [renovandoId, setRenovandoId] = useState<string | null>(null);
 
+  const [testeNome, setTesteNome] = useState('');
+  const [testeCau, setTesteCau] = useState('');
+  const [testeEmail, setTesteEmail] = useState('');
+  const [testeSenha, setTesteSenha] = useState('');
+  const [criandoConta, setCriandoConta] = useState(false);
+  const [mensagemConta, setMensagemConta] = useState<{ tipo: 'sucesso' | 'erro'; texto: string } | null>(null);
+
   const carregarStats = useCallback(async (senhaAtual: string) => {
     setCarregandoStats(true);
     try {
@@ -186,6 +193,35 @@ export default function AdminPainel() {
       setMensagemConvite({ tipo: 'erro', texto: erro.message || 'Erro ao renovar convite.' });
     } finally {
       setRenovandoId(null);
+    }
+  }
+
+  async function handleCriarContaTeste(e: React.FormEvent) {
+    e.preventDefault();
+    setCriandoConta(true);
+    setMensagemConta(null);
+    try {
+      await chamarApiAdmin('criar-conta-teste', senha, {
+        method: 'POST',
+        body: JSON.stringify({
+          nome: testeNome.trim(),
+          creaCau: testeCau.trim(),
+          email: testeEmail.trim(),
+          senha: testeSenha,
+        }),
+      });
+      setMensagemConta({
+        tipo: 'sucesso',
+        texto: `Conta criada — entre em /login com ${testeEmail.trim()} e a senha que você definiu.`,
+      });
+      setTesteNome('');
+      setTesteCau('');
+      setTesteEmail('');
+      setTesteSenha('');
+    } catch (erro: any) {
+      setMensagemConta({ tipo: 'erro', texto: erro.message || 'Erro ao criar conta de teste.' });
+    } finally {
+      setCriandoConta(false);
     }
   }
    useEffect(() => {
@@ -563,6 +599,69 @@ export default function AdminPainel() {
               </p>
             )}
           </div>
+        </div>
+
+        {/* Conta de teste, sem link de convite */}
+        <div className="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-5 mt-8">
+          <h2 className="text-sm font-semibold text-[#1E3A5F] dark:text-white mb-3">
+            Criar conta de teste (login direto, sem convite)
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
+            Cria uma conta "profissional" com os dados que você preencher, já confirmada — pra você
+            entrar em /login com essas credenciais e testar o app sem usar uma conta real.
+          </p>
+
+          <form onSubmit={handleCriarContaTeste} className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+            <input
+              type="text"
+              value={testeNome}
+              onChange={(e) => setTesteNome(e.target.value)}
+              placeholder="Nome"
+              required
+              className="rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <input
+              type="text"
+              value={testeCau}
+              onChange={(e) => setTesteCau(e.target.value)}
+              placeholder="CAU/CREA (pode ser fictício)"
+              required
+              className="rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <input
+              type="email"
+              value={testeEmail}
+              onChange={(e) => setTesteEmail(e.target.value)}
+              placeholder="E-mail"
+              required
+              className="rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <input
+              type="text"
+              value={testeSenha}
+              onChange={(e) => setTesteSenha(e.target.value)}
+              placeholder="Senha (mín. 6 caracteres)"
+              required
+              className="rounded-md border border-slate-300 dark:border-slate-600 bg-transparent px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]"
+            />
+            <button
+              type="submit"
+              disabled={criandoConta}
+              className="sm:col-span-2 rounded-md bg-[#1E3A5F] text-white text-sm font-medium px-4 py-2 hover:opacity-90 transition disabled:opacity-50"
+            >
+              {criandoConta ? 'Criando…' : 'Criar conta de teste'}
+            </button>
+          </form>
+
+          {mensagemConta && (
+            <p
+              className={`text-sm ${
+                mensagemConta.tipo === 'sucesso' ? 'text-green-600' : 'text-red-600'
+              }`}
+            >
+              {mensagemConta.texto}
+            </p>
+          )}
         </div>
       </div>
     </div>
