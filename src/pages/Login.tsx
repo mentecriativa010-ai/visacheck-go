@@ -153,7 +153,7 @@ const { error: signInError } = await supabase.auth.signInWithPassword({
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md px-6 z-10">
+      <div className="w-full max-w-md px-4 sm:px-6 z-10">
         <div className="flex items-center justify-center gap-3 mb-10">
           <ShieldCheck className="w-8 h-8 text-primary" />
           <span className="text-2xl font-semibold tracking-tight text-foreground">
@@ -161,7 +161,7 @@ const { error: signInError } = await supabase.auth.signInWithPassword({
           </span>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-8 shadow-xl">
+        <div className="bg-card border border-border rounded-xl p-6 sm:p-8 shadow-xl">
           <h1 className="text-xl font-semibold text-center mb-6">
             Acesse sua conta
           </h1>
@@ -284,7 +284,7 @@ const { error: signInError } = await supabase.auth.signInWithPassword({
       </div>
 
       <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md">
           <DialogHeader>
             <DialogTitle >Redefinir senha</DialogTitle>
             <DialogDescription>
@@ -330,7 +330,7 @@ const { error: signInError } = await supabase.auth.signInWithPassword({
       </Dialog>
 
       <Dialog open={fallbackOpen} onOpenChange={setFallbackOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Acesso por email</DialogTitle>
             <DialogDescription>
