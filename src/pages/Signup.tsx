@@ -117,8 +117,8 @@ export default function Signup() {
   // para não deixar a pessoa preencher o formulário à toa.
   if (!conviteToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <div className="w-full max-w-md bg-card border border-border rounded-xl p-8 shadow-xl text-center">
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 sm:px-6">
+        <div className="w-full max-w-md bg-card border border-border rounded-xl p-6 sm:p-8 shadow-xl text-center">
           <ShieldCheck className="w-8 h-8 text-primary mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-foreground mb-2">
             Cadastro por convite
@@ -161,7 +161,7 @@ export default function Signup() {
         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-3xl" />
       </div>
 
-      <div className="w-full max-w-md px-6 z-10">
+      <div className="w-full max-w-md px-4 sm:px-6 z-10">
         <div className="flex items-center justify-center gap-3 mb-8">
           <ShieldCheck className="w-8 h-8 text-primary" />
           <span className="text-2xl font-semibold tracking-tight text-foreground">
@@ -169,7 +169,7 @@ export default function Signup() {
           </span>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-8 shadow-xl">
+        <div className="bg-card border border-border rounded-xl p-6 sm:p-8 shadow-xl">
           <h1 className="text-xl font-semibold text-center mb-6">
             Criar sua conta
           </h1>
