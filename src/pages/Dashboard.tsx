@@ -15,6 +15,7 @@ import {
 import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, Plus, CheckCircle2, Clock,
   Search, Loader2, AlertCircle, FileText, HelpCircle, Info, Trash2, RefreshCw, User,
+  Menu, X,
 } from "lucide-react";
 
 interface Projeto {
@@ -46,6 +47,7 @@ function getStatusEfetivo(proj: Projeto): Projeto["status"] {
 export default function Dashboard() {
    const navigate = useNavigate();
   const { collapsed, toggleSidebar } = useSidebar();
+  const [sidebarMobileAberta, setSidebarMobileAberta] = useState(false);
   const [activeTab, setActiveTab] = useState<"dashboard" | "projetos" | "normas">("dashboard");
   const [userName, setUserName] = useState("Usuário");
   const [loadingUser, setLoadingUser] = useState(true);
@@ -297,16 +299,25 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
-        <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-primary" />
-          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
+      {sidebarMobileAberta && (
+        <div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />
+      )}
+
+      <aside className={`w-64 border-r border-border bg-card flex flex-col fixed h-full z-30 transition-transform duration-200 ${sidebarMobileAberta ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+        <div className="p-6 border-b border-border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <ShieldCheck className="w-6 h-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
+          </div>
+          <button onClick={() => setSidebarMobileAberta(false)} className="lg:hidden text-muted-foreground hover:text-foreground" aria-label="Fechar menu">
+            <X className="w-5 h-5" />
+          </button>
         </div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
-          <button onClick={() => setActiveTab("dashboard")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Home className="w-4 h-4" />Dashboard</button>
-          <button onClick={() => setActiveTab("projetos")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
-          <button onClick={() => setActiveTab("normas")} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
-          <button onClick={() => navigate("/minha-conta")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><User className="w-4 h-4" />Minha Conta</button>
+          <button onClick={() => { setActiveTab("dashboard"); setSidebarMobileAberta(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "dashboard" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Home className="w-4 h-4" />Dashboard</button>
+          <button onClick={() => { setActiveTab("projetos"); setSidebarMobileAberta(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "projetos" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><Folder className="w-4 h-4" />Meus Projetos</button>
+          <button onClick={() => { setActiveTab("normas"); setSidebarMobileAberta(false); }} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === "normas" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}><BookOpen className="w-4 h-4" />Base de Normas</button>
+          <button onClick={() => { setSidebarMobileAberta(false); navigate("/minha-conta"); }} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><User className="w-4 h-4" />Minha Conta</button>
         </nav>
           <div className="p-4 border-t border-border space-y-3">
           <div className="flex items-center justify-between px-2">
@@ -317,18 +328,23 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-card py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-          <div>
-            <h1 className="text-xl font-semibold text-foreground">{loadingUser ? <span className="h-6 w-32 bg-muted animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
-            <p className="text-xs text-muted-foreground mt-0.5">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
+      <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
+        <header className="border-b border-border bg-card py-4 px-4 sm:py-5 sm:px-8 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1" aria-label="Abrir menu">
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">{loadingUser ? <span className="h-6 w-32 bg-muted animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
+              <p className="text-xs text-muted-foreground mt-0.5">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
+            </div>
           </div>
-          <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary-hover text-primary-foreground shadow-sm">
+          <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary-hover text-primary-foreground shadow-sm w-full sm:w-auto">
             <Plus className="w-4 h-4" />Novo Projeto
           </Button>
         </header>
 
-        <div className="flex-1 p-8 space-y-8 max-w-7xl w-full mx-auto">
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 space-y-8 max-w-7xl w-full mx-auto">
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
               { label: "Total de Projetos", value: totalProjetos, icon: <Folder className="w-5 h-5" />, bg: "bg-muted text-primary" },
@@ -366,8 +382,8 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   <BarraAcoes />
-                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-border bg-muted/50">
                           <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosRecentes.length > 0 && projetosRecentes.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosRecentes)} /></th>
@@ -404,7 +420,7 @@ export default function Dashboard() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Pesquisar pelo nome..." value={filtroNomeProjeto} onChange={(e) => setFiltroNomeProjeto(e.target.value)} className="pl-9" />
                   </div>
-                  <select value={filtroStatusProjeto} onChange={(e) => setFiltroStatusProjeto(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                  <select value={filtroStatusProjeto} onChange={(e) => setFiltroStatusProjeto(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-base md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todos">Todos os Status</option>
                     <option value="aprovado">Aprovado</option>
                     <option value="analisando">Em ANÁLISE</option>
@@ -425,8 +441,8 @@ export default function Dashboard() {
               ) : (
                 <div className="space-y-3">
                   <BarraAcoes />
-                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
-                    <table className="w-full text-left border-collapse">
+                  <div className="bg-card border border-border rounded-xl shadow-sm overflow-x-auto">
+                    <table className="w-full min-w-[720px] text-left border-collapse">
                       <thead>
                         <tr className="border-b border-border bg-muted/50">
                           <th className="px-4 py-4 w-10"><input type="checkbox" className="w-4 h-4 rounded border-border cursor-pointer" checked={projetosFiltrados.length > 0 && projetosFiltrados.every(p => projetosSelecionados.includes(p.id))} onChange={() => toggleTodos(projetosFiltrados)} /></th>
@@ -475,7 +491,7 @@ export default function Dashboard() {
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input placeholder="Buscar regra..." value={filtroBuscaRegra} onChange={(e) => setFiltroBuscaRegra(e.target.value)} className="pl-9" />
                   </div>
-                  <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+                  <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-base md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todas">Todas as Normas</option>
                     {normasDisponiveis.map((n) => (<option key={n} value={n}>{n}</option>))}
                   </select>
@@ -512,7 +528,7 @@ export default function Dashboard() {
 
       {/* MODAL NOVO PROJETO */}
       <Dialog open={novoProjetoOpen} onOpenChange={setNovoProjetoOpen}>
-        <DialogContent className="sm:max-w-md bg-card">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-card">
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2"><FileText className="w-5 h-5" />Novo Diagnóstico Regulatório</DialogTitle>
             <DialogDescription>Insira os dados do projeto para iniciar a ANÁLISE automatizada.</DialogDescription>
@@ -524,7 +540,7 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="establishment-type">Tipo de Estabelecimento</Label>
-              <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
+              <select id="establishment-type" value={tipoEstabelecimento} onChange={(e) => setTipoEstabelecimento(e.target.value)} className="w-full h-9 px-3 rounded-md border border-input bg-transparent text-base md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                 <option value="Hospital Geral">Hospital Geral</option>
                 <option value="Clínica Médica">Clínica Médica / Ambulatório</option>
                 <option value="Consultório">Consultório Individual</option>
@@ -556,7 +572,7 @@ export default function Dashboard() {
 
       {/* MODAL RE-ANÁLISE */}
       <Dialog open={reanaliseOpen} onOpenChange={(open) => { if (!reanalisando) setReanaliseOpen(open); }}>
-        <DialogContent className="sm:max-w-md bg-card">
+        <DialogContent className="w-[calc(100%-2rem)] sm:w-full sm:max-w-md bg-card">
           <DialogHeader>
             <DialogTitle className="text-primary flex items-center gap-2">
               <RefreshCw className="w-5 h-5" />Re-Análise do Projeto
