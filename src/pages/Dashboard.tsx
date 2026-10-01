@@ -298,7 +298,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
       {sidebarMobileAberta && (
         <div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />
       )}
@@ -330,13 +330,13 @@ export default function Dashboard() {
 
       <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
         <header className="border-b border-border bg-card py-4 px-4 sm:py-5 sm:px-8 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1" aria-label="Abrir menu">
+          <div className="flex items-center gap-3 min-w-0">
+            <button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1 shrink-0" aria-label="Abrir menu">
               <Menu className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="text-xl font-semibold text-foreground">{loadingUser ? <span className="h-6 w-32 bg-muted animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold text-foreground truncate">{loadingUser ? <span className="h-6 w-32 bg-muted animate-pulse rounded block" /> : `Olá, ${userName}`}</h1>
+              <p className="text-xs text-muted-foreground mt-0.5 break-words">Seja bem-vindo ao portal de diagnósticos do VISAcheck GO.</p>
             </div>
           </div>
           <Button onClick={() => navigate("/analise")} className="gap-2 bg-primary hover:bg-primary-hover text-primary-foreground shadow-sm w-full sm:w-auto">
