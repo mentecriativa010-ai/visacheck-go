@@ -48,6 +48,15 @@ export default function Dashboard() {
    const navigate = useNavigate();
   const { collapsed, toggleSidebar } = useSidebar();
   const [sidebarMobileAberta, setSidebarMobileAberta] = useState(false);
+  const [debugLargura, setDebugLargura] = useState("");
+  useEffect(() => {
+    const medir = () => {
+      setDebugLargura(`scrollWidth(html)=${document.documentElement.scrollWidth} scrollWidth(body)=${document.body.scrollWidth} innerWidth=${window.innerWidth}`);
+    };
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
   const [activeTab, setActiveTab] = useState<"dashboard" | "projetos" | "normas">("dashboard");
   const [userName, setUserName] = useState("Usuário");
   const [loadingUser, setLoadingUser] = useState(true);
@@ -299,6 +308,9 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 99999, background: "red", color: "white", fontSize: 11, padding: "4px", textAlign: "center", fontFamily: "monospace" }}>
+        {debugLargura}
+      </div>
       {sidebarMobileAberta && (
         <div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />
       )}
