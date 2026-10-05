@@ -12,7 +12,7 @@ import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, ArrowLeft,
   Loader2, AlertTriangle, CheckCircle, AlertOctagon, Info,
   FileText, Download, ClipboardList, BarChart2, RefreshCw,
-  ChevronDown, ChevronRight,
+  ChevronDown, ChevronRight, Menu, X,
 } from "lucide-react";
 
 interface Projeto {
@@ -58,6 +58,7 @@ interface Pendencia {
 
 export default function ProjectDetails() {
   const { id } = useParams<{ id: string }>();
+  const [sidebarMobileAberta, setSidebarMobileAberta] = useState(false);
   const navigate = useNavigate();
 
   const [projeto, setProjeto] = useState<Projeto | null>(null);
@@ -525,12 +526,13 @@ export default function ProjectDetails() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
-      <aside className="w-64 border-r border-border bg-card flex flex-col fixed h-full z-20">
-        <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-primary" />
-          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
-        </div>
+    <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
+      {sidebarMobileAberta && (<div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />)}
+      <aside className={`w-64 border-r border-border bg-card flex flex-col fixed h-full z-30 transition-transform duration-200 ${sidebarMobileAberta ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+        <div className="p-6 border-b border-border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span></div>
+        <button onClick={() => setSidebarMobileAberta(false)} className="lg:hidden text-muted-foreground hover:text-foreground" aria-label="Fechar menu"><X className="w-5 h-5" /></button></div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"><Home className="w-4 h-4" />Dashboard</button>
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 bg-primary/5 text-primary"><Folder className="w-4 h-4" />Meus Projetos</button>
@@ -545,12 +547,12 @@ export default function ProjectDetails() {
         </div>
       </aside>
 
-      <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-card py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-          <div className="flex items-center gap-4">
+      <main className="flex-1 min-w-0 lg:pl-64 min-h-screen flex flex-col">
+        <header className="border-b border-border bg-card py-4 px-4 sm:py-5 sm:px-8 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0"><button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1 shrink-0" aria-label="Abrir menu"><Menu className="w-5 h-5" /></button>
             <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg" onClick={() => navigate("/dashboard")}><ArrowLeft className="w-4 h-4" /></Button>
-            <div>
-              <div className="flex items-center gap-3">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-xl font-semibold text-foreground">
                   {loading ? <span className="h-6 w-48 bg-muted animate-pulse rounded block" /> : projeto?.nome_projeto}
                 </h1>
@@ -562,7 +564,7 @@ export default function ProjectDetails() {
             </div>
           </div>
           {!loading && projeto && (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {temNaoConformidades && (
                 <Button onClick={() => setNovaAnaliseOpen(true)} disabled={rodarNovaAnalise} variant="outline" className="border-[#1E3A5F] text-primary hover:bg-primary/5 flex items-center gap-2 text-sm">
                   {rodarNovaAnalise ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
