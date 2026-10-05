@@ -11,12 +11,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   ShieldCheck, Home, Folder, BookOpen, LogOut, User, Download,
-  Trash2, AlertTriangle, CheckCircle2, ChevronRight, Shield,
+  Trash2, AlertTriangle, CheckCircle2, ChevronRight, Shield, Menu, X,
 } from "lucide-react";
 
 export default function MinhaConta() {
   const navigate = useNavigate();
   const [userName, setUserName] = useState("");
+  const [sidebarMobileAberta, setSidebarMobileAberta] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [tipoUsuario, setTipoUsuario] = useState("");
   const [consentimentoData, setConsentimentoData] = useState<string | null>(null);
@@ -157,14 +158,15 @@ export default function MinhaConta() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
+      {sidebarMobileAberta && (<div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />)}
 
       {/* Sidebar — mesmo padrão do Dashboard */}
-      <aside className="w-64 border-r border-border bg-white flex flex-col fixed h-full z-20">
-        <div className="p-6 border-b border-border flex items-center gap-3">
-          <ShieldCheck className="w-6 h-6 text-primary" />
-          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span>
-        </div>
+      <aside className={`w-64 border-r border-border bg-card flex flex-col fixed h-full z-30 transition-transform duration-200 ${sidebarMobileAberta ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+        <div className="p-6 border-b border-border flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><ShieldCheck className="w-6 h-6 text-primary" />
+          <span className="text-xl font-bold tracking-tight text-primary">VISAcheck GO</span></div>
+        <button onClick={() => setSidebarMobileAberta(false)} className="lg:hidden text-muted-foreground hover:text-foreground" aria-label="Fechar menu"><X className="w-5 h-5" /></button></div>
         <nav className="flex-1 px-4 py-6 space-y-1.5">
           <button onClick={() => navigate("/dashboard")} className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground">
             <Home className="w-4 h-4" />Dashboard
@@ -191,15 +193,15 @@ export default function MinhaConta() {
       </aside>
 
       {/* Conteúdo principal */}
-      <main className="flex-1 pl-64 min-h-screen flex flex-col">
-        <header className="border-b border-border bg-card py-5 px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
-          <div>
+      <main className="flex-1 min-w-0 lg:pl-64 min-h-screen flex flex-col">
+        <header className="border-b border-border bg-card py-4 px-4 sm:py-5 sm:px-8 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3 min-w-0"><button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1 shrink-0" aria-label="Abrir menu"><Menu className="w-5 h-5" /></button><div className="min-w-0">
             <h1 className="text-xl font-semibold text-foreground">Minha Conta</h1>
             <p className="text-xs text-muted-foreground mt-0.5">Gerencie seus dados pessoais e privacidade.</p>
-          </div>
+          </div></div>
         </header>
 
-        <div className="flex-1 p-8 space-y-6 max-w-3xl w-full">
+        <div className="flex-1 p-4 sm:p-8 space-y-6 max-w-3xl w-full">
 
           {/* Dados do usuário */}
           <section className="bg-card border border-border rounded-xl p-6 space-y-4">
