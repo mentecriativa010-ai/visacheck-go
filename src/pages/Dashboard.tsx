@@ -48,15 +48,6 @@ export default function Dashboard() {
    const navigate = useNavigate();
   const { collapsed, toggleSidebar } = useSidebar();
   const [sidebarMobileAberta, setSidebarMobileAberta] = useState(false);
-  const [debugLargura, setDebugLargura] = useState("");
-  useEffect(() => {
-    const medir = () => {
-      setDebugLargura(`scrollWidth(html)=${document.documentElement.scrollWidth} scrollWidth(body)=${document.body.scrollWidth} innerWidth=${window.innerWidth}`);
-    };
-    medir();
-    window.addEventListener("resize", medir);
-    return () => window.removeEventListener("resize", medir);
-  }, []);
   const [activeTab, setActiveTab] = useState<"dashboard" | "projetos" | "normas">("dashboard");
   const [userName, setUserName] = useState("Usuário");
   const [loadingUser, setLoadingUser] = useState(true);
@@ -308,9 +299,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 99999, background: "red", color: "white", fontSize: 11, padding: "4px", textAlign: "center", fontFamily: "monospace" }}>
-        {debugLargura}
-      </div>
       {sidebarMobileAberta && (
         <div className="fixed inset-0 bg-background/60 z-20 lg:hidden" onClick={() => setSidebarMobileAberta(false)} />
       )}
@@ -340,7 +328,7 @@ export default function Dashboard() {
         </div>
       </aside>
 
-      <main className="flex-1 lg:pl-64 min-h-screen flex flex-col">
+      <main className="flex-1 min-w-0 lg:pl-64 min-h-screen flex flex-col">
         <header className="border-b border-border bg-card py-4 px-4 sm:py-5 sm:px-8 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-center sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-3 min-w-0">
             <button onClick={() => setSidebarMobileAberta(true)} className="lg:hidden text-muted-foreground hover:text-foreground -ml-1 p-1 shrink-0" aria-label="Abrir menu">
