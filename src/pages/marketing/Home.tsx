@@ -105,11 +105,18 @@ export default function Home() {
       <section className="bg-[#0F2A4A] text-[#F7F4EC] py-16">
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-10">
           <div>
-            <p className="font-marketing-display text-3xl text-[#22C79A] mb-2">6 normas</p>
-            <p className="text-sm text-[#F7F4EC]/70 leading-relaxed">
-              RDC-50, NBR 9050, RDC-1002, RDC-07, RDC-15 e RDC-330 — cada uma
-              revisada item a item contra o texto oficial.
+            <p className="font-marketing-display text-3xl text-[#22C79A] mb-1">6 normas</p>
+            <p className="text-sm text-[#F7F4EC]/70 leading-relaxed mb-4">
+              Cada uma revisada item a item contra o texto oficial.
             </p>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+              {normas.map((norma) => (
+                <div key={norma.codigo}>
+                  <p className="font-mono-custom text-xs text-[#22C79A] mb-0.5">{norma.codigo}</p>
+                  <p className="text-xs text-[#F7F4EC]/70 leading-snug">{norma.tema}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <div>
             <p className="font-marketing-display text-3xl text-[#22C79A] mb-2">Minutos</p>
