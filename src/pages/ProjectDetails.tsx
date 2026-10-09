@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { rotuloNorma, nomeNorma, infoNorma } from "@/lib/normasInfo";
 import { MOTIVOS_NA_OCULTOS } from "@/lib/motivoNa";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -617,7 +618,7 @@ export default function ProjectDetails() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-border flex items-center gap-2 text-xs text-muted-foreground">
                     <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
-                    <span>{pareceres.length > 0 ? `Análise executada de acordo com: ${pareceres.map(p => p.norma).join(", ")}.` : "Análise executada de acordo com as normas da ANVISA e ABNT aplicáveis."}</span>
+                    <span>{pareceres.length > 0 ? `Análise executada de acordo com: ${pareceres.map(p => rotuloNorma(p.norma)).join("; ")}.` : "Análise executada de acordo com as normas da ANVISA e ABNT aplicáveis."}</span>
                   </div>
                 </div>
               </div>
@@ -665,7 +666,7 @@ export default function ProjectDetails() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <h2 className="text-base font-bold text-foreground">Não-Conformidades ({naoconformidades.length})</h2>
-                  <span className="text-xs text-muted-foreground font-medium">Regulamento: RDC 50/2002 e correlatas</span>
+                  <span className="text-xs text-muted-foreground font-medium">Regulamento: RDC-50/2002 (infraestrutura física de estabelecimentos de saúde) e correlatas</span>
                 </div>
                 {naoconformidades.length === 0 ? (
                   <div className="bg-card border border-border rounded-xl p-12 text-center shadow-sm">
@@ -692,7 +693,7 @@ export default function ProjectDetails() {
                           <div className="space-y-1">
                             <span className="text-xs font-mono font-bold text-muted-foreground">{nc.codigo}</span>
                             <h3 className="text-sm font-bold text-foreground">{nc.nome}</h3>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-muted border border-border px-2 py-0.5 rounded">Norma: {nc.norma}</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-primary tracking-wide uppercase bg-muted border border-border px-2 py-0.5 rounded">Norma: {rotuloNorma(nc.norma)}</span>
                           </div>
                           {getSeveridadeBadge(nc.severidade)}
                         </div>
@@ -728,7 +729,7 @@ export default function ProjectDetails() {
                           >
                             <div className="flex items-center gap-2">
                               {aberto ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronRight className="w-4 h-4 text-muted-foreground" />}
-                              <span className="text-[10px] font-bold text-primary tracking-wide uppercase bg-primary/10 px-2 py-0.5 rounded">{norma}</span>
+                              <span className="text-[10px] font-bold text-primary tracking-wide uppercase bg-primary/10 px-2 py-0.5 rounded">{rotuloNorma(norma)}</span>
                             </div>
                             <span className="text-xs font-semibold text-muted-foreground">{itens.length} item(ns)</span>
                           </button>
@@ -770,7 +771,7 @@ export default function ProjectDetails() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2">
                           <FileText className="w-4 h-4 text-primary flex-shrink-0" />
-                          <h3 className="text-sm font-bold text-foreground leading-tight">{p.norma}</h3>
+                          <div><h3 className="text-sm font-bold text-foreground leading-tight">{nomeNorma(p.norma)}</h3>{infoNorma(p.norma) && <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{infoNorma(p.norma)!.tema}</p>}</div>
                         </div>
                         {getRiscoBadge(p.risco)}
                       </div>

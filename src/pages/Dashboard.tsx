@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { rotuloNorma } from "@/lib/normasInfo";
 import { reanalisarProjeto } from "@/lib/reanalise";
 import { Button } from "@/components/ui/button";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -493,7 +494,7 @@ export default function Dashboard() {
                   </div>
                   <select value={filtroNorma} onChange={(e) => setFiltroNorma(e.target.value)} className="h-9 px-3 rounded-md border border-input bg-transparent text-base md:text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring">
                     <option value="todas">Todas as Normas</option>
-                    {normasDisponiveis.map((n) => (<option key={n} value={n}>{n}</option>))}
+                    {normasDisponiveis.map((n) => (<option key={n} value={n}>{rotuloNorma(n)}</option>))}
                   </select>
                 </div>
               </div>
@@ -510,7 +511,7 @@ export default function Dashboard() {
                     <div key={r.id} className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow duration-200">
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <div className="space-y-1">
-                          <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">{r.norma_origem}</span>
+                          <span className="text-[10px] font-bold text-primary tracking-wider uppercase bg-primary/5 px-2 py-0.5 rounded border border-primary/10">{rotuloNorma(r.norma_origem)}</span>
                           <span className="text-xs text-muted-foreground block font-mono">{r.codigo}</span>
                         </div>
                         <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-primary/10 text-primary border border-primary/20">{r.categoria}</span>
