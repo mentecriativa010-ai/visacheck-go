@@ -5,15 +5,9 @@ import { MarketingNavbar } from "@/components/marketing/MarketingNavbar";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { ComplianceScanVisual } from "@/components/marketing/ComplianceScanVisual";
 import { supabase } from "@/integrations/supabase/client";
+import { NORMAS } from "@/lib/normasInfo";
 
-const normas = [
-  { codigo: "RDC-50/2002", tema: "Infraestrutura física de estabelecimentos de saúde" },
-  { codigo: "NBR 9050:2020", tema: "Acessibilidade a edificações e espaços" },
-  { codigo: "RDC-1002/2025", tema: "Boas práticas em serviços odontológicos" },
-  { codigo: "RDC-07/2010", tema: "Unidades de Terapia Intensiva" },
-  { codigo: "RDC-15/2012", tema: "Processamento de produtos para saúde (CME)" },
-  { codigo: "RDC-330/2019", tema: "Serviços de radiologia diagnóstica" },
-];
+const normas = NORMAS.slice(0, 6); // as 6 normas citadas no site
 
 const passos = [
   {
@@ -78,10 +72,18 @@ export default function Home() {
           </h1>
           <p className="text-lg text-[#0F2A4A]/70 leading-relaxed mb-8 max-w-md">
             Verifique se o seu projeto de arquitetura de saúde está em
-            conformidade com RDC-50, NBR 9050 e outras normas da ANVISA{" "}
+            conformidade com as normas da ANVISA e da ABNT{" "}
             <em className="not-italic font-medium text-[#0F2A4A]">antes</em>{" "}
             de protocolar — não depois.
           </p>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-3 mb-8 max-w-lg">
+            {normas.map((norma) => (
+              <div key={norma.codigo}>
+                <p className="font-mono-custom text-xs text-[#0F2A4A] font-medium">{norma.codigo}</p>
+                <p className="text-xs text-[#0F2A4A]/70 leading-snug">{norma.tema}</p>
+              </div>
+            ))}
+          </div>
           <div className="flex flex-wrap items-center gap-4">
             <Link
               to="/signup"

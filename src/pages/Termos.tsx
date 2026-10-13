@@ -61,8 +61,8 @@ export default function Termos() {
           <Secao numero="1" titulo="Descrição do serviço">
             <p>
               O VISAcheck GO realiza diagnósticos automatizados de conformidade de projetos arquitetônicos
-              de estabelecimentos de saúde frente a normas selecionadas (como ABNT NBR 9050 e RDC ANVISA
-              50/2002), combinando regras pré-cadastradas com análise por inteligência artificial.
+              de estabelecimentos de saúde frente a normas selecionadas (como NBR 9050:2020, sobre acessibilidade a edificações e
+              espaços, e RDC-50/2002, sobre infraestrutura física de estabelecimentos de saúde), combinando regras pré-cadastradas com análise por inteligência artificial.
             </p>
           </Secao>
 

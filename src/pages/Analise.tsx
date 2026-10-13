@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { rotuloNorma } from "@/lib/normasInfo";
 import { analisarProjetoComIA } from "@/lib/openrouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -849,7 +850,7 @@ export default function Analise() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <span className="text-xs font-mono text-muted-foreground">{regra.codigo}</span>
                           {regra.norma_origem && (
-                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{regra.norma_origem}</span>
+                            <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{rotuloNorma(regra.norma_origem)}</span>
                           )}
                           {regra.obrigatorio && (
                             <span className="text-[10px] font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded">OBRIGATÓRIO</span>
@@ -960,7 +961,7 @@ export default function Analise() {
                     Fontes analisadas: {memorialUsado ? "projeto arquitetônico e memorial descritivo" : "apenas projeto arquitetônico"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Normas aplicadas: {[...new Set(regras.map(r => r.norma_origem).filter(Boolean))].sort().join(", ")}
+                    Normas aplicadas: {[...new Set(regras.map(r => r.norma_origem).filter(Boolean))].sort().map(rotuloNorma).join("; ")}
                   </p>
                   <div className="mt-4 flex gap-4 text-sm">
                     <div className="flex items-center gap-2 text-green-600"><CheckCircle className="w-4 h-4" /><span className="font-semibold">{totalConformes} conformes</span></div>
@@ -1028,7 +1029,7 @@ export default function Analise() {
                           <div>
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-xs font-mono text-muted-foreground">{nc.codigo}</span>
-                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{nc.norma_origem}</span>
+                              <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded">{rotuloNorma(nc.norma_origem)}</span>
                             </div>
                             <p className="text-sm text-foreground">{nc.descricao}</p>
                             {observacoes[nc.id] && <p className="text-xs text-muted-foreground mt-1 italic">"{observacoes[nc.id]}"</p>}
