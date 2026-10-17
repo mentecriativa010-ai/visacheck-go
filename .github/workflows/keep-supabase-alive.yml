@@ -1,0 +1,27 @@
+name: Manter Supabase ativo
+
+on:
+  schedule:
+    # Roda às 12:00 UTC (09:00 em Brasília), a cada 2 dias
+    - cron: "0 12 */2 * *"
+  # Permite rodar manualmente pela aba Actions (para testar)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Consultar o Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "$SUPABASE_URL/rest/v1/perfis?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY")
+          echo "Status HTTP: $STATUS"
+          if [ "$STATUS" -lt 200 ] || [ "$STATUS" -ge 300 ]; then
+            echo "Falha ao consultar o Supabase"
+            exit 1
+          fi
